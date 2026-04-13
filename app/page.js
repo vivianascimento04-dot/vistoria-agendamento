@@ -91,25 +91,26 @@ export default function Admin() {
   return (
     <main style={{minHeight:'100vh', background:'#f4f6fb', fontFamily:"'Segoe UI',sans-serif"}}>
 
-      {/* POPUP DE CONFIRMACAO */}
       {popup && (
-        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'1rem'}}>
-          <div style={{background:'#fff', borderRadius:'16px', padding:'2rem', maxWidth:'420px', width:'100%', boxShadow:'0 20px 60px rgba(0,0,0,0.2)'}}>
-            <div style={{width:'56px', height:'56px', background:'#fee2e2', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 1.25rem'}}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        <div onClick={() => setPopup(null)} style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.6)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem'}}>
+          <div onClick={e => e.stopPropagation()} style={{background:'#fff', borderRadius:'16px', padding:'2rem', maxWidth:'400px', width:'100%', boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
+            <div style={{width:'52px', height:'52px', background:'#fee2e2', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 1rem'}}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </div>
-            <h3 style={{fontFamily:'Georgia,serif', fontSize:'18px', fontWeight:'400', color:'#111', textAlign:'center', margin:'0 0 8px'}}>Cancelar agendamento?</h3>
-            <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0 0 1.5rem', lineHeight:'1.6'}}>
-              Voce esta prestes a cancelar o agendamento de <strong style={{color:'#111'}}>{popup.nome}</strong> para o dia <strong style={{color:'#1B2F7E'}}>{new Date(popup.data+'T12:00:00').toLocaleDateString('pt-BR')}</strong> as <strong style={{color:'#1B2F7E'}}>{popup.horario?.slice(0,5)}</strong>.
+            <h3 style={{fontSize:'17px', fontWeight:'700', color:'#111', textAlign:'center', margin:'0 0 8px'}}>Cancelar agendamento?</h3>
+            <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0 0 6px', lineHeight:'1.6'}}>Voce esta prestes a cancelar o agendamento de</p>
+            <p style={{fontSize:'14px', fontWeight:'700', color:'#1B2F7E', textAlign:'center', margin:'0 0 4px'}}>{popup.nome}</p>
+            <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0 0 1.25rem'}}>
+              {new Date(popup.data+'T12:00:00').toLocaleDateString('pt-BR')} as {popup.horario?.slice(0,5)}
             </p>
-            <div style={{background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'10px', padding:'12px 14px', marginBottom:'1.5rem', fontSize:'13px', color:'#dc2626', textAlign:'center', fontWeight:'600'}}>
-              Esta acao nao pode ser desfeita facilmente.
+            <div style={{background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'8px', padding:'10px', marginBottom:'1.25rem', fontSize:'12px', color:'#dc2626', textAlign:'center', fontWeight:'600'}}>
+              Esta acao nao podera ser desfeita facilmente
             </div>
             <div style={{display:'flex', gap:'10px'}}>
-              <button onClick={() => setPopup(null)} style={{flex:1, padding:'12px', background:'#fff', color:'#6b7280', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'14px', fontWeight:'600', cursor:'pointer'}}>
+              <button onClick={() => setPopup(null)} style={{flex:1, padding:'11px', background:'#fff', color:'#6b7280', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:'pointer'}}>
                 NAO, MANTER
               </button>
-              <button onClick={executarCancelamento} style={{flex:1, padding:'12px', background:'#dc2626', color:'#fff', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:'700', cursor:'pointer', letterSpacing:'0.03em'}}>
+              <button onClick={executarCancelamento} style={{flex:1, padding:'11px', background:'#dc2626', color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'700', cursor:'pointer'}}>
                 SIM, CANCELAR
               </button>
             </div>
