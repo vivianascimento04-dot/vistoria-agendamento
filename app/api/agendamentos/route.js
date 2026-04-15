@@ -78,14 +78,6 @@ export async function POST(request) {
 
   const dataFormatada = new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
 
-  const rodape = `
-  <div style="background:#1B2F7E;padding:20px 24px;text-align:center;">
-    <p style="margin:0 0 8px;font-weight:700;color:#fff;font-size:15px;letter-spacing:0.08em;">MARK INVEST</p>
-    <p style="margin:0 0 6px;color:#fff;font-size:13px;font-weight:600;">Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo</p>
-    <div style="width:40px;height:1px;background:rgba(255,255,255,0.3);margin:10px auto;"></div>
-    <p style="margin:0;color:rgba(255,255,255,0.6);font-size:11px;font-style:italic;">Este e-mail foi gerado automaticamente. Nao responda esta mensagem.</p>
-  </div>`
-
   try {
     await resend.emails.send({
       from: 'onboarding@resend.dev',
@@ -110,7 +102,11 @@ export async function POST(request) {
     </div>
     <p style="color:#6b7280;font-size:13px;line-height:1.7;margin:0;">Em caso de duvidas ou necessidade de alteracao, entre em contato com nossa equipe. Alteracoes so podem ser realizadas pela equipe Mark Invest.</p>
   </div>
-  ${rodape}
+  <div style="background:#f4f6fb;padding:20px 24px;text-align:center;border-top:3px solid #1B2F7E;">
+    <p style="margin:0 0 4px;font-weight:700;color:#1B2F7E;font-size:14px;letter-spacing:0.05em;">MARK INVEST</p>
+    <p style="margin:0 0 4px;color:#6b7280;font-size:12px;">Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo</p>
+    <p style="margin:0;color:#9ca3af;font-size:11px;">Este e-mail foi gerado automaticamente. Nao responda esta mensagem.</p>
+  </div>
 </div>`
     })
 
@@ -136,7 +132,11 @@ export async function POST(request) {
       <tr><td style="padding:10px 0;color:#6b7280;font-weight:700;text-transform:uppercase;font-size:11px;">Horario</td><td style="padding:10px 0;font-weight:700;color:#1B2F7E;">${horario}</td></tr>
     </table>
   </div>
-  ${rodape}
+  <div style="background:#f4f6fb;padding:20px 24px;text-align:center;border-top:3px solid #1B2F7E;">
+    <p style="margin:0 0 4px;font-weight:700;color:#1B2F7E;font-size:14px;letter-spacing:0.05em;">MARK INVEST</p>
+    <p style="margin:0 0 4px;color:#6b7280;font-size:12px;">Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo</p>
+    <p style="margin:0;color:#9ca3af;font-size:11px;">Este e-mail foi gerado automaticamente. Nao responda esta mensagem.</p>
+  </div>
 </div>`
     })
   } catch (e) {

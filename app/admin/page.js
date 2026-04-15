@@ -3,6 +3,8 @@ import { useSession, signOut } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+const POR_PAGINA = 10
+
 export default function Admin() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -11,6 +13,7 @@ export default function Admin() {
   const [filtro, setFiltro] = useState('todos')
   const [busca, setBusca] = useState('')
   const [popup, setPopup] = useState(null)
+  const [pagina, setPagina] = useState(1)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/admin/login')
@@ -19,6 +22,10 @@ export default function Admin() {
   useEffect(() => {
     if (status === 'authenticated') buscarAgendamentos()
   }, [status])
+
+  useEffect(() => {
+    setPagina(1)
+  }, [filtro, busca])
 
   async function buscarAgendamentos() {
     const res = await fetch('/api/agendamentos')
@@ -66,7 +73,7 @@ export default function Admin() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'agendamentos-' + new Date().toISOString().split('T')[0] + '.csv'
+    link.download = 'relatorio-agendamentos-' + new Date().toISOString().split('T')[0] + '.csv'
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -79,6 +86,8 @@ export default function Admin() {
       return a.nome?.toLowerCase().includes(b) || a.email?.toLowerCase().includes(b) || a.apartamento?.toLowerCase().includes(b) || a.telefone?.includes(b)
     })
 
+  const totalPaginas = Math.ceil(filtrados.length / POR_PAGINA)
+  const paginados = filtrados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA)
   const totalConfirmados = agendamentos.filter(a => a.status === 'confirmado').length
   const totalCancelados = agendamentos.filter(a => a.status === 'cancelado').length
 
@@ -94,12 +103,12 @@ export default function Admin() {
       {popup && (
         <div onClick={() => setPopup(null)} style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.6)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem'}}>
           <div onClick={e => e.stopPropagation()} style={{background:'#fff', borderRadius:'16px', padding:'2rem', maxWidth:'400px', width:'100%', boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
-            <div style={{width:'52px', height:'52px', background:'#fee2e2', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 1rem'}}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <div style={{width:'56px', height:'56px', background:'#fee2e2', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 1rem'}}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </div>
-            <h3 style={{fontSize:'17px', fontWeight:'700', color:'#111', textAlign:'center', margin:'0 0 8px'}}>Cancelar agendamento?</h3>
+            <h3 style={{fontSize:'18px', fontWeight:'700', color:'#111', textAlign:'center', margin:'0 0 8px'}}>Cancelar agendamento?</h3>
             <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0 0 6px', lineHeight:'1.6'}}>Voce esta prestes a cancelar o agendamento de</p>
-            <p style={{fontSize:'14px', fontWeight:'700', color:'#1B2F7E', textAlign:'center', margin:'0 0 4px'}}>{popup.nome}</p>
+            <p style={{fontSize:'15px', fontWeight:'700', color:'#1B2F7E', textAlign:'center', margin:'0 0 4px'}}>{popup.nome}</p>
             <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0 0 1.25rem'}}>
               {new Date(popup.data+'T12:00:00').toLocaleDateString('pt-BR')} as {popup.horario?.slice(0,5)}
             </p>
@@ -107,10 +116,10 @@ export default function Admin() {
               Esta acao nao podera ser desfeita facilmente
             </div>
             <div style={{display:'flex', gap:'10px'}}>
-              <button onClick={() => setPopup(null)} style={{flex:1, padding:'11px', background:'#fff', color:'#6b7280', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:'pointer'}}>
+              <button onClick={() => setPopup(null)} style={{flex:1, padding:'12px', background:'#fff', color:'#6b7280', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:'pointer'}}>
                 NAO, MANTER
               </button>
-              <button onClick={executarCancelamento} style={{flex:1, padding:'11px', background:'#dc2626', color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'700', cursor:'pointer'}}>
+              <button onClick={executarCancelamento} style={{flex:1, padding:'12px', background:'#dc2626', color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'700', cursor:'pointer'}}>
                 SIM, CANCELAR
               </button>
             </div>
@@ -131,6 +140,7 @@ export default function Admin() {
 
       <div style={{maxWidth:'960px', margin:'0 auto', padding:'1.5rem 1rem'}}>
 
+        {/* Cards resumo */}
         <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px', marginBottom:'1.5rem'}}>
           <div style={{background:'#fff', borderRadius:'12px', padding:'1rem 1.25rem', boxShadow:'0 1px 4px rgba(27,47,126,0.08)', borderLeft:'4px solid #1B2F7E'}}>
             <p style={{fontSize:'11px', fontWeight:'700', color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', margin:'0 0 4px'}}>TOTAL</p>
@@ -146,6 +156,7 @@ export default function Admin() {
           </div>
         </div>
 
+        {/* Filtros e busca */}
         <div style={{background:'#fff', borderRadius:'12px', padding:'1rem 1.25rem', marginBottom:'1rem', boxShadow:'0 1px 4px rgba(27,47,126,0.08)', display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap'}}>
           <div style={{display:'flex', gap:'6px'}}>
             {['todos','confirmado','cancelado'].map(f => (
@@ -159,11 +170,12 @@ export default function Admin() {
           </button>
         </div>
 
-        {filtrados.length === 0 ? (
+        {/* Lista */}
+        {paginados.length === 0 ? (
           <div style={{textAlign:'center', padding:'3rem', color:'#9ca3af', fontSize:'14px', background:'#fff', borderRadius:'12px'}}>Nenhum agendamento encontrado</div>
         ) : (
           <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
-            {filtrados.map(a => {
+            {paginados.map(a => {
               const cancelado = a.status === 'cancelado'
               const criadoEm = a.criado_em ? new Date(a.criado_em) : null
               const criadoFormatado = criadoEm
@@ -217,8 +229,25 @@ export default function Admin() {
           </div>
         )}
 
-        <p style={{textAlign:'center', fontSize:'12px', color:'#9ca3af', marginTop:'1.5rem'}}>
-          Mostrando {filtrados.length} de {agendamentos.length} agendamentos
+        {/* Paginacao */}
+        {totalPaginas > 1 && (
+          <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', marginTop:'1.5rem'}}>
+            <button onClick={() => setPagina(p => Math.max(1, p-1))} disabled={pagina===1} style={{padding:'6px 14px', background: pagina===1 ? '#f3f4f6' : '#fff', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor: pagina===1 ? 'not-allowed' : 'pointer', color: pagina===1 ? '#9ca3af' : '#374151'}}>
+              &#8249; Anterior
+            </button>
+            {Array.from({length: totalPaginas}, (_,i) => i+1).map(p => (
+              <button key={p} onClick={() => setPagina(p)} style={{width:'36px', height:'36px', borderRadius:'8px', border: pagina===p ? 'none' : '1px solid #e5e7eb', background: pagina===p ? '#1B2F7E' : '#fff', color: pagina===p ? '#fff' : '#374151', fontSize:'13px', fontWeight:'700', cursor:'pointer'}}>
+                {p}
+              </button>
+            ))}
+            <button onClick={() => setPagina(p => Math.min(totalPaginas, p+1))} disabled={pagina===totalPaginas} style={{padding:'6px 14px', background: pagina===totalPaginas ? '#f3f4f6' : '#fff', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor: pagina===totalPaginas ? 'not-allowed' : 'pointer', color: pagina===totalPaginas ? '#9ca3af' : '#374151'}}>
+              Proximo &#8250;
+            </button>
+          </div>
+        )}
+
+        <p style={{textAlign:'center', fontSize:'12px', color:'#9ca3af', marginTop:'1rem'}}>
+          Mostrando {((pagina-1)*POR_PAGINA)+1} - {Math.min(pagina*POR_PAGINA, filtrados.length)} de {filtrados.length} agendamentos
         </p>
       </div>
     </main>
