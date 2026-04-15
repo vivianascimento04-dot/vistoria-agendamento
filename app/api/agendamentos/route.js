@@ -18,7 +18,7 @@ export async function POST(request) {
     .select('id')
     .eq('apartamento', apartamento)
     .eq('status', 'confirmado')
-    .single()
+    .maybeSingle()
 
   if (agendamentoExistente) {
     return NextResponse.json(
@@ -33,7 +33,7 @@ export async function POST(request) {
     .eq('data', data)
     .eq('horario', horario)
     .eq('status', 'confirmado')
-    .single()
+    .maybeSingle()
 
   if (horarioOcupado) {
     return NextResponse.json({ error: 'Horario ja ocupado' }, { status: 409 })
@@ -43,7 +43,7 @@ export async function POST(request) {
     .from('agendamentos')
     .insert([{ nome, cpf, email, telefone, apartamento, data, horario }])
     .select()
-    .single()
+    .maybeSingleingle()
 
   if (error) {
     if (error.code === '23505') {
@@ -150,8 +150,14 @@ export async function GET() {
   const { data, error } = await supabase
     .from('agendamentos')
     .select('*')
-    .order('data', { ascending: true })
+    order('created_at', { ascending: false }) // 🔥 mais recentes primeiro
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    )
+  }
+
   return NextResponse.json(data)
 }
