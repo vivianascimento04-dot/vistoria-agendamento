@@ -81,7 +81,7 @@ export default function Admin() {
   async function gerarPDF() {
     setGerandoPDF(true)
     try {
-      const { jsPDF } = await import('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+      const { jsPDF } = await import('jspdf')
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
       const W = 210, M = 15
       let y = 0
