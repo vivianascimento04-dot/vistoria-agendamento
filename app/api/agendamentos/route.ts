@@ -3,29 +3,32 @@ import { Resend } from 'resend'
 import { google } from 'googleapis'
 import { NextResponse } from 'next/server'
 
-// ✅ validação de env
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+// ✅ ENV
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
 const resendKey = process.env.RESEND_API_KEY
 
 if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Supabase não configurado na Vercel')
+  throw new Error('Supabase não configurado')
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 const resend = resendKey ? new Resend(resendKey) : null
 
+// ✅ POST
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     const { nome, cpf, email, telefone, apartamento, data, horario } = body
 
-    // 🔍 validação básica
     if (!nome || !email || !data || !horario) {
-      return NextResponse.json({ error: 'Dados obrigatórios faltando' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Dados obrigatórios faltando' },
+        { status: 400 }
+      )
     }
 
-    // 🚫 apartamento já agendado
+    // 🔒 apartamento já agendado
     const { data: existente } = await supabase
       .from('agendamentos')
       .select('id')
@@ -35,12 +38,12 @@ export async function POST(request: Request) {
 
     if (existente) {
       return NextResponse.json(
-        { error: 'Este apartamento já possui vistoria agendada.' },
+        { error: 'Este apartamento já possui vistoria agendada' },
         { status: 409 }
       )
     }
 
-    // 🚫 horário ocupado
+    // 🔒 horário ocupado
     const { data: ocupado } = await supabase
       .from('agendamentos')
       .select('id')
@@ -50,10 +53,13 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (ocupado) {
-      return NextResponse.json({ error: 'Horário já ocupado' }, { status: 409 })
+      return NextResponse.json(
+        { error: 'Horário já ocupado' },
+        { status: 409 }
+      )
     }
 
-    // 💾 salvar
+    // 💾 salvar no banco
     const { data: agendamento, error } = await supabase
       .from('agendamentos')
       .insert([{ nome, cpf, email, telefone, apartamento, data, horario }])
@@ -65,7 +71,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // 📅 GOOGLE (seguro — só executa se existir)
+    // 📅 GOOGLE (opcional)
     try {
       if (
         process.env.GOOGLE_CLIENT_ID &&
@@ -90,9 +96,14 @@ export async function POST(request: Request) {
           calendarId: 'primary',
           requestBody: {
             summary: `Vistoria - ${apartamento} (${nome})`,
-            description: `Cliente: ${nome}\nApto: ${apartamento}`,
-            start: { dateTime: inicio.toISOString(), timeZone: 'America/Sao_Paulo' },
-            end: { dateTime: fim.toISOString(), timeZone: 'America/Sao_Paulo' },
+            start: {
+              dateTime: inicio.toISOString(),
+              timeZone: 'America/Sao_Paulo',
+            },
+            end: {
+              dateTime: fim.toISOString(),
+              timeZone: 'America/Sao_Paulo',
+            },
           },
         })
 
@@ -105,7 +116,7 @@ export async function POST(request: Request) {
       console.error('Erro Google (ignorado):', e.message)
     }
 
-    // 📧 EMAIL (seguro)
+    // 📧 EMAIL (opcional)
     try {
       if (resend) {
         await resend.emails.send({
@@ -131,10 +142,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, agendamento })
   } catch (e: any) {
     console.error('ERRO GERAL:', e)
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Erro interno do servidor' },
+      { status: 500 }
+    )
   }
 }
 
+// ✅ GET
 export async function GET() {
   try {
     const { data, error } = await supabase
@@ -149,6 +164,9 @@ export async function GET() {
 
     return NextResponse.json(data)
   } catch (e) {
-    return NextResponse.json({ error: 'Erro ao buscar dados' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Erro ao buscar dados' },
+      { status: 500 }
+    )
   }
 }
