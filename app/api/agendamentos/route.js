@@ -252,7 +252,10 @@ export async function POST(request) {
 </html>`
     })
   } catch (e) {
-    console.error('Erro e-mail:', e.message)
+    console.error('Erro e-mail COMPLETO:', JSON.stringify(e))
+    console.error('Erro e-mail MESSAGE:', e.message)
+    console.error('Erro e-mail CODE:', e.code)
+    return NextResponse.json({ emailError: e.message, success: true, agendamento })
   }
 
   return NextResponse.json({ success: true, agendamento })
