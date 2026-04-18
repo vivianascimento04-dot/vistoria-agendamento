@@ -217,7 +217,7 @@ export default function Admin() {
         )}
 
         {abaAtiva === 'agendamentos' && (
-
+          <>
         {/* Cards resumo */}
         <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px', marginBottom:'1.5rem'}}>
           <div style={{background:'#fff', borderRadius:'12px', padding:'1rem 1.25rem', boxShadow:'0 1px 4px rgba(27,47,126,0.08)', borderLeft:'4px solid #1B2F7E'}}>
@@ -327,6 +327,7 @@ export default function Admin() {
         <p style={{textAlign:'center', fontSize:'12px', color:'#9ca3af', marginTop:'1rem'}}>
           Mostrando {((pagina-1)*POR_PAGINA)+1} - {Math.min(pagina*POR_PAGINA, filtrados.length)} de {filtrados.length} agendamentos
         </p>
+          </>
         )}
       </div>
     </main>
