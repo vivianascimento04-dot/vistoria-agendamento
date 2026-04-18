@@ -22,7 +22,7 @@ export default function Home() {
   const [horarios, setHorarios] = useState([])
   const [horarioSel, setHorarioSel] = useState(null)
   const [diasCheios, setDiasCheios] = useState([])
-  const [form, setForm] = useState({ nome:'', cpf:'', email:'', telefone:'', empreendimento:'', torre:'', bloco:'', apartamento:'' })
+  const [form, setForm] = useState({ nome:'', cpf:'', email:'', telefone:'', empreendimento:'', torre:'', apartamento:'' })
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
   const [etapa, setEtapa] = useState(1)
@@ -41,19 +41,30 @@ export default function Home() {
     carregarDiasCheios(ano, mes)
   }, [ano, mes])
 
+  useEffect(() => {
+    fetch('/api/empreendimentos')
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d) && d.length) setEmpreendimentos(d) })
+      .catch(() => {})
+  }, [])
+
   async function carregarDiasCheios(a, m) {
-    const mesStr = a + '-' + String(m + 1).padStart(2, '0')
-    const res = await fetch('/api/horarios?mes=' + mesStr)
-    const data = await res.json()
-    setDiasCheios(data.diasCheios || [])
+    try {
+      const mesStr = a + '-' + String(m + 1).padStart(2, '0')
+      const res = await fetch('/api/horarios?mes=' + mesStr)
+      const data = await res.json()
+      setDiasCheios(data.diasCheios || [])
+    } catch(e) { setDiasCheios([]) }
   }
 
   async function selecionarData(ds) {
     setDataSel(ds)
     setHorarioSel(null)
-    const res = await fetch('/api/horarios?data=' + ds)
-    const data = await res.json()
-    setHorarios(data)
+    try {
+      const res = await fetch('/api/horarios?data=' + ds)
+      const data = await res.json()
+      setHorarios(Array.isArray(data) ? data : [])
+    } catch(e) { setHorarios([]) }
   }
 
   function selecionarHorario(h) {
@@ -63,32 +74,36 @@ export default function Home() {
 
   async function confirmar() {
     setTentouEnviar(true)
-    const { nome, email, telefone, empreendimento, torre, bloco, apartamento } = form
-    if (!nome || !cpf || !email || !telefone || !empreendimento || !torre || !bloco || !apartamento) {
+    const { nome, cpf, email, telefone, empreendimento, torre, apartamento } = form
+    if (!nome || !cpf || !email || !telefone || !empreendimento || !torre || !apartamento) {
       setErro('Preencha todos os campos obrigatorios.')
       return
     }
     setLoading(true)
     setErro('')
-    const aptoCompleto = empreendimento + ' - Torre ' + torre + ', Bloco ' + bloco + ', Apto ' + apartamento
-    const res = await fetch('/api/agendamentos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, apartamento: aptoCompleto, data: dataSel, horario: horarioSel })
-    })
-    const data = await res.json()
-    setLoading(false)
-    if (res.ok) {
-      setEtapa(3)
-    } else {
-      if (data.error && data.error.includes('ja possui uma vistoria')) {
-        setErro('Este apartamento ja possui uma vistoria agendada. Entre em contato com nossa equipe.')
-      } else if (data.error === 'Horario ja ocupado') {
-        setErro('Este horario acabou de ser reservado. Escolha outro horario.')
+    try {
+      const aptoCompleto = empreendimento + ' - Torre ' + torre + ', Apto ' + apartamento
+      const res = await fetch('/api/agendamentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, apartamento: aptoCompleto, data: dataSel, horario: horarioSel })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setEtapa(3)
       } else {
-        setErro('Erro ao agendar. Tente novamente.')
+        if (data.error?.includes('ja esta confirmado') || data.error?.includes('Relacionamento')) {
+          setErro('Seu horario ja esta confirmado. Por favor, entre em contato com o Relacionamento.')
+        } else if (data.error === 'Horario ja ocupado') {
+          setErro('Este horario acabou de ser reservado. Escolha outro horario.')
+        } else {
+          setErro(data.error || 'Erro ao agendar. Tente novamente.')
+        }
       }
+    } catch(e) {
+      setErro('Erro de conexao. Verifique sua internet e tente novamente.')
     }
+    setLoading(false)
   }
 
   const primeiroDia = new Date(ano, mes, 1).getDay()
@@ -105,6 +120,7 @@ export default function Home() {
 
   const dataFormatada = dataSel ? new Date(dataSel+'T12:00:00').toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) : ''
   const inp = { width:'100%', padding:'10px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'14px', boxSizing:'border-box', outline:'none', fontFamily:'inherit' }
+  const erro_borda = { ...inp, border: '2px solid '+VERMELHO, background: '#fff8f8' }
 
   return (
     <main style={{minHeight:'100vh', background:'#f4f6fb', fontFamily:"'Segoe UI',sans-serif", margin:0, padding:0}}>
@@ -137,24 +153,13 @@ export default function Home() {
                 <button onClick={nextMes} style={{background:'none', border:'1px solid #dde1f0', borderRadius:'8px', width:'34px', height:'34px', cursor:'pointer', fontSize:'18px', color: AZUL, fontWeight:'bold', flexShrink:0}}>&#8250;</button>
               </div>
 
-              {/* Legenda melhorada */}
               <div style={{display:'flex', gap:'12px', marginBottom:'12px', flexWrap:'wrap', padding:'8px 10px', background:'#f8f9ff', borderRadius:'8px', border:'1px solid #e8ebf5'}}>
-                <div style={{display:'flex', alignItems:'center', gap:'6px'}}>
-                  <div style={{width:'14px', height:'14px', borderRadius:'3px', background: VERMELHO, flexShrink:0}}></div>
-                  <span style={{fontSize:'11px', fontWeight:'600', color:'#374151'}}>Selecionado</span>
-                </div>
-                <div style={{display:'flex', alignItems:'center', gap:'6px'}}>
-                  <div style={{width:'14px', height:'14px', borderRadius:'3px', background:'#fee2e2', border:'1.5px solid #ef4444', flexShrink:0}}></div>
-                  <span style={{fontSize:'11px', fontWeight:'600', color:'#374151'}}>Lotado</span>
-                </div>
-                <div style={{display:'flex', alignItems:'center', gap:'6px'}}>
-                  <div style={{width:'14px', height:'14px', borderRadius:'3px', background:'#fff', border:'1px solid #d1d5db', flexShrink:0}}></div>
-                  <span style={{fontSize:'11px', fontWeight:'600', color:'#374151'}}>Disponivel</span>
-                </div>
-                <div style={{display:'flex', alignItems:'center', gap:'6px'}}>
-                  <div style={{width:'14px', height:'14px', borderRadius:'3px', background:'#f3f4f6', flexShrink:0}}></div>
-                  <span style={{fontSize:'11px', fontWeight:'600', color:'#374151'}}>Indisponivel</span>
-                </div>
+                {[{bg:VERMELHO,bd:'none',label:'Selecionado'},{bg:'#fee2e2',bd:'1.5px solid #ef4444',label:'Lotado'},{bg:'#fff',bd:'1px solid #d1d5db',label:'Disponivel'},{bg:'#f9fafb',bd:'none',label:'Indisponivel'}].map(l => (
+                  <div key={l.label} style={{display:'flex', alignItems:'center', gap:'5px'}}>
+                    <div style={{width:'14px', height:'14px', borderRadius:'3px', background:l.bg, border:l.bd, flexShrink:0}}></div>
+                    <span style={{fontSize:'11px', fontWeight:'600', color:'#374151'}}>{l.label}</span>
+                  </div>
+                ))}
               </div>
 
               <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', textAlign:'center', marginBottom:'6px'}}>
@@ -174,18 +179,9 @@ export default function Home() {
                   const isSel = dataSel===ds
                   const isToday = d===hoje.getDate()&&mes===hoje.getMonth()&&ano===hoje.getFullYear()
                   const isCheio = diasCheios.includes(ds)
-
-                  if (isPast||isWeekend) return (
-                    <div key={d} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#d1d5db', borderRadius:'6px', background:'#f9fafb'}}>{d}</div>
-                  )
-                  if (isCheio && !isSel) return (
-                    <div key={d} title="Dia lotado" style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'11px', color:'#dc2626', borderRadius:'6px', background:'#fee2e2', border:'1.5px solid #ef4444', cursor:'not-allowed', fontWeight:'600'}}>
-                      {d}<div style={{fontSize:'7px', fontWeight:'700', marginTop:'1px', letterSpacing:'0.02em'}}>LOTADO</div>
-                    </div>
-                  )
-                  return (
-                    <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight: isSel?'700':'500', borderRadius:'6px', cursor:'pointer', background: isSel ? VERMELHO : isToday ? AZUL_CLARO : '#fff', color: isSel ? '#fff' : isToday ? AZUL : '#333', border: isSel ? '2px solid '+VERMELHO : isToday ? '2px solid '+AZUL : '1px solid #e5e7eb', transition:'all 0.15s'}}>{d}</div>
-                  )
+                  if (isPast||isWeekend) return <div key={d} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#d1d5db', borderRadius:'6px', background:'#f9fafb'}}>{d}</div>
+                  if (isCheio&&!isSel) return <div key={d} title="Dia lotado" style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'11px', color:'#dc2626', borderRadius:'6px', background:'#fee2e2', border:'1.5px solid #ef4444', cursor:'not-allowed', fontWeight:'600'}}>{d}<div style={{fontSize:'7px', fontWeight:'700', marginTop:'1px'}}>LOTADO</div></div>
+                  return <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight: isSel?'700':'500', borderRadius:'6px', cursor:'pointer', background: isSel ? VERMELHO : isToday ? AZUL_CLARO : '#fff', color: isSel ? '#fff' : isToday ? AZUL : '#333', border: isSel ? '2px solid '+VERMELHO : isToday ? '2px solid '+AZUL : '1px solid #e5e7eb', transition:'all 0.15s'}}>{d}</div>
                 })}
               </div>
             </div>
@@ -222,70 +218,33 @@ export default function Home() {
             <p style={{fontSize:'11px', fontWeight:'700', color: AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem'}}>DADOS PESSOAIS</p>
             <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'10px', marginBottom:'10px'}}>
               <div>
-                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.nome ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>
-                  Nome Completo *
-                </label>
-                <input
-                  value={form.nome}
-                  onChange={e => setForm({...form,nome:e.target.value})}
-                  placeholder="Joao da Silva"
-                  style={{...inp, border: tentouEnviar&&!form.nome ? '2px solid '+VERMELHO : '1px solid #dde1f0', background: tentouEnviar&&!form.nome ? '#fff8f8' : '#fff'}}
-                />
+                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.nome ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Nome Completo *</label>
+                <input value={form.nome} onChange={e => setForm({...form,nome:e.target.value})} placeholder="Joao da Silva" style={tentouEnviar&&!form.nome ? erro_borda : inp}/>
                 {tentouEnviar&&!form.nome && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
               </div>
               <div>
-                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.cpf ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>
-                  CPF *
-                </label>
-                <input
-                  value={form.cpf}
-                  onChange={e => setForm({...form,cpf:mascaraCPF(e.target.value)})}
-                  placeholder="000.000.000-00"
-                  maxLength={14}
-                  style={{...inp, border: tentouEnviar&&!form.cpf ? '2px solid '+VERMELHO : '1px solid #dde1f0', background: tentouEnviar&&!form.cpf ? '#fff8f8' : '#fff'}}
-                />
+                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.cpf ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>CPF *</label>
+                <input value={form.cpf} onChange={e => setForm({...form,cpf:mascaraCPF(e.target.value)})} placeholder="000.000.000-00" maxLength={14} style={tentouEnviar&&!form.cpf ? erro_borda : inp}/>
                 {tentouEnviar&&!form.cpf && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
               </div>
             </div>
             <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'10px', marginBottom:'1rem'}}>
               <div>
-                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.email ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>
-                  E-mail *
-                </label>
-                <input
-                  value={form.email}
-                  onChange={e => setForm({...form,email:e.target.value})}
-                  placeholder="joao@email.com"
-                  type="email"
-                  style={{...inp, border: tentouEnviar&&!form.email ? '2px solid '+VERMELHO : '1px solid #dde1f0', background: tentouEnviar&&!form.email ? '#fff8f8' : '#fff'}}
-                />
+                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.email ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>E-mail *</label>
+                <input value={form.email} onChange={e => setForm({...form,email:e.target.value})} placeholder="joao@email.com" type="email" style={tentouEnviar&&!form.email ? erro_borda : inp}/>
                 {tentouEnviar&&!form.email && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
               </div>
               <div>
-                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.telefone ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>
-                  Telefone *
-                </label>
-                <input
-                  value={form.telefone}
-                  onChange={e => setForm({...form,telefone:mascaraTelefone(e.target.value)})}
-                  placeholder="(11) 99999-9999"
-                  maxLength={15}
-                  style={{...inp, border: tentouEnviar&&!form.telefone ? '2px solid '+VERMELHO : '1px solid #dde1f0', background: tentouEnviar&&!form.telefone ? '#fff8f8' : '#fff'}}
-                />
+                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.telefone ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Telefone *</label>
+                <input value={form.telefone} onChange={e => setForm({...form,telefone:mascaraTelefone(e.target.value)})} placeholder="(11) 99999-9999" maxLength={15} style={tentouEnviar&&!form.telefone ? erro_borda : inp}/>
                 {tentouEnviar&&!form.telefone && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
               </div>
             </div>
 
             <p style={{fontSize:'11px', fontWeight:'700', color: AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem'}}>DADOS DO IMOVEL</p>
             <div style={{marginBottom:'10px'}}>
-              <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.empreendimento ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>
-                Empreendimento *
-              </label>
-              <select
-                value={form.empreendimento}
-                onChange={e => setForm({...form,empreendimento:e.target.value})}
-                style={{...inp, background:'#fff', cursor:'pointer', color: form.empreendimento ? '#111' : '#9ca3af', border: tentouEnviar&&!form.empreendimento ? '2px solid '+VERMELHO : '1px solid #dde1f0'}}
-              >
+              <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.empreendimento ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Empreendimento *</label>
+              <select value={form.empreendimento} onChange={e => setForm({...form,empreendimento:e.target.value})} style={{...(tentouEnviar&&!form.empreendimento ? erro_borda : inp), background:'#fff', cursor:'pointer', color: form.empreendimento ? '#111' : '#9ca3af'}}>
                 <option value="">Selecione o empreendimento</option>
                 {empreendimentos.map(emp => <option key={emp} value={emp}>{emp}</option>)}
               </select>
@@ -293,27 +252,13 @@ export default function Home() {
             </div>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'1.25rem'}}>
               <div>
-                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.torre ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>
-                  Torre *
-                </label>
-                <input
-                  value={form.torre}
-                  onChange={e => setForm({...form,torre:e.target.value})}
-                  placeholder="Ex: A"
-                  style={{...inp, border: tentouEnviar&&!form.torre ? '2px solid '+VERMELHO : '1px solid #dde1f0', background: tentouEnviar&&!form.torre ? '#fff8f8' : '#fff'}}
-                />
+                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.torre ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Torre *</label>
+                <input value={form.torre} onChange={e => setForm({...form,torre:e.target.value})} placeholder="Ex: A" style={tentouEnviar&&!form.torre ? erro_borda : inp}/>
                 {tentouEnviar&&!form.torre && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
               </div>
               <div>
-                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.apartamento ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>
-                  Apartamento *
-                </label>
-                <input
-                  value={form.apartamento}
-                  onChange={e => setForm({...form,apartamento:e.target.value})}
-                  placeholder="Ex: 142"
-                  style={{...inp, border: tentouEnviar&&!form.apartamento ? '2px solid '+VERMELHO : '1px solid #dde1f0', background: tentouEnviar&&!form.apartamento ? '#fff8f8' : '#fff'}}
-                />
+                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.apartamento ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Apartamento *</label>
+                <input value={form.apartamento} onChange={e => setForm({...form,apartamento:e.target.value})} placeholder="Ex: 142" style={tentouEnviar&&!form.apartamento ? erro_borda : inp}/>
                 {tentouEnviar&&!form.apartamento && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
               </div>
             </div>
@@ -341,15 +286,14 @@ export default function Home() {
             <p style={{color:'#6b7280', fontSize:'14px', lineHeight:'1.7', margin:'0 0 1.5rem'}}>
               Um e-mail de confirmacao foi enviado para <strong style={{color: AZUL}}>{form.email}</strong>.
             </p>
-
             <div style={{background:'#f8f9ff', border:'1px solid #e0e5f5', borderRadius:'12px', padding:'1.25rem', textAlign:'left', marginBottom:'1.5rem'}}>
               <p style={{fontSize:'11px', fontWeight:'700', color: AZUL, textTransform:'uppercase', letterSpacing:'0.08em', margin:'0 0 12px', borderBottom:'1px solid #e0e5f5', paddingBottom:'8px'}}>RESUMO DO AGENDAMENTO</p>
               <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:'13px'}}>
+                <div style={{display:'flex', justifyContent:'space-between', fontSize:'13px'}}>
                   <span style={{color:'#6b7280', fontWeight:'600', textTransform:'uppercase', fontSize:'11px'}}>Data</span>
                   <span style={{fontWeight:'700', color: AZUL, textTransform:'capitalize'}}>{dataFormatada}</span>
                 </div>
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:'13px'}}>
+                <div style={{display:'flex', justifyContent:'space-between', fontSize:'13px'}}>
                   <span style={{color:'#6b7280', fontWeight:'600', textTransform:'uppercase', fontSize:'11px'}}>Horario</span>
                   <span style={{fontWeight:'700', color: AZUL}}>{horarioSel}</span>
                 </div>
@@ -359,11 +303,10 @@ export default function Home() {
                 </div>
                 <div>
                   <div style={{fontSize:'11px', color:'#6b7280', fontWeight:'600', textTransform:'uppercase', marginBottom:'4px'}}>Unidade</div>
-                  <div style={{fontSize:'13px', fontWeight:'700', color:'#374151'}}>Torre {form.torre}, Bloco {form.bloco}, Apto {form.apartamento}</div>
+                  <div style={{fontSize:'13px', fontWeight:'700', color:'#374151'}}>Torre {form.torre}, Apto {form.apartamento}</div>
                 </div>
               </div>
             </div>
-
             <div style={{background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'10px', padding:'12px 16px', display:'flex', alignItems:'center', gap:'10px'}}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               <p style={{fontSize:'13px', color:'#15803d', margin:0, fontWeight:'500', textAlign:'left'}}>E-mail enviado! Verifique sua caixa de entrada e o spam.</p>
