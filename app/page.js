@@ -27,6 +27,7 @@ export default function Home() {
   const [erro, setErro] = useState('')
   const [etapa, setEtapa] = useState(1)
   const [isMobile, setIsMobile] = useState(false)
+  const [empreendimentos, setEmpreendimentos] = useState(['Parque Mikonos', 'Parque Olimpia'])
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 640)
@@ -61,7 +62,7 @@ export default function Home() {
 
   async function confirmar() {
     const { nome, email, telefone, empreendimento, torre, bloco, apartamento } = form
-    if (!nome || !email || !telefone || !empreendimento || !torre || !bloco || !apartamento) {
+    if (!nome || !cpf || !email || !telefone || !empreendimento || !torre || !bloco || !apartamento) {
       setErro('Preencha todos os campos obrigatorios.')
       return
     }
@@ -218,7 +219,7 @@ export default function Home() {
             <p style={{fontSize:'11px', fontWeight:'700', color: AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem'}}>DADOS PESSOAIS</p>
             <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'10px', marginBottom:'10px'}}>
               <div><label style={{fontSize:'12px', fontWeight:'600', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>Nome Completo *</label><input value={form.nome} onChange={e => setForm({...form,nome:e.target.value})} placeholder="Joao da Silva" style={inp}/></div>
-              <div><label style={{fontSize:'12px', fontWeight:'600', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>CPF</label><input value={form.cpf} onChange={e => setForm({...form,cpf:mascaraCPF(e.target.value)})} placeholder="000.000.000-00" maxLength={14} style={inp}/></div>
+              <div><label style={{fontSize:'12px', fontWeight:'600', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>CPF *</label><input value={form.cpf} onChange={e => setForm({...form,cpf:mascaraCPF(e.target.value)})} placeholder="000.000.000-00" maxLength={14} style={inp}/></div>
             </div>
             <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'10px', marginBottom:'1rem'}}>
               <div><label style={{fontSize:'12px', fontWeight:'600', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>E-mail *</label><input value={form.email} onChange={e => setForm({...form,email:e.target.value})} placeholder="joao@email.com" type="email" style={inp}/></div>
@@ -227,7 +228,10 @@ export default function Home() {
             <p style={{fontSize:'11px', fontWeight:'700', color: AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem'}}>DADOS DO IMOVEL</p>
             <div style={{marginBottom:'10px'}}>
               <label style={{fontSize:'12px', fontWeight:'600', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>Empreendimento *</label>
-              <input value={form.empreendimento} onChange={e => setForm({...form,empreendimento:e.target.value})} placeholder="Ex: Residencial Park" style={inp}/>
+              <select value={form.empreendimento} onChange={e => setForm({...form,empreendimento:e.target.value})} style={{...inp, background:'#fff', cursor:'pointer', color: form.empreendimento ? '#111' : '#9ca3af'}}>
+                <option value="">Selecione o empreendimento</option>
+                {empreendimentos.map(emp => <option key={emp} value={emp}>{emp}</option>)}
+              </select>
             </div>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'10px', marginBottom:'1.25rem'}}>
               <div><label style={{fontSize:'12px', fontWeight:'600', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>Torre *</label><input value={form.torre} onChange={e => setForm({...form,torre:e.target.value})} placeholder="Ex: A" style={inp}/></div>

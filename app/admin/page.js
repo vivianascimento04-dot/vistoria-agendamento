@@ -14,6 +14,11 @@ export default function Admin() {
   const [busca, setBusca] = useState('')
   const [popup, setPopup] = useState(null)
   const [pagina, setPagina] = useState(1)
+  const [abaAtiva, setAbaAtiva] = useState('agendamentos')
+  const [empreendimentos, setEmpreendimentos] = useState([])
+  const [novoEmp, setNovoEmp] = useState('')
+  const [salvandoEmp, setSalvandoEmp] = useState(false)
+  const [erroEmp, setErroEmp] = useState('')
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/admin/login')
@@ -26,6 +31,44 @@ export default function Admin() {
   useEffect(() => {
     setPagina(1)
   }, [filtro, busca])
+
+  useEffect(() => { if (status==='authenticated') buscarEmpreendimentos() }, [status])
+
+  async function buscarEmpreendimentos() {
+    try {
+      const res = await fetch('/api/empreendimentos')
+      const data = await res.json()
+      setEmpreendimentos(Array.isArray(data) ? data : [])
+    } catch(e) {}
+  }
+
+  async function adicionarEmpreendimento() {
+    if (!novoEmp.trim()) return
+    setSalvandoEmp(true)
+    setErroEmp('')
+    try {
+      const res = await fetch('/api/empreendimentos', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({nome: novoEmp.trim()})
+      })
+      if (res.ok) { setNovoEmp(''); buscarEmpreendimentos() }
+      else { const d = await res.json(); setErroEmp(d.error || 'Erro ao salvar.') }
+    } catch(e) { setErroEmp('Erro de conexao.') }
+    setSalvandoEmp(false)
+  }
+
+  async function removerEmpreendimento(nome) {
+    if (!confirm('Remover "' + nome + '"?')) return
+    try {
+      await fetch('/api/empreendimentos', {
+        method: 'DELETE',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({nome})
+      })
+      buscarEmpreendimentos()
+    } catch(e) {}
+  }
 
   async function buscarAgendamentos() {
     const res = await fetch('/api/agendamentos')
@@ -138,7 +181,42 @@ export default function Admin() {
         </div>
       </div>
 
+      {/* ABAS */}
+      <div style={{background:'#fff', borderBottom:'1px solid #e5e7eb', display:'flex', padding:'0 1.5rem'}}>
+        {[{id:'agendamentos',label:'Agendamentos'},{id:'empreendimentos',label:'Empreendimentos'}].map(a => (
+          <button key={a.id} onClick={() => setAbaAtiva(a.id)} style={{padding:'12px 20px', background:'none', border:'none', borderBottom: abaAtiva===a.id?'3px solid #1B2F7E':'3px solid transparent', fontSize:'13px', fontWeight:'700', cursor:'pointer', color:abaAtiva===a.id?'#1B2F7E':'#6b7280', transition:'all 0.15s'}}>{a.label}</button>
+        ))}
+      </div>
+
       <div style={{maxWidth:'960px', margin:'0 auto', padding:'1.5rem 1rem'}}>
+
+        {abaAtiva === 'empreendimentos' && (
+          <div style={{background:'#fff', borderRadius:'12px', padding:'1.5rem', boxShadow:'0 1px 4px rgba(27,47,126,0.08)'}}>
+            <h2 style={{fontSize:'16px', fontWeight:'700', color:'#1B2F7E', margin:'0 0 8px'}}>Gerenciar Empreendimentos</h2>
+            <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 20px', lineHeight:'1.6'}}>Os empreendimentos cadastrados aqui aparecerao na lista suspensa para os clientes ao realizar o agendamento.</p>
+            <div style={{display:'flex', gap:'10px', marginBottom:'12px'}}>
+              <input value={novoEmp} onChange={e => setNovoEmp(e.target.value)} onKeyDown={e => e.key==='Enter' && adicionarEmpreendimento()} placeholder="Nome do novo empreendimento" style={{flex:1, padding:'10px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'14px', outline:'none'}}/>
+              <button onClick={adicionarEmpreendimento} disabled={salvandoEmp||!novoEmp.trim()} style={{padding:'10px 20px', background:salvandoEmp||!novoEmp.trim()?'#9ca3af':'#1B2F7E', color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'700', cursor:salvandoEmp||!novoEmp.trim()?'not-allowed':'pointer', whiteSpace:'nowrap'}}>
+                {salvandoEmp?'SALVANDO...':'+ ADICIONAR'}
+              </button>
+            </div>
+            {erroEmp && <p style={{color:'#dc2626', fontSize:'13px', margin:'0 0 12px', fontWeight:'600'}}>{erroEmp}</p>}
+            <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+              {empreendimentos.map(emp => (
+                <div key={emp} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'#f8f9ff', borderRadius:'8px', border:'1px solid #e0e5f5'}}>
+                  <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                    <div style={{width:'8px', height:'8px', borderRadius:'50%', background:'#1B2F7E', flexShrink:0}}></div>
+                    <span style={{fontSize:'14px', fontWeight:'600', color:'#1B2F7E'}}>{emp}</span>
+                  </div>
+                  <button onClick={() => removerEmpreendimento(emp)} style={{padding:'5px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'6px', fontSize:'12px', color:'#dc2626', cursor:'pointer', fontWeight:'600'}}>REMOVER</button>
+                </div>
+              ))}
+              {empreendimentos.length === 0 && <p style={{color:'#9ca3af', fontSize:'13px', textAlign:'center', padding:'2rem'}}>Nenhum empreendimento cadastrado.</p>}
+            </div>
+          </div>
+        )}
+
+        {abaAtiva === 'agendamentos' && (
 
         {/* Cards resumo */}
         <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px', marginBottom:'1.5rem'}}>
@@ -249,6 +327,7 @@ export default function Admin() {
         <p style={{textAlign:'center', fontSize:'12px', color:'#9ca3af', marginTop:'1rem'}}>
           Mostrando {((pagina-1)*POR_PAGINA)+1} - {Math.min(pagina*POR_PAGINA, filtrados.length)} de {filtrados.length} agendamentos
         </p>
+        )}
       </div>
     </main>
   )

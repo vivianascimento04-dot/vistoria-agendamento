@@ -6,7 +6,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
-// Lista padrao caso nao tenha no banco
 const PADRAO = ['Parque Mikonos', 'Parque Olimpia']
 
 export async function GET() {
@@ -26,7 +25,9 @@ export async function POST(request) {
   try {
     const { nome } = await request.json()
     if (!nome?.trim()) return NextResponse.json({ error: 'Nome obrigatorio' }, { status: 400 })
-    const { error } = await supabase.from('empreendimentos').insert([{ nome: nome.trim() }])
+    const { error } = await supabase
+      .from('empreendimentos')
+      .insert([{ nome: nome.trim() }])
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   } catch(e) {
@@ -37,7 +38,10 @@ export async function POST(request) {
 export async function DELETE(request) {
   try {
     const { nome } = await request.json()
-    const { error } = await supabase.from('empreendimentos').delete().eq('nome', nome)
+    const { error } = await supabase
+      .from('empreendimentos')
+      .delete()
+      .eq('nome', nome)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   } catch(e) {
