@@ -28,6 +28,7 @@ export default function Home() {
   const [etapa, setEtapa] = useState(1)
   const [isMobile, setIsMobile] = useState(false)
   const [empreendimentos, setEmpreendimentos] = useState(['Parque Mikonos', 'Parque Olimpia'])
+  const [tentouEnviar, setTentouEnviar] = useState(false)
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 640)
@@ -61,6 +62,7 @@ export default function Home() {
   }
 
   async function confirmar() {
+    setTentouEnviar(true)
     const { nome, email, telefone, empreendimento, torre, bloco, apartamento } = form
     if (!nome || !cpf || !email || !telefone || !empreendimento || !torre || !bloco || !apartamento) {
       setErro('Preencha todos os campos obrigatorios.')
@@ -216,31 +218,113 @@ export default function Home() {
                 <div style={{fontSize:'12px', color:'#5a6fa8'}}>as {horarioSel} &middot; <span onClick={() => {setEtapa(1);setHorarioSel(null)}} style={{cursor:'pointer', textDecoration:'underline', fontWeight:'600'}}>Alterar</span></div>
               </div>
             </div>
+
             <p style={{fontSize:'11px', fontWeight:'700', color: AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem'}}>DADOS PESSOAIS</p>
             <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'10px', marginBottom:'10px'}}>
-              <div><label style={{fontSize:'12px', fontWeight:'600', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>Nome Completo *</label><input value={form.nome} onChange={e => setForm({...form,nome:e.target.value})} placeholder="Joao da Silva" style={inp}/></div>
-              <div><label style={{fontSize:'12px', fontWeight:'600', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>CPF *</label><input value={form.cpf} onChange={e => setForm({...form,cpf:mascaraCPF(e.target.value)})} placeholder="000.000.000-00" maxLength={14} style={inp}/></div>
+              <div>
+                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.nome ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>
+                  Nome Completo *
+                </label>
+                <input
+                  value={form.nome}
+                  onChange={e => setForm({...form,nome:e.target.value})}
+                  placeholder="Joao da Silva"
+                  style={{...inp, border: tentouEnviar&&!form.nome ? '2px solid '+VERMELHO : '1px solid #dde1f0', background: tentouEnviar&&!form.nome ? '#fff8f8' : '#fff'}}
+                />
+                {tentouEnviar&&!form.nome && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
+              </div>
+              <div>
+                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.cpf ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>
+                  CPF *
+                </label>
+                <input
+                  value={form.cpf}
+                  onChange={e => setForm({...form,cpf:mascaraCPF(e.target.value)})}
+                  placeholder="000.000.000-00"
+                  maxLength={14}
+                  style={{...inp, border: tentouEnviar&&!form.cpf ? '2px solid '+VERMELHO : '1px solid #dde1f0', background: tentouEnviar&&!form.cpf ? '#fff8f8' : '#fff'}}
+                />
+                {tentouEnviar&&!form.cpf && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
+              </div>
             </div>
             <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'10px', marginBottom:'1rem'}}>
-              <div><label style={{fontSize:'12px', fontWeight:'600', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>E-mail *</label><input value={form.email} onChange={e => setForm({...form,email:e.target.value})} placeholder="joao@email.com" type="email" style={inp}/></div>
-              <div><label style={{fontSize:'12px', fontWeight:'600', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>Telefone *</label><input value={form.telefone} onChange={e => setForm({...form,telefone:mascaraTelefone(e.target.value)})} placeholder="(11) 99999-9999" maxLength={15} style={inp}/></div>
+              <div>
+                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.email ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>
+                  E-mail *
+                </label>
+                <input
+                  value={form.email}
+                  onChange={e => setForm({...form,email:e.target.value})}
+                  placeholder="joao@email.com"
+                  type="email"
+                  style={{...inp, border: tentouEnviar&&!form.email ? '2px solid '+VERMELHO : '1px solid #dde1f0', background: tentouEnviar&&!form.email ? '#fff8f8' : '#fff'}}
+                />
+                {tentouEnviar&&!form.email && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
+              </div>
+              <div>
+                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.telefone ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>
+                  Telefone *
+                </label>
+                <input
+                  value={form.telefone}
+                  onChange={e => setForm({...form,telefone:mascaraTelefone(e.target.value)})}
+                  placeholder="(11) 99999-9999"
+                  maxLength={15}
+                  style={{...inp, border: tentouEnviar&&!form.telefone ? '2px solid '+VERMELHO : '1px solid #dde1f0', background: tentouEnviar&&!form.telefone ? '#fff8f8' : '#fff'}}
+                />
+                {tentouEnviar&&!form.telefone && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
+              </div>
             </div>
+
             <p style={{fontSize:'11px', fontWeight:'700', color: AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem'}}>DADOS DO IMOVEL</p>
             <div style={{marginBottom:'10px'}}>
-              <label style={{fontSize:'12px', fontWeight:'600', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>Empreendimento *</label>
-              <select value={form.empreendimento} onChange={e => setForm({...form,empreendimento:e.target.value})} style={{...inp, background:'#fff', cursor:'pointer', color: form.empreendimento ? '#111' : '#9ca3af'}}>
+              <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.empreendimento ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>
+                Empreendimento *
+              </label>
+              <select
+                value={form.empreendimento}
+                onChange={e => setForm({...form,empreendimento:e.target.value})}
+                style={{...inp, background:'#fff', cursor:'pointer', color: form.empreendimento ? '#111' : '#9ca3af', border: tentouEnviar&&!form.empreendimento ? '2px solid '+VERMELHO : '1px solid #dde1f0'}}
+              >
                 <option value="">Selecione o empreendimento</option>
                 {empreendimentos.map(emp => <option key={emp} value={emp}>{emp}</option>)}
               </select>
+              {tentouEnviar&&!form.empreendimento && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
             </div>
-            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'10px', marginBottom:'1.25rem'}}>
-              <div><label style={{fontSize:'12px', fontWeight:'600', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>Torre *</label><input value={form.torre} onChange={e => setForm({...form,torre:e.target.value})} placeholder="Ex: A" style={inp}/></div>
-              <div><label style={{fontSize:'12px', fontWeight:'600', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>Bloco *</label><input value={form.bloco} onChange={e => setForm({...form,bloco:e.target.value})} placeholder="Ex: 2" style={inp}/></div>
-              <div><label style={{fontSize:'12px', fontWeight:'600', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>Apartamento *</label><input value={form.apartamento} onChange={e => setForm({...form,apartamento:e.target.value})} placeholder="Ex: 142" style={inp}/></div>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'1.25rem'}}>
+              <div>
+                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.torre ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>
+                  Torre *
+                </label>
+                <input
+                  value={form.torre}
+                  onChange={e => setForm({...form,torre:e.target.value})}
+                  placeholder="Ex: A"
+                  style={{...inp, border: tentouEnviar&&!form.torre ? '2px solid '+VERMELHO : '1px solid #dde1f0', background: tentouEnviar&&!form.torre ? '#fff8f8' : '#fff'}}
+                />
+                {tentouEnviar&&!form.torre && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
+              </div>
+              <div>
+                <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.apartamento ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase', letterSpacing:'0.04em'}}>
+                  Apartamento *
+                </label>
+                <input
+                  value={form.apartamento}
+                  onChange={e => setForm({...form,apartamento:e.target.value})}
+                  placeholder="Ex: 142"
+                  style={{...inp, border: tentouEnviar&&!form.apartamento ? '2px solid '+VERMELHO : '1px solid #dde1f0', background: tentouEnviar&&!form.apartamento ? '#fff8f8' : '#fff'}}
+                />
+                {tentouEnviar&&!form.apartamento && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
+              </div>
             </div>
-            {erro && <p style={{color: VERMELHO, fontSize:'13px', fontWeight:'600', marginBottom:'12px'}}>{erro}</p>}
+
+            {erro && (
+              <div style={{background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'8px', padding:'10px 14px', marginBottom:'12px'}}>
+                <p style={{color: VERMELHO, fontSize:'13px', fontWeight:'600', margin:0}}>&#9888; {erro}</p>
+              </div>
+            )}
             <div style={{display:'flex', gap:'10px'}}>
-              <button onClick={() => {setEtapa(1);setHorarioSel(null)}} style={{flex:1, padding:'12px', background:'#fff', color:'#6b7280', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'14px', fontWeight:'600', cursor:'pointer'}}>VOLTAR</button>
+              <button onClick={() => {setEtapa(1);setHorarioSel(null);setTentouEnviar(false)}} style={{flex:1, padding:'12px', background:'#fff', color:'#6b7280', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'14px', fontWeight:'600', cursor:'pointer'}}>VOLTAR</button>
               <button onClick={confirmar} disabled={loading} style={{flex:2, padding:'12px', background: loading?'#9ca3af': AZUL, color:'#fff', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:'700', letterSpacing:'0.05em', cursor: loading?'not-allowed':'pointer'}}>
                 {loading ? 'AGUARDE...' : 'CONFIRMAR AGENDAMENTO'}
               </button>
