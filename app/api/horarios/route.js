@@ -23,13 +23,18 @@ export async function GET(request) {
 
       if (error) throw error
 
-      const contagem = {}
+      // Agrupa horários únicos por dia
+      const porDia = {}
       for (const a of agendados || []) {
-        contagem[a.data] = (contagem[a.data] || 0) + 1
+        const d = a.data
+        const h = a.horario.slice(0, 5)
+        if (!porDia[d]) porDia[d] = new Set()
+        porDia[d].add(h)
       }
 
-      const diasCheios = Object.entries(contagem)
-        .filter(([, qtd]) => qtd >= HORARIOS.length)
+      // Dia cheio = todos os 8 horários ocupados
+      const diasCheios = Object.entries(porDia)
+        .filter(([, hset]) => hset.size >= HORARIOS.length)
         .map(([d]) => d)
 
       return NextResponse.json({ diasCheios })
