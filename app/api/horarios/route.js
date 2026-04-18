@@ -15,15 +15,20 @@ export async function GET(request) {
     const mes = searchParams.get('mes')
 
     if (mes) {
+      const [ano, m] = mes.split('-').map(Number)
+      const inicio = mes + '-01'
+      const ultimoDia = new Date(ano, m, 0).getDate()
+      const fim = mes + '-' + String(ultimoDia).padStart(2, '0')
+
       const { data: agendados, error } = await supabase
         .from('agendamentos')
         .select('data, horario')
-        .like('data', mes + '%')
+        .gte('data', inicio)
+        .lte('data', fim)
         .eq('status', 'confirmado')
 
       if (error) throw error
 
-      // Agrupa horários únicos por dia
       const porDia = {}
       for (const a of agendados || []) {
         const d = a.data
@@ -32,7 +37,6 @@ export async function GET(request) {
         porDia[d].add(h)
       }
 
-      // Dia cheio = todos os 8 horários ocupados
       const diasCheios = Object.entries(porDia)
         .filter(([, hset]) => hset.size >= HORARIOS.length)
         .map(([d]) => d)
