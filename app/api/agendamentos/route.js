@@ -1,209 +1,349 @@
 import { createClient } from '@supabase/supabase-js'
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 import { google } from 'googleapis'
 import { NextResponse } from 'next/server'
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-})
-
-const RODAPE = `
-  <div style="background:#1B2F7E;padding:20px 24px;text-align:center;">
-    <p style="margin:0 0 6px;font-weight:700;color:#fff;font-size:15px;letter-spacing:0.08em;">MARK INVEST</p>
-    <p style="margin:0 0 6px;color:#fff;font-size:13px;font-weight:600;">Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo</p>
-    <div style="width:40px;height:1px;background:rgba(255,255,255,0.3);margin:10px auto;"></div>
-    <p style="margin:0;color:rgba(255,255,255,0.6);font-size:11px;font-style:italic;">Este e-mail foi gerado automaticamente. Nao responda esta mensagem.</p>
-  </div>`
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request) {
-  const body = await request.json()
-  const { nome, cpf, email, telefone, empreendimento, torre, apartamento, data, horario } = body
+  const body = await request.json()
+  const { nome, cpf, email, telefone, apartamento, data, horario } = body
 
-  // Validacoes obrigatorias
-  if (!nome || !cpf || !email || !telefone || !empreendimento || !torre || !apartamento || !data || !horario) {
-    return NextResponse.json({ error: 'Preencha todos os campos obrigatorios.' }, { status: 400 })
-  }
+  if (!nome || !cpf || !email || !telefone || !apartamento || !data || !horario) {
+    return NextResponse.json({ error: 'Preencha todos os campos obrigatorios.' }, { status: 400 })
+  }
 
-  // Regra: CPF ja tem agendamento ativo
-  const cpfLimpo = cpf.replace(/\D/g, '')
-  const { data: cpfExistente } = await supabase
-    .from('agendamentos')
-    .select('id')
-    .ilike('cpf', '%' + cpfLimpo.slice(0,3) + '%')
-    .eq('status', 'confirmado')
-    .maybeSingle()
+  const cpfLimpo = cpf.replace(/\D/g, '')
 
-  // Busca mais precisa por CPF
-  const { data: agendsCPF } = await supabase
-    .from('agendamentos')
-    .select('id, cpf')
-    .eq('status', 'confirmado')
+  // Regra 1: CPF ja tem agendamento confirmado (qualquer data)
+  const { data: agendsCPF, error: errCPF } = await supabase
+    .from('agendamentos')
+    .select('id, cpf, data, horario')
+    .eq('status', 'confirmado')
 
-  const cpfJaAgendado = agendsCPF?.some(a => a.cpf && a.cpf.replace(/\D/g,'') === cpfLimpo)
+  if (!errCPF && agendsCPF) {
+    const cpfJaAgendado = agendsCPF.some(a => a.cpf && a.cpf.replace(/\D/g,'') === cpfLimpo)
+    if (cpfJaAgendado) {
+      return NextResponse.json(
+        { error: 'Seu horario ja esta confirmado. Por favor, entre em contato com o Relacionamento.' },
+        { status: 409 }
+      )
+    }
+  }
 
-  if (cpfJaAgendado) {
-    return NextResponse.json(
-      { error: 'Seu horario ja esta confirmado. Por favor, entre em contato com o Relacionamento.' },
-      { status: 409 }
-    )
-  }
+  // Regra 2: horario ja ocupado nessa data
+  const { data: horarioOcupado } = await supabase
+    .from('agendamentos')
+    .select('id')
+    .eq('data', data)
+    .eq('horario', horario)
+    .eq('status', 'confirmado')
+    .maybeSingle()
 
-  // Regra: horario ja ocupado
-  const { data: horarioOcupado } = await supabase
-    .from('agendamentos')
-    .select('id')
-    .eq('data', data)
-    .eq('horario', horario)
-    .eq('status', 'confirmado')
-    .maybeSingle()
+  if (horarioOcupado) {
+    return NextResponse.json({ error: 'Horario ja ocupado' }, { status: 409 })
+  }
 
-  if (horarioOcupado) {
-    return NextResponse.json({ error: 'Horario ja ocupado' }, { status: 409 })
-  }
+  // Salvar agendamento
+  const { data: agendamento, error } = await supabase
+    .from('agendamentos')
+    .insert([{ nome, cpf, email, telefone, apartamento, data, horario }])
+    .select()
+    .single()
 
-  // Salvar
-  const aptoCompleto = empreendimento + ' - Torre ' + torre + ', Apto ' + apartamento
-  const { data: agendamento, error } = await supabase
-    .from('agendamentos')
-    .insert([{ nome, cpf, email, telefone, apartamento: aptoCompleto, data, horario }])
-    .select()
-    .single()
+  if (error) {
+    if (error.code === '23505') {
+      return NextResponse.json({ error: 'Horario ja ocupado' }, { status: 409 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
-  if (error) {
-    if (error.code === '23505') {
-      return NextResponse.json({ error: 'Horario ja ocupado' }, { status: 409 })
-    }
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
+  // Google Agenda
+  try {
+    const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET)
+    auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN })
+    const calendar = google.calendar({ version: 'v3', auth })
+    const inicio = new Date(data + 'T' + horario + ':00')
+    const fim = new Date(inicio.getTime() + 60 * 60 * 1000)
+    const evento = await calendar.events.insert({
+      calendarId: 'primary',
+      requestBody: {
+        summary: 'Vistoria - ' + apartamento + ' (' + nome + ')',
+        description: 'Cliente: ' + nome + '\nApto: ' + apartamento + '\nCPF: ' + cpf + '\nTel: ' + telefone + '\nEmail: ' + email,
+        start: { dateTime: inicio.toISOString(), timeZone: 'America/Sao_Paulo' },
+        end: { dateTime: fim.toISOString(), timeZone: 'America/Sao_Paulo' },
+        attendees: [{ email }],
+      },
+    })
+    await supabase.from('agendamentos').update({ google_event_id: evento.data.id }).eq('id', agendamento.id)
+  } catch (e) {
+    console.error('Erro Google Agenda:', e.message)
+  }
 
-  // Google Agenda
-  try {
-    const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET)
-    auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN })
-    const calendar = google.calendar({ version: 'v3', auth })
-    const inicio = new Date(data + 'T' + horario + ':00')
-    const fim = new Date(inicio.getTime() + 60 * 60 * 1000)
-    const evento = await calendar.events.insert({
-      calendarId: 'primary',
-      requestBody: {
-        summary: 'Vistoria - ' + aptoCompleto + ' (' + nome + ')',
-        description: 'Cliente: ' + nome + '\nApto: ' + aptoCompleto + '\nCPF: ' + cpf + '\nTel: ' + telefone + '\nEmail: ' + email,
-        start: { dateTime: inicio.toISOString(), timeZone: 'America/Sao_Paulo' },
-        end: { dateTime: fim.toISOString(), timeZone: 'America/Sao_Paulo' },
-        attendees: [{ email }],
-      },
-    })
-    await supabase.from('agendamentos').update({ google_event_id: evento.data.id }).eq('id', agendamento.id)
-  } catch (e) {
-    console.error('Erro Google Agenda:', e.message)
-  }
+  const dataFormatada = new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  })
+  const dataCapitalizada = dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1)
 
-  const dataFormatada = new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
-  const dataCapitalizada = dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1)
+  // Templates de email
+  const htmlCliente = `
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:30px 0;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
 
-  // Email equipe
-  try {
-    await transporter.sendMail({
-      from: `"Mark Invest" <${process.env.EMAIL_USER}>`,
-      to: process.env.EMAIL_EQUIPE,
-      subject: 'Nova Vistoria Agendada - ' + empreendimento + ' Torre ' + torre + ' Apto ' + apartamento,
-      html: `
-<div style="font-family:'Segoe UI',sans-serif;max-width:600px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
-  <div style="background:#1B2F7E;padding:28px 24px;text-align:center;">
-    <p style="color:#fff;font-size:24px;font-weight:700;margin:0 0 4px;letter-spacing:0.05em;">MARK INVEST</p>
-    <p style="color:rgba(255,255,255,0.8);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;margin:0;">Novo Agendamento de Vistoria</p>
-  </div>
-  <div style="padding:32px 24px;background:#ffffff;">
-    <h2 style="color:#1B2F7E;font-family:Georgia,serif;font-weight:400;margin:0 0 6px;font-size:22px;">Novo agendamento recebido</h2>
-    <p style="color:#6b7280;font-size:13px;margin:0 0 24px;">Vistoria agendada em ${dataCapitalizada} as ${horario}</p>
+      <!-- Header -->
+      <tr>
+        <td style="background:linear-gradient(135deg,#1B2F7E 0%,#2a4db5 100%);padding:36px 32px;text-align:center;">
+          <p style="color:#fff;font-size:28px;font-weight:900;margin:0 0 6px;letter-spacing:0.08em;font-family:Georgia,serif;">MARK INVEST</p>
+          <p style="color:rgba(255,255,255,0.75);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;margin:0;">Sistema de Agendamento de Vistoria</p>
+        </td>
+      </tr>
 
-    <div style="background:#E8EBF5;border-radius:12px;padding:20px 24px;margin-bottom:20px;">
-      <p style="font-size:11px;font-weight:700;color:#1B2F7E;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 14px;border-bottom:1px solid #c0c9e8;padding-bottom:8px;">DADOS DO CLIENTE</p>
-      <table style="width:100%;border-collapse:collapse;font-size:14px;">
-        <tr style="border-bottom:1px solid #d0d9ee;"><td style="padding:8px 0;color:#6b7280;font-weight:600;text-transform:uppercase;font-size:11px;width:35%;">Nome</td><td style="padding:8px 0;font-weight:700;color:#111;">${nome}</td></tr>
-        <tr style="border-bottom:1px solid #d0d9ee;"><td style="padding:8px 0;color:#6b7280;font-weight:600;text-transform:uppercase;font-size:11px;">CPF</td><td style="padding:8px 0;color:#374151;">${cpf}</td></tr>
-        <tr style="border-bottom:1px solid #d0d9ee;"><td style="padding:8px 0;color:#6b7280;font-weight:600;text-transform:uppercase;font-size:11px;">E-mail</td><td style="padding:8px 0;color:#1B2F7E;font-weight:600;">${email}</td></tr>
-        <tr><td style="padding:8px 0;color:#6b7280;font-weight:600;text-transform:uppercase;font-size:11px;">Telefone</td><td style="padding:8px 0;color:#374151;">${telefone}</td></tr>
-      </table>
-    </div>
+      <!-- Confirmacao banner -->
+      <tr>
+        <td style="background:#16a34a;padding:14px 32px;text-align:center;">
+          <p style="color:#fff;font-size:13px;font-weight:700;margin:0;letter-spacing:0.06em;">&#10003; &nbsp; AGENDAMENTO CONFIRMADO COM SUCESSO</p>
+        </td>
+      </tr>
 
-    <div style="background:#f8f9ff;border-radius:12px;padding:20px 24px;">
-      <p style="font-size:11px;font-weight:700;color:#1B2F7E;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 14px;border-bottom:1px solid #e0e5f5;padding-bottom:8px;">DADOS DA VISTORIA</p>
-      <table style="width:100%;border-collapse:collapse;font-size:14px;">
-        <tr style="border-bottom:1px solid #e0e5f5;"><td style="padding:8px 0;color:#6b7280;font-weight:600;text-transform:uppercase;font-size:11px;width:35%;">Empreendimento</td><td style="padding:8px 0;font-weight:700;color:#1B2F7E;">${empreendimento}</td></tr>
-        <tr style="border-bottom:1px solid #e0e5f5;"><td style="padding:8px 0;color:#6b7280;font-weight:600;text-transform:uppercase;font-size:11px;">Torre / Apto</td><td style="padding:8px 0;font-weight:600;color:#374151;">Torre ${torre}, Apto ${apartamento}</td></tr>
-        <tr style="border-bottom:1px solid #e0e5f5;"><td style="padding:8px 0;color:#6b7280;font-weight:600;text-transform:uppercase;font-size:11px;">Data</td><td style="padding:8px 0;font-weight:700;color:#1B2F7E;">${dataCapitalizada}</td></tr>
-        <tr><td style="padding:8px 0;color:#6b7280;font-weight:600;text-transform:uppercase;font-size:11px;">Horario</td><td style="padding:8px 0;font-weight:700;color:#1B2F7E;">${horario}</td></tr>
-      </table>
-    </div>
-  </div>
-  ${RODAPE}
-</div>`
-    })
-    console.log('Email equipe enviado com sucesso')
-  } catch (e) {
-    console.error('Erro email equipe:', e.message)
-  }
+      <!-- Corpo -->
+      <tr>
+        <td style="background:#ffffff;padding:36px 32px;">
+          <p style="color:#1B2F7E;font-size:22px;font-family:Georgia,serif;font-weight:400;margin:0 0 8px;">Ola, ${nome}!</p>
+          <p style="color:#6b7280;font-size:14px;line-height:1.7;margin:0 0 28px;">Sua vistoria foi agendada com sucesso. Confira os detalhes abaixo e guarde este e-mail para consulta futura.</p>
 
-  // Email cliente
-  try {
-    await transporter.sendMail({
-      from: `"Mark Invest" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Vistoria Confirmada - Mark Invest',
-      html: `
-<div style="font-family:'Segoe UI',sans-serif;max-width:600px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
-  <div style="background:#1B2F7E;padding:28px 24px;text-align:center;">
-    <p style="color:#fff;font-size:24px;font-weight:700;margin:0 0 4px;letter-spacing:0.05em;">MARK INVEST</p>
-    <p style="color:rgba(255,255,255,0.8);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;margin:0;">Sistema de Agendamento de Vistoria</p>
-  </div>
-  <div style="padding:32px 24px;background:#ffffff;">
-    <h2 style="color:#1B2F7E;font-family:Georgia,serif;font-weight:400;margin:0 0 8px;font-size:22px;">Sua vistoria foi agendada!</h2>
-    <p style="color:#6b7280;font-size:14px;margin:0 0 24px;line-height:1.6;">Ola, <strong style="color:#111;">${nome}</strong>. Seu agendamento foi confirmado com sucesso.</p>
+          <!-- Card de detalhes -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9ff;border-radius:12px;border:1px solid #e0e5f5;margin-bottom:24px;">
+            <tr>
+              <td style="padding:20px 24px;border-bottom:1px solid #e0e5f5;">
+                <p style="font-size:10px;font-weight:700;color:#1B2F7E;text-transform:uppercase;letter-spacing:0.12em;margin:0;">DETALHES DA VISTORIA</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 24px;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="padding:12px 0;border-bottom:1px solid #eef0f8;width:40%;">
+                      <p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:0;">Data</p>
+                    </td>
+                    <td style="padding:12px 0;border-bottom:1px solid #eef0f8;">
+                      <p style="font-size:14px;font-weight:700;color:#1B2F7E;margin:0;">${dataCapitalizada}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:12px 0;border-bottom:1px solid #eef0f8;">
+                      <p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:0;">Horario</p>
+                    </td>
+                    <td style="padding:12px 0;border-bottom:1px solid #eef0f8;">
+                      <p style="font-size:14px;font-weight:700;color:#1B2F7E;margin:0;">${horario}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:12px 0;border-bottom:1px solid #eef0f8;">
+                      <p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:0;">Unidade</p>
+                    </td>
+                    <td style="padding:12px 0;border-bottom:1px solid #eef0f8;">
+                      <p style="font-size:14px;font-weight:600;color:#374151;margin:0;">${apartamento}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:12px 0;">
+                      <p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:0;">Telefone</p>
+                    </td>
+                    <td style="padding:12px 0;">
+                      <p style="font-size:14px;color:#374151;margin:0;">${telefone}</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
 
-    <div style="background:#E8EBF5;border-radius:12px;padding:20px 24px;margin-bottom:24px;">
-      <p style="font-size:11px;font-weight:700;color:#1B2F7E;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 14px;border-bottom:1px solid #c0c9e8;padding-bottom:8px;">RESUMO DO AGENDAMENTO</p>
-      <table style="width:100%;border-collapse:collapse;font-size:14px;">
-        <tr><td style="padding:7px 0;color:#6b7280;font-weight:600;text-transform:uppercase;font-size:11px;width:40%;">Data</td><td style="padding:7px 0;font-weight:700;color:#1B2F7E;">${dataCapitalizada}</td></tr>
-        <tr><td style="padding:7px 0;color:#6b7280;font-weight:600;text-transform:uppercase;font-size:11px;">Horario</td><td style="padding:7px 0;font-weight:700;color:#1B2F7E;">${horario}</td></tr>
-        <tr><td style="padding:7px 0;color:#6b7280;font-weight:600;text-transform:uppercase;font-size:11px;">Empreendimento</td><td style="padding:7px 0;font-weight:600;color:#374151;">${empreendimento}</td></tr>
-        <tr><td style="padding:7px 0;color:#6b7280;font-weight:600;text-transform:uppercase;font-size:11px;">Torre / Apto</td><td style="padding:7px 0;font-weight:600;color:#374151;">Torre ${torre}, Apto ${apartamento}</td></tr>
-        <tr><td style="padding:7px 0;color:#6b7280;font-weight:600;text-transform:uppercase;font-size:11px;">Telefone</td><td style="padding:7px 0;color:#374151;">${telefone}</td></tr>
-      </table>
-    </div>
+          <!-- Aviso importante -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8e1;border-radius:10px;border-left:4px solid #f59e0b;margin-bottom:24px;">
+            <tr>
+              <td style="padding:14px 18px;">
+                <p style="font-size:13px;color:#92400e;font-weight:600;margin:0 0 4px;">&#9888; Informacao importante</p>
+                <p style="font-size:13px;color:#92400e;margin:0;line-height:1.5;">Seu horario ja esta confirmado. Por favor, em caso de duvidas ou necessidade de alteracao, entre em contato com o Relacionamento.</p>
+              </td>
+            </tr>
+          </table>
 
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 18px;margin-bottom:20px;">
-      <p style="color:#15803d;font-size:13px;font-weight:600;margin:0;">&#10003; Agendamento confirmado! Fique atento ao horario marcado.</p>
-    </div>
+          <p style="color:#6b7280;font-size:13px;line-height:1.7;margin:0;">Alteracoes so podem ser realizadas pela equipe Mark Invest. Aguardamos voce na data agendada!</p>
+        </td>
+      </tr>
 
-    <p style="color:#6b7280;font-size:13px;line-height:1.7;margin:0;">Em caso de duvidas ou necessidade de alteracao, entre em contato com nossa equipe de Relacionamento. Alteracoes so podem ser realizadas pela equipe Mark Invest.</p>
-  </div>
-  ${RODAPE}
-</div>`
-    })
-    console.log('Email cliente enviado com sucesso')
-  } catch (e) {
-    console.error('Erro email cliente:', e.message)
-  }
+      <!-- Footer -->
+      <tr>
+        <td style="background:#1B2F7E;padding:24px 32px;text-align:center;">
+          <p style="color:#fff;font-size:15px;font-weight:700;margin:0 0 6px;letter-spacing:0.06em;">MARK INVEST</p>
+          <p style="color:rgba(255,255,255,0.8);font-size:12px;margin:0 0 10px;">Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo</p>
+          <p style="color:rgba(255,255,255,0.5);font-size:10px;margin:0;">relacionamento@markinvest.com.br &nbsp;|&nbsp; Este e-mail foi gerado automaticamente.</p>
+        </td>
+      </tr>
 
-  return NextResponse.json({ success: true, agendamento })
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`
+
+  const htmlEquipe = `
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:30px 0;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+
+      <!-- Header -->
+      <tr>
+        <td style="background:linear-gradient(135deg,#1B2F7E 0%,#2a4db5 100%);padding:36px 32px;text-align:center;">
+          <p style="color:#fff;font-size:28px;font-weight:900;margin:0 0 6px;letter-spacing:0.08em;font-family:Georgia,serif;">MARK INVEST</p>
+          <p style="color:rgba(255,255,255,0.75);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;margin:0;">Novo Agendamento de Vistoria</p>
+        </td>
+      </tr>
+
+      <!-- Alerta novo agendamento -->
+      <tr>
+        <td style="background:#1B2F7E;padding:0;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.1);border-top:1px solid rgba(255,255,255,0.2);">
+            <tr>
+              <td style="padding:12px 32px;text-align:center;">
+                <p style="color:#fff;font-size:12px;font-weight:600;margin:0;letter-spacing:0.05em;">&#128197; &nbsp; Nova vistoria agendada para ${dataCapitalizada} as ${horario}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- Corpo -->
+      <tr>
+        <td style="background:#ffffff;padding:36px 32px;">
+          <p style="color:#1B2F7E;font-size:20px;font-family:Georgia,serif;font-weight:400;margin:0 0 24px;">Novo agendamento recebido</p>
+
+          <!-- Dados do cliente -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9ff;border-radius:12px;border:1px solid #e0e5f5;margin-bottom:20px;">
+            <tr>
+              <td style="padding:16px 24px;border-bottom:1px solid #e0e5f5;">
+                <p style="font-size:10px;font-weight:700;color:#1B2F7E;text-transform:uppercase;letter-spacing:0.12em;margin:0;">DADOS DO CLIENTE</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 24px;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #eef0f8;width:35%;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:0;">Nome</p></td>
+                    <td style="padding:10px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:14px;font-weight:700;color:#111;margin:0;">${nome}</p></td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:0;">CPF</p></td>
+                    <td style="padding:10px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:14px;color:#374151;margin:0;">${cpf || 'Nao informado'}</p></td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:0;">E-mail</p></td>
+                    <td style="padding:10px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:14px;color:#1B2F7E;font-weight:600;margin:0;">${email}</p></td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:0;">Telefone</p></td>
+                    <td style="padding:10px 0;"><p style="font-size:14px;color:#374151;margin:0;">${telefone}</p></td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Dados da vistoria -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;border:2px solid #1B2F7E;margin-bottom:20px;">
+            <tr>
+              <td style="background:#1B2F7E;padding:16px 24px;border-radius:10px 10px 0 0;">
+                <p style="font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.12em;margin:0;">DADOS DA VISTORIA</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 24px;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="padding:12px 0;border-bottom:1px solid #eef0f8;width:35%;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:0;">Data</p></td>
+                    <td style="padding:12px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:15px;font-weight:700;color:#1B2F7E;margin:0;">${dataCapitalizada}</p></td>
+                  </tr>
+                  <tr>
+                    <td style="padding:12px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:0;">Horario</p></td>
+                    <td style="padding:12px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:15px;font-weight:700;color:#1B2F7E;margin:0;">${horario}</p></td>
+                  </tr>
+                  <tr>
+                    <td style="padding:12px 0;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:0;">Unidade</p></td>
+                    <td style="padding:12px 0;"><p style="font-size:14px;font-weight:600;color:#374151;margin:0;">${apartamento}</p></td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+
+        </td>
+      </tr>
+
+      <!-- Footer -->
+      <tr>
+        <td style="background:#1B2F7E;padding:24px 32px;text-align:center;">
+          <p style="color:#fff;font-size:15px;font-weight:700;margin:0 0 6px;letter-spacing:0.06em;">MARK INVEST</p>
+          <p style="color:rgba(255,255,255,0.8);font-size:12px;margin:0 0 10px;">Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo</p>
+          <p style="color:rgba(255,255,255,0.5);font-size:10px;margin:0;">Este e-mail foi gerado automaticamente pelo sistema de agendamento.</p>
+        </td>
+      </tr>
+
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`
+
+  try {
+    // Email para o cliente
+    await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: email,
+      subject: 'Vistoria Confirmada - Mark Invest',
+      html: htmlCliente
+    })
+
+    // Email para a equipe de relacionamento
+    await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: 'relacionamento@markinvest.com.br',
+      subject: 'Nova Vistoria Agendada - ' + apartamento + ' | ' + dataCapitalizada,
+      html: htmlEquipe
+    })
+
+    // Email para EMAIL_EQUIPE (backup configurado no .env)
+    if (process.env.EMAIL_EQUIPE && process.env.EMAIL_EQUIPE !== 'relacionamento@markinvest.com.br') {
+      await resend.emails.send({
+        from: 'onboarding@resend.dev',
+        to: process.env.EMAIL_EQUIPE,
+        subject: 'Nova Vistoria Agendada - ' + apartamento + ' | ' + dataCapitalizada,
+        html: htmlEquipe
+      })
+    }
+  } catch (e) {
+    console.error('Erro e-mail:', e.message)
+  }
+
+  return NextResponse.json({ success: true, agendamento })
 }
 
 export async function GET() {
-  const { data, error } = await supabase
-    .from('agendamentos')
-    .select('*')
-    .order('criado_em', { ascending: true })
+  const { data, error } = await supabase
+    .from('agendamentos')
+    .select('*')
+    .order('criado_em', { ascending: true })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data)
 }
