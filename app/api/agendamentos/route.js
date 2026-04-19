@@ -24,7 +24,6 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Preencha todos os campos obrigatorios.' }, { status: 400 })
   }
 
-  // Bloquear CPF duplicado
   const cpfLimpo = cpf.replace(/\D/g, '')
   const { data: todosAgends } = await supabase
     .from('agendamentos')
@@ -42,7 +41,6 @@ export async function POST(request) {
     )
   }
 
-  // Bloquear horário duplicado
   const { data: horarioOcupado } = await supabase
     .from('agendamentos')
     .select('id')
@@ -55,7 +53,6 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Horario ja ocupado' }, { status: 409 })
   }
 
-  // Salvar agendamento
   const { data: agendamento, error } = await supabase
     .from('agendamentos')
     .insert([{ nome, cpf, email, telefone, apartamento, data, horario }])
@@ -69,7 +66,6 @@ export async function POST(request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  // Google Agenda
   try {
     const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET)
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN })
@@ -96,7 +92,6 @@ export async function POST(request) {
   })
   const dataCapitalizada = dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1)
 
-  // Emails
   try {
     await transporter.sendMail({
       from: '"Mark Invest" <' + process.env.EMAIL_USER + '>',
@@ -271,6 +266,4 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
-}/ /   n o d e m a i l e r   v 2 
- 
- 
+}
