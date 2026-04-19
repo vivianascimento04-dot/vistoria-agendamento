@@ -246,7 +246,7 @@ export default function Home() {
               <label style={{fontSize:'12px', fontWeight:'700', color: tentouEnviar&&!form.empreendimento ? VERMELHO : '#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Empreendimento *</label>
               <select value={form.empreendimento} onChange={e => setForm({...form,empreendimento:e.target.value})} style={{...(tentouEnviar&&!form.empreendimento ? erro_borda : inp), background:'#fff', cursor:'pointer', color: form.empreendimento ? '#111' : '#9ca3af'}}>
                 <option value="">Selecione o empreendimento</option>
-                {empreendimentos.map(emp => <option key={emp} value={emp}>{emp}</option>)}
+                {empreendimentos.map(emp => <option key={emp} value={emp} style={{fontWeight:'700'}}>{emp}</option>)}
               </select>
               {tentouEnviar&&!form.empreendimento && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
             </div>
