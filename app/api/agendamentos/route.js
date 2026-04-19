@@ -271,5 +271,6 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
-}/ /   n o d e m a i l e r   v 2  
+}/ /   n o d e m a i l e r   v 2 
+ 
  
