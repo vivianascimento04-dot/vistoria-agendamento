@@ -92,6 +92,11 @@ export async function POST(request) {
   })
   const dataCapitalizada = dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1)
 
+  const emailsEquipe = [
+    process.env.EMAIL_EQUIPE,
+    process.env.EMAIL_EQUIPE2
+  ].filter(Boolean).join(',')
+
   try {
     await transporter.sendMail({
       from: '"Mark Invest" <' + process.env.EMAIL_USER + '>',
@@ -168,7 +173,7 @@ export async function POST(request) {
 
     await transporter.sendMail({
       from: '"Mark Invest" <' + process.env.EMAIL_USER + '>',
-      to: process.env.EMAIL_EQUIPE,
+      to: emailsEquipe,
       subject: 'Nova Vistoria - ' + apartamento + ' | ' + dataCapitalizada,
       html: `<!DOCTYPE html>
 <html>
