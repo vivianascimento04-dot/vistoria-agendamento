@@ -24,14 +24,17 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Preencha todos os campos obrigatorios.' }, { status: 400 })
   }
 
+  // Bloquear CPF duplicado
   const cpfLimpo = cpf.replace(/\D/g, '')
-
-  const { data: agendsCPF } = await supabase
+  const { data: todosAgends } = await supabase
     .from('agendamentos')
     .select('id, cpf')
     .eq('status', 'confirmado')
 
-  const cpfJaAgendado = agendsCPF?.some(a => a.cpf && a.cpf.replace(/\D/g,'') === cpfLimpo)
+  const cpfJaAgendado = (todosAgends || []).some(
+    a => a.cpf && a.cpf.replace(/\D/g, '') === cpfLimpo
+  )
+
   if (cpfJaAgendado) {
     return NextResponse.json(
       { error: 'Seu horario ja esta confirmado. Por favor, entre em contato com o Relacionamento.' },
@@ -39,6 +42,7 @@ export async function POST(request) {
     )
   }
 
+  // Bloquear horário duplicado
   const { data: horarioOcupado } = await supabase
     .from('agendamentos')
     .select('id')
@@ -51,6 +55,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Horario ja ocupado' }, { status: 409 })
   }
 
+  // Salvar agendamento
   const { data: agendamento, error } = await supabase
     .from('agendamentos')
     .insert([{ nome, cpf, email, telefone, apartamento, data, horario }])
@@ -64,6 +69,7 @@ export async function POST(request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  // Google Agenda
   try {
     const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET)
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN })
@@ -90,8 +96,8 @@ export async function POST(request) {
   })
   const dataCapitalizada = dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1)
 
+  // Emails
   try {
-    // Email para o solicitante
     await transporter.sendMail({
       from: '"Mark Invest" <' + process.env.EMAIL_USER + '>',
       to: email,
@@ -110,13 +116,13 @@ export async function POST(request) {
       </tr>
       <tr>
         <td style="background:#16a34a;padding:14px 32px;text-align:center;">
-          <p style="color:#fff;font-size:13px;font-weight:700;margin:0;letter-spacing:0.06em;">&#10003; &nbsp; AGENDAMENTO CONFIRMADO COM SUCESSO</p>
+          <p style="color:#fff;font-size:13px;font-weight:700;margin:0;">&#10003; AGENDAMENTO CONFIRMADO COM SUCESSO</p>
         </td>
       </tr>
       <tr>
         <td style="background:#ffffff;padding:36px 32px;">
           <p style="color:#1B2F7E;font-size:22px;font-family:Georgia,serif;font-weight:400;margin:0 0 8px;">Ola, ${nome}!</p>
-          <p style="color:#6b7280;font-size:14px;line-height:1.7;margin:0 0 28px;">Sua vistoria foi agendada com sucesso. Confira os detalhes abaixo e guarde este e-mail para consulta futura.</p>
+          <p style="color:#6b7280;font-size:14px;line-height:1.7;margin:0 0 28px;">Sua vistoria foi agendada com sucesso. Confira os detalhes abaixo.</p>
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9ff;border-radius:12px;border:1px solid #e0e5f5;margin-bottom:24px;">
             <tr><td style="padding:16px 24px;border-bottom:1px solid #e0e5f5;">
               <p style="font-size:10px;font-weight:700;color:#1B2F7E;text-transform:uppercase;letter-spacing:0.12em;margin:0;">DETALHES DA VISTORIA</p>
@@ -148,14 +154,14 @@ export async function POST(request) {
               <p style="font-size:13px;color:#92400e;margin:0;line-height:1.5;">Seu horario ja esta confirmado. Em caso de duvidas ou necessidade de alteracao, entre em contato com o Relacionamento.</p>
             </td></tr>
           </table>
-          <p style="color:#6b7280;font-size:13px;line-height:1.7;margin:0;">Alteracoes so podem ser realizadas pela equipe Mark Invest. Aguardamos voce na data agendada!</p>
+          <p style="color:#6b7280;font-size:13px;line-height:1.7;margin:0;">Alteracoes so podem ser realizadas pela equipe Mark Invest. Aguardamos voce!</p>
         </td>
       </tr>
       <tr>
         <td style="background:#1B2F7E;padding:24px 32px;text-align:center;">
-          <p style="color:#fff;font-size:15px;font-weight:700;margin:0 0 6px;letter-spacing:0.06em;">MARK INVEST</p>
+          <p style="color:#fff;font-size:15px;font-weight:700;margin:0 0 6px;">MARK INVEST</p>
           <p style="color:rgba(255,255,255,0.8);font-size:12px;margin:0 0 6px;">Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo</p>
-          <p style="color:rgba(255,255,255,0.5);font-size:10px;margin:0;">relacionamento@markinvest.com.br &nbsp;|&nbsp; Este e-mail foi gerado automaticamente.</p>
+          <p style="color:rgba(255,255,255,0.5);font-size:10px;margin:0;">relacionamento@markinvest.com.br | Este e-mail foi gerado automaticamente.</p>
         </td>
       </tr>
     </table>
@@ -165,7 +171,6 @@ export async function POST(request) {
 </html>`
     })
 
-    // Email para a equipe
     await transporter.sendMail({
       from: '"Mark Invest" <' + process.env.EMAIL_USER + '>',
       to: process.env.EMAIL_EQUIPE,
@@ -184,7 +189,7 @@ export async function POST(request) {
       </tr>
       <tr>
         <td style="background:#1e40af;padding:12px 32px;text-align:center;">
-          <p style="color:#fff;font-size:12px;font-weight:600;margin:0;">&#128197; &nbsp; Nova vistoria agendada para ${dataCapitalizada} as ${horario}</p>
+          <p style="color:#fff;font-size:12px;font-weight:600;margin:0;">&#128197; Nova vistoria: ${dataCapitalizada} as ${horario}</p>
         </td>
       </tr>
       <tr>
@@ -202,7 +207,7 @@ export async function POST(request) {
                 </tr>
                 <tr>
                   <td style="padding:9px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin:0;">CPF</p></td>
-                  <td style="padding:9px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:14px;color:#374151;margin:0;">${cpf || 'Nao informado'}</p></td>
+                  <td style="padding:9px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:14px;color:#374151;margin:0;">${cpf}</p></td>
                 </tr>
                 <tr>
                   <td style="padding:9px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin:0;">E-mail</p></td>
@@ -240,9 +245,9 @@ export async function POST(request) {
       </tr>
       <tr>
         <td style="background:#1B2F7E;padding:24px 32px;text-align:center;">
-          <p style="color:#fff;font-size:15px;font-weight:700;margin:0 0 6px;letter-spacing:0.06em;">MARK INVEST</p>
+          <p style="color:#fff;font-size:15px;font-weight:700;margin:0 0 6px;">MARK INVEST</p>
           <p style="color:rgba(255,255,255,0.8);font-size:12px;margin:0 0 6px;">Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo</p>
-          <p style="color:rgba(255,255,255,0.5);font-size:10px;margin:0;">Este e-mail foi gerado automaticamente pelo sistema de agendamento.</p>
+          <p style="color:rgba(255,255,255,0.5);font-size:10px;margin:0;">Este e-mail foi gerado automaticamente.</p>
         </td>
       </tr>
     </table>
@@ -252,10 +257,7 @@ export async function POST(request) {
 </html>`
     })
   } catch (e) {
-    console.error('Erro e-mail COMPLETO:', JSON.stringify(e))
-    console.error('Erro e-mail MESSAGE:', e.message)
-    console.error('Erro e-mail CODE:', e.code)
-    return NextResponse.json({ emailError: e.message, success: true, agendamento })
+    console.error('Erro e-mail:', e.message)
   }
 
   return NextResponse.json({ success: true, agendamento })
