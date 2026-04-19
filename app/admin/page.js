@@ -127,65 +127,130 @@ export default function Admin() {
       document.head.appendChild(script)
       await new Promise((res, rej) => { script.onload = res; script.onerror = rej })
       const { jsPDF } = window.jspdf
-      const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'})
-      const W = 210, M = 15
+      const doc = new jsPDF({orientation:'landscape', unit:'mm', format:'a4'})
+      const W = 297, M = 12
       let y = 0
 
       doc.setFillColor(27,47,126)
-      doc.rect(0,0,W,35,'F')
+      doc.rect(0,0,W,32,'F')
       doc.setTextColor(255,255,255)
-      doc.setFontSize(18); doc.setFont('helvetica','bold')
-      doc.text('MARK INVEST', W/2, 14, {align:'center'})
-      doc.setFontSize(10); doc.setFont('helvetica','normal')
-      doc.text('Relatorio de Agendamentos de Vistoria', W/2, 22, {align:'center'})
-      doc.setFontSize(8)
-      doc.text('Gerado em: ' + new Date().toLocaleString('pt-BR'), W/2, 29, {align:'center'})
-      y = 42
+      doc.setFontSize(20); doc.setFont('helvetica','bold')
+      doc.text('MARK INVEST', W/2, 13, {align:'center'})
+      doc.setFontSize(9); doc.setFont('helvetica','normal')
+      doc.text('Relatorio de Agendamentos de Vistoria', W/2, 21, {align:'center'})
+      doc.setFontSize(7.5)
+      doc.text('Gerado em: ' + new Date().toLocaleString('pt-BR'), W/2, 28, {align:'center'})
+      y = 38
 
-      doc.setTextColor(80,80,80); doc.setFontSize(8); doc.setFont('helvetica','italic')
+      doc.setFillColor(240,243,250)
+      doc.rect(M, y-4, W-M*2, 10, 'F')
+      doc.setTextColor(60,60,100); doc.setFontSize(7.5); doc.setFont('helvetica','italic')
       let ftxt = 'Filtros: Status = ' + (filtro==='todos'?'Todos':filtro)
       if (dataInicio) ftxt += ' | De: ' + new Date(dataInicio+'T12:00:00').toLocaleDateString('pt-BR')
       if (dataFim) ftxt += ' | Ate: ' + new Date(dataFim+'T12:00:00').toLocaleDateString('pt-BR')
       ftxt += ' | Total: ' + filtrados.length + ' registro(s)'
-      doc.text(ftxt, M, y); y += 8
+      doc.text(ftxt, M+3, y+2)
+      y += 12
 
-      doc.setFillColor(27,47,126); doc.rect(M,y,W-M*2,7,'F')
-      doc.setTextColor(255,255,255); doc.setFontSize(8); doc.setFont('helvetica','bold')
-      const cols = [{x:M+1,label:'NOME'},{x:M+48,label:'DATA'},{x:M+62,label:'HORA'},{x:M+72,label:'UNIDADE'},{x:M+130,label:'TELEFONE'},{x:M+152,label:'STATUS'}]
-      cols.forEach(c => doc.text(c.label, c.x, y+5))
+      const cols = [
+        {x:M,      w:38, label:'NOME'},
+        {x:M+39,   w:30, label:'EMPREENDIMENTO'},
+        {x:M+70,   w:40, label:'UNIDADE'},
+        {x:M+111,  w:22, label:'DATA VISTORIA'},
+        {x:M+134,  w:14, label:'HORA'},
+        {x:M+149,  w:28, label:'TELEFONE'},
+        {x:M+178,  w:35, label:'AGENDADO EM'},
+        {x:M+214,  w:22, label:'STATUS'},
+      ]
+
+      doc.setFillColor(27,47,126)
+      doc.rect(M, y, W-M*2, 8, 'F')
+      doc.setTextColor(255,255,255); doc.setFontSize(7.5); doc.setFont('helvetica','bold')
+      cols.forEach(c => doc.text(c.label, c.x+1, y+5.5))
       y += 9
 
       doc.setFont('helvetica','normal')
       filtrados.forEach((a, idx) => {
-        if (y > 270) {
-          doc.addPage(); y = 15
-          doc.setFillColor(27,47,126); doc.rect(M,y,W-M*2,7,'F')
-          doc.setTextColor(255,255,255); doc.setFont('helvetica','bold')
-          cols.forEach(c => doc.text(c.label, c.x, y+5))
+        if (y > 185) {
+          doc.addPage()
+          y = 15
+          doc.setFillColor(27,47,126); doc.rect(M,y,W-M*2,8,'F')
+          doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(7.5)
+          cols.forEach(c => doc.text(c.label, c.x+1, y+5.5))
           y += 9; doc.setFont('helvetica','normal')
         }
-        if (idx%2===0) { doc.setFillColor(245,247,252); doc.rect(M,y,W-M*2,7,'F') }
-        doc.setTextColor(a.status==='cancelado'?150:40,40,40)
+
+        const rowH = 8
+        if (idx%2===0) {
+          doc.setFillColor(247,249,255)
+          doc.rect(M, y, W-M*2, rowH, 'F')
+        }
+        doc.setDrawColor(220,225,240)
+        doc.line(M, y+rowH, W-M, y+rowH)
+
         doc.setFontSize(7.5)
-        doc.text((a.nome||'').slice(0,22), cols[0].x, y+5)
-        doc.text(new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'), cols[1].x, y+5)
-        doc.text((a.horario||'').slice(0,5), cols[2].x, y+5)
-        doc.text((a.apartamento||'').slice(0,28), cols[3].x, y+5)
-        doc.text((a.telefone||'').slice(0,15), cols[4].x, y+5)
-        if (a.status==='cancelado') doc.setTextColor(192,57,43)
-        else doc.setTextColor(22,163,74)
-        doc.text((a.status||'').toUpperCase(), cols[5].x, y+5)
-        y += 7
+
+        // Nome
+        doc.setTextColor(30,30,30); doc.setFont('helvetica','bold')
+        doc.text((a.nome||'').slice(0,20), cols[0].x+1, y+5.5)
+
+        // Separar empreendimento do apto
+        const aptoStr = a.apartamento || ''
+        const partes = aptoStr.split(' - ')
+        const empreend = partes[0] || ''
+        const apto = partes.slice(1).join(' - ') || aptoStr
+
+        // Empreendimento
+        doc.setFont('helvetica','normal'); doc.setTextColor(27,47,126)
+        doc.text(empreend.slice(0,20), cols[1].x+1, y+5.5)
+
+        // Unidade
+        doc.setTextColor(60,60,60)
+        doc.text(apto.slice(0,25), cols[2].x+1, y+5.5)
+
+        // Data vistoria
+        doc.setTextColor(27,47,126); doc.setFont('helvetica','bold')
+        doc.text(new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'), cols[3].x+1, y+5.5)
+
+        // Hora
+        doc.text((a.horario||'').slice(0,5), cols[4].x+1, y+5.5)
+
+        // Telefone
+        doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80)
+        doc.text((a.telefone||'').slice(0,16), cols[5].x+1, y+5.5)
+
+        // Agendado em
+        const criadoEm = a.criado_em ? new Date(a.criado_em) : null
+        const criadoFmt = criadoEm
+          ? criadoEm.toLocaleDateString('pt-BR') + ' ' + criadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+          : '-'
+        doc.setTextColor(100,100,100)
+        doc.text(criadoFmt, cols[6].x+1, y+5.5)
+
+        // Status badge
+        const cancelado = a.status === 'cancelado'
+        if (cancelado) {
+          doc.setFillColor(254,226,226); doc.rect(cols[7].x, y+1.5, 22, 5.5, 'F')
+          doc.setTextColor(180,30,30)
+        } else {
+          doc.setFillColor(220,252,231); doc.rect(cols[7].x, y+1.5, 22, 5.5, 'F')
+          doc.setTextColor(22,101,52)
+        }
+        doc.setFont('helvetica','bold'); doc.setFontSize(7)
+        doc.text((a.status||'').toUpperCase(), cols[7].x+2, y+5.5)
+
+        y += rowH
       })
 
       const total = doc.getNumberOfPages()
       for (let i=1;i<=total;i++) {
         doc.setPage(i)
-        doc.setFillColor(27,47,126); doc.rect(0,287,W,10,'F')
-        doc.setTextColor(255,255,255); doc.setFontSize(7)
-        doc.text('Mark Invest - Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo', W/2, 293, {align:'center'})
-        doc.text('Pagina '+i+' de '+total, W-M, 293, {align:'right'})
+        doc.setFillColor(27,47,126); doc.rect(0,200,W,7,'F')
+        doc.setTextColor(255,255,255); doc.setFontSize(6.5); doc.setFont('helvetica','normal')
+        doc.text('Mark Invest - Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo', W/2, 204.5, {align:'center'})
+        doc.text('Pagina '+i+' de '+total, W-M, 204.5, {align:'right'})
       }
+
       doc.save('relatorio-vistorias-'+new Date().toISOString().split('T')[0]+'.pdf')
     } catch(e) { console.error(e); alert('Erro ao gerar PDF.') }
     setGerandoPDF(false)
