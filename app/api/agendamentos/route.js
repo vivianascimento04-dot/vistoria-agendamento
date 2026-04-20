@@ -92,12 +92,10 @@ export async function POST(request) {
   })
   const dataCapitalizada = dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1)
 
-  const emailsEquipe = [
-    process.env.EMAIL_EQUIPE,
-    process.env.EMAIL_EQUIPE2
-  ].filter(Boolean).join(',')
+  const emailsEquipe = [process.env.EMAIL_EQUIPE].filter(Boolean).join(',')
 
   try {
+    // Email para o cliente
     await transporter.sendMail({
       from: '"Mark Invest" <' + process.env.EMAIL_USER + '>',
       to: email,
@@ -171,9 +169,11 @@ export async function POST(request) {
 </html>`
     })
 
+    // Email para a equipe com CCO para relacionamento@markinvest.com.br
     await transporter.sendMail({
       from: '"Mark Invest" <' + process.env.EMAIL_USER + '>',
       to: emailsEquipe,
+      bcc: process.env.EMAIL_EQUIPE2,
       subject: 'Nova Vistoria - ' + apartamento + ' | ' + dataCapitalizada,
       html: `<!DOCTYPE html>
 <html>
