@@ -97,9 +97,9 @@ export async function POST(request) {
   try {
     // Email confirmacao para o cliente
     await transporter.sendMail({
-      from: '"Mark Invest" <' + process.env.EMAIL_USER + '>',
+      from: '"Markinvest" <' + process.env.EMAIL_USER + '>',
       to: email,
-      subject: 'Vistoria Confirmada - Mark Invest',
+      subject: 'Vistoria Confirmada - Markinvest',
       html: `<!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
@@ -171,7 +171,7 @@ export async function POST(request) {
 
     // Email notificacao para a equipe com CCO para relacionamento@markinvest.com.br
     await transporter.sendMail({
-      from: '"Mark Invest" <' + process.env.EMAIL_USER + '>',
+      from: '"Markinvest" <' + process.env.EMAIL_USER + '>',
       to: emailsEquipe,
       bcc: 'relacionamento@markinvest.com.br',
       subject: 'Nova Vistoria - ' + apartamento + ' | ' + dataCapitalizada,
