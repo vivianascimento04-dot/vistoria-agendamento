@@ -6,7 +6,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
-const HORARIOS = ['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00']
+const HORARIOS = ['08:00','09:00','10:00','11:00','13:00','14:00','15:00']
 
 export async function GET(request) {
   try {
