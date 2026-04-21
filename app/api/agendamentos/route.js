@@ -108,7 +108,7 @@ export async function POST(request) {
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
       <tr>
         <td style="background:linear-gradient(135deg,#1B2F7E 0%,#2a4db5 100%);padding:36px 32px;text-align:center;">
-          <p style="color:#fff;font-size:26px;font-weight:900;margin:0 0 6px;letter-spacing:0.08em;font-family:Georgia,serif;">MARK INVEST</p>
+          <p style="color:#fff;font-size:26px;font-weight:900;margin:0 0 6px;letter-spacing:0.08em;font-family:Georgia,serif;">MARKINVEST</p>
           <p style="color:rgba(255,255,255,0.75);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;margin:0;">Sistema de Agendamento de Vistoria</p>
         </td>
       </tr>
@@ -152,12 +152,12 @@ export async function POST(request) {
               <p style="font-size:13px;color:#92400e;margin:0;line-height:1.5;">Seu horario ja esta confirmado. Em caso de duvidas ou necessidade de alteracao, entre em contato com o Relacionamento.</p>
             </td></tr>
           </table>
-          <p style="color:#6b7280;font-size:13px;line-height:1.7;margin:0;">Alteracoes so podem ser realizadas pela equipe Mark Invest. Aguardamos voce!</p>
+          <p style="color:#6b7280;font-size:13px;line-height:1.7;margin:0;">Alteracoes so podem ser realizadas pela equipe MARKINVEST. Aguardamos voce!</p>
         </td>
       </tr>
       <tr>
         <td style="background:#1B2F7E;padding:24px 32px;text-align:center;">
-          <p style="color:#fff;font-size:15px;font-weight:700;margin:0 0 6px;">MARK INVEST</p>
+          <p style="color:#fff;font-size:15px;font-weight:700;margin:0 0 6px;">MARKINVEST</p>
           <p style="color:rgba(255,255,255,0.8);font-size:12px;margin:0 0 6px;">Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo</p>
           <p style="color:rgba(255,255,255,0.5);font-size:10px;margin:0;">relacionamento@markinvest.com.br | Este e-mail foi gerado automaticamente.</p>
         </td>
@@ -183,7 +183,7 @@ export async function POST(request) {
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
       <tr>
         <td style="background:linear-gradient(135deg,#1B2F7E 0%,#2a4db5 100%);padding:36px 32px;text-align:center;">
-          <p style="color:#fff;font-size:26px;font-weight:900;margin:0 0 6px;letter-spacing:0.08em;font-family:Georgia,serif;">MARK INVEST</p>
+          <p style="color:#fff;font-size:26px;font-weight:900;margin:0 0 6px;letter-spacing:0.08em;font-family:Georgia,serif;">MARKINVEST</p>
           <p style="color:rgba(255,255,255,0.75);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;margin:0;">Novo Agendamento de Vistoria</p>
         </td>
       </tr>
@@ -245,7 +245,7 @@ export async function POST(request) {
       </tr>
       <tr>
         <td style="background:#1B2F7E;padding:24px 32px;text-align:center;">
-          <p style="color:#fff;font-size:15px;font-weight:700;margin:0 0 6px;">MARK INVEST</p>
+          <p style="color:#fff;font-size:15px;font-weight:700;margin:0 0 6px;">MARKINVEST</p>
           <p style="color:rgba(255,255,255,0.8);font-size:12px;margin:0 0 6px;">Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo</p>
           <p style="color:rgba(255,255,255,0.5);font-size:10px;margin:0;">Este e-mail foi gerado automaticamente.</p>
         </td>
