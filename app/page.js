@@ -119,8 +119,8 @@ export default function Home() {
   const erroBorda = { ...inp, border:'2px solid '+VERMELHO, background:'#fff8f8' }
 
   return (
-    <main style={{minHeight:'100vh', background:'#f4f6fb', fontFamily:"'Segoe UI',sans-serif", margin:0, padding:0}}>
-      <div style={{background:AZUL, padding:'1.25rem 1rem', display:'flex', flexDirection:'column', alignItems:'center'}}>
+    <main style={{minHeight:'100vh', background:'#f0f3fa', fontFamily:"'Segoe UI',sans-serif", margin:0, padding:0}}>
+      <div style={{background:'linear-gradient(135deg, #1B2F7E 0%, #2a45b0 100%)', padding:'1.25rem 1rem', display:'flex', flexDirection:'column', alignItems:'center', boxShadow:'0 4px 20px rgba(27,47,126,0.25)'}}>
         <img src="/logo.png" alt="Markinvest" style={{height:isMobile?'40px':'52px', objectFit:'contain', filter:'brightness(0) invert(1)', marginBottom:'8px'}}/>
         <p style={{color:'rgba(255,255,255,0.7)', fontSize:isMobile?'10px':'12px', letterSpacing:'0.12em', textTransform:'uppercase', margin:0}}>Sistema de Agendamento de Vistoria</p>
       </div>
@@ -139,65 +139,108 @@ export default function Home() {
 
       <div style={{maxWidth:'900px', margin:'0 auto', padding:isMobile?'1rem':'2rem 1rem'}}>
         {etapa === 1 && (
-          <div style={{display:'grid', gridTemplateColumns:(!isMobile&&horarios.length>0&&!mesBloqueado)?'1fr 1fr':'1fr', gap:'1rem', alignItems:'start'}}>
-            <div style={{background:'#fff', borderRadius:'16px', padding:isMobile?'1rem':'1.5rem', boxShadow:'0 2px 8px rgba(27,47,126,0.08)'}}>
-              <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1rem'}}>
-                <button onClick={prevMes} style={{background:'none', border:'1px solid #dde1f0', borderRadius:'8px', width:'34px', height:'34px', cursor:'pointer', fontSize:'18px', color:AZUL, fontWeight:'bold'}}>&#8249;</button>
+          <div style={{display:'grid', gridTemplateColumns:(!isMobile&&horarios.length>0&&!mesBloqueado)?'1fr 1fr':'1fr', gap:'1.25rem', alignItems:'start', justifyContent:'center'}}>
+
+            <div style={{maxWidth:'420px', width:'100%', margin:'0 auto'}}>
+              {/* Header calendário */}
+              <div style={{background:'linear-gradient(135deg, #1B2F7E 0%, #2a45b0 100%)', borderRadius:'16px 16px 0 0', padding:'1.25rem 1.5rem', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 4px 20px rgba(27,47,126,0.2)'}}>
+                <button onClick={prevMes} style={{background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'10px', width:'36px', height:'36px', cursor:'pointer', fontSize:'18px', color:'#fff', fontWeight:'bold', display:'flex', alignItems:'center', justifyContent:'center'}}>&#8249;</button>
                 <div style={{textAlign:'center'}}>
-                  <span style={{fontFamily:'Georgia,serif', fontSize:isMobile?'14px':'16px', color:AZUL, fontWeight:'600', textTransform:'uppercase', letterSpacing:'0.05em'}}>{MESES[mes]} {ano}</span>
-                  {mesBloqueado && <div style={{fontSize:'10px', color:'#dc2626', fontWeight:'700', letterSpacing:'0.05em', marginTop:'2px'}}>🔒 MES INDISPONIVEL</div>}
+                  <div style={{color:'#fff', fontSize:'18px', fontWeight:'700', fontFamily:'Georgia,serif', letterSpacing:'0.05em', textTransform:'uppercase'}}>{MESES[mes]}</div>
+                  <div style={{color:'rgba(255,255,255,0.65)', fontSize:'13px', fontWeight:'600'}}>{ano}</div>
+                  {mesBloqueado && <div style={{fontSize:'10px', color:'#fca5a5', fontWeight:'700', marginTop:'2px'}}>🔒 MES INDISPONIVEL</div>}
                 </div>
-                <button onClick={nextMes} style={{background:'none', border:'1px solid #dde1f0', borderRadius:'8px', width:'34px', height:'34px', cursor:'pointer', fontSize:'18px', color:AZUL, fontWeight:'bold'}}>&#8250;</button>
+                <button onClick={nextMes} style={{background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'10px', width:'36px', height:'36px', cursor:'pointer', fontSize:'18px', color:'#fff', fontWeight:'bold', display:'flex', alignItems:'center', justifyContent:'center'}}>&#8250;</button>
               </div>
 
-              {mesBloqueado && (
-                <div style={{background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'10px', padding:'12px 16px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'10px'}}>
-                  <span style={{fontSize:'20px'}}>🔒</span>
-                  <div>
-                    <p style={{fontSize:'13px', fontWeight:'700', color:'#dc2626', margin:'0 0 2px'}}>Mes indisponivel para agendamento</p>
-                    <p style={{fontSize:'12px', color:'#9ca3af', margin:0}}>Este mes nao possui datas disponiveis. Selecione outro mes.</p>
+              {/* Corpo calendário */}
+              <div style={{background:'#fff', borderRadius:'0 0 16px 16px', padding:'1.25rem', boxShadow:'0 8px 32px rgba(27,47,126,0.10)'}}>
+
+                {mesBloqueado && (
+                  <div style={{background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'10px', padding:'12px 16px', marginBottom:'14px', display:'flex', alignItems:'center', gap:'10px'}}>
+                    <span style={{fontSize:'18px'}}>🔒</span>
+                    <div>
+                      <p style={{fontSize:'13px', fontWeight:'700', color:'#dc2626', margin:'0 0 2px'}}>Mes indisponivel</p>
+                      <p style={{fontSize:'11px', color:'#9ca3af', margin:0}}>Selecione outro mes para agendar.</p>
+                    </div>
                   </div>
+                )}
+
+                {/* Legenda */}
+                <div style={{display:'flex', gap:'8px', marginBottom:'14px', justifyContent:'center', flexWrap:'wrap'}}>
+                  {[
+                    {bg:'linear-gradient(135deg,#1B2F7E,#2a45b0)', label:'Selecionado'},
+                    {bg:'#fee2e2', border:'1.5px solid #fca5a5', label:'Lotado', cor:'#dc2626'},
+                    {bg:'#f0f7ff', border:'1px solid #bfdbfe', label:'Disponivel', cor:'#1d4ed8'},
+                    {bg:'#f5f5f5', label:'Indisponivel', cor:'#bbb'},
+                  ].map(l => (
+                    <div key={l.label} style={{display:'flex', alignItems:'center', gap:'4px'}}>
+                      <div style={{width:'12px', height:'12px', borderRadius:'3px', background:l.bg, border:l.border||'none', flexShrink:0}}></div>
+                      <span style={{fontSize:'10px', fontWeight:'600', color:'#555'}}>{l.label}</span>
+                    </div>
+                  ))}
                 </div>
-              )}
 
-              <div style={{display:'flex', gap:'10px', marginBottom:'12px', flexWrap:'wrap', padding:'8px 10px', background:'#f8f9ff', borderRadius:'8px', border:'1px solid #e8ebf5'}}>
-                {[{bg:VERMELHO,bd:'none',label:'Selecionado'},{bg:'#fee2e2',bd:'1.5px solid #ef4444',label:'Lotado'},{bg:'#fff',bd:'1px solid #d1d5db',label:'Disponivel'},{bg:'#f9fafb',bd:'none',label:'Indisponivel'}].map(l => (
-                  <div key={l.label} style={{display:'flex', alignItems:'center', gap:'5px'}}>
-                    <div style={{width:'14px', height:'14px', borderRadius:'3px', background:l.bg, border:l.bd, flexShrink:0}}></div>
-                    <span style={{fontSize:'11px', fontWeight:'600', color:'#374151'}}>{l.label}</span>
+                {/* Dias da semana */}
+                <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', textAlign:'center', marginBottom:'8px'}}>
+                  {['Dom','Seg','Ter','Qua','Qui','Sex','Sab'].map((d,i) => (
+                    <span key={i} style={{fontSize:'10px', fontWeight:'700', color:i===0||i===6?'#e5e7eb':'#9ca3af', padding:'4px 0', letterSpacing:'0.03em'}}>{d}</span>
+                  ))}
+                </div>
+
+                {/* Grade de dias */}
+                <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'4px'}}>
+                  {Array(primeiroDia).fill(null).map((_,i) => <div key={i}/>)}
+                  {Array(diasNoMes).fill(null).map((_,i) => {
+                    const d = i+1
+                    const date = new Date(ano, mes, d)
+                    const dow = date.getDay()
+                    const isPast = date < new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())
+                    const isWeekend = dow===0||dow===6
+                    const ds = ano+'-'+String(mes+1).padStart(2,'0')+'-'+String(d).padStart(2,'0')
+                    const isSel = dataSel===ds
+                    const isToday = d===hoje.getDate()&&mes===hoje.getMonth()&&ano===hoje.getFullYear()
+                    const isCheio = diasCheios.includes(ds)
+
+                    if (isPast||isWeekend||mesBloqueado) return (
+                      <div key={d} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#d1d5db', borderRadius:'8px', background:'#f9fafb', fontWeight:'500'}}>{d}</div>
+                    )
+                    if (isCheio&&!isSel) return (
+                      <div key={d} title="Dia lotado" style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'11px', color:'#dc2626', borderRadius:'8px', background:'#fee2e2', border:'1.5px solid #fca5a5', cursor:'not-allowed', fontWeight:'700'}}>
+                        {d}<div style={{fontSize:'7px', fontWeight:'700', marginTop:'1px'}}>LOTADO</div>
+                      </div>
+                    )
+                    if (isSel) return (
+                      <div key={d} onClick={() => setDataSel(null)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'800', borderRadius:'8px', cursor:'pointer', background:'linear-gradient(135deg, #1B2F7E, #2a45b0)', color:'#fff', boxShadow:'0 4px 12px rgba(27,47,126,0.4)', transition:'all 0.15s'}}>{d}</div>
+                    )
+                    if (isToday) return (
+                      <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700', borderRadius:'8px', cursor:'pointer', background:'#eff6ff', color:AZUL, border:'2px solid '+AZUL, transition:'all 0.15s'}}>
+                        {d}<div style={{width:'4px', height:'4px', borderRadius:'50%', background:AZUL, marginTop:'1px'}}></div>
+                      </div>
+                    )
+                    return (
+                      <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'600', borderRadius:'8px', cursor:'pointer', background:'#f0f7ff', color:'#1d4ed8', border:'1px solid #bfdbfe', transition:'all 0.15s'}}>{d}</div>
+                    )
+                  })}
+                </div>
+
+                {dataSel && (
+                  <div style={{marginTop:'14px', padding:'10px 14px', background:'linear-gradient(135deg,#f0f7ff,#e0edff)', borderRadius:'10px', border:'1px solid #bfdbfe', textAlign:'center'}}>
+                    <p style={{fontSize:'13px', fontWeight:'700', color:AZUL, margin:0, textTransform:'capitalize'}}>
+                      ✓ {dataFormatada}
+                    </p>
                   </div>
-                ))}
-              </div>
-
-              <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', textAlign:'center', marginBottom:'6px'}}>
-                {['D','S','T','Q','Q','S','S'].map((d,i) => <span key={i} style={{fontSize:'11px', fontWeight:'700', color:'#9ca3af', padding:'3px 0'}}>{d}</span>)}
-              </div>
-              <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'3px'}}>
-                {Array(primeiroDia).fill(null).map((_,i) => <div key={i}/>)}
-                {Array(diasNoMes).fill(null).map((_,i) => {
-                  const d = i+1
-                  const date = new Date(ano, mes, d)
-                  const dow = date.getDay()
-                  const isPast = date < new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())
-                  const isWeekend = dow===0||dow===6
-                  const ds = ano+'-'+String(mes+1).padStart(2,'0')+'-'+String(d).padStart(2,'0')
-                  const isSel = dataSel===ds
-                  const isToday = d===hoje.getDate()&&mes===hoje.getMonth()&&ano===hoje.getFullYear()
-                  const isCheio = diasCheios.includes(ds)
-                  if (isPast||isWeekend||mesBloqueado) return <div key={d} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#d1d5db', borderRadius:'6px', background:'#f9fafb'}}>{d}</div>
-                  if (isCheio&&!isSel) return <div key={d} title="Dia lotado" style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'11px', color:'#dc2626', borderRadius:'6px', background:'#fee2e2', border:'1.5px solid #ef4444', cursor:'not-allowed', fontWeight:'600'}}>{d}<div style={{fontSize:'7px', fontWeight:'700', marginTop:'1px'}}>LOTADO</div></div>
-                  return <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:isSel?'700':'500', borderRadius:'6px', cursor:'pointer', background:isSel?VERMELHO:isToday?AZUL_CLARO:'#fff', color:isSel?'#fff':isToday?AZUL:'#333', border:isSel?'2px solid '+VERMELHO:isToday?'2px solid '+AZUL:'1px solid #e5e7eb', transition:'all 0.15s'}}>{d}</div>
-                })}
+                )}
               </div>
             </div>
 
             {horarios.length > 0 && !mesBloqueado && (
-              <div style={{background:'#fff', borderRadius:'16px', padding:isMobile?'1rem':'1.5rem', boxShadow:'0 2px 8px rgba(27,47,126,0.08)'}}>
+              <div style={{background:'#fff', borderRadius:'16px', padding:isMobile?'1rem':'1.5rem', boxShadow:'0 8px 32px rgba(27,47,126,0.10)'}}>
                 <p style={{fontSize:'11px', fontWeight:'700', color:AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 4px'}}>HORARIOS DISPONIVEIS</p>
                 <p style={{fontSize:'12px', color:'#6b7280', margin:'0 0 1rem', textTransform:'capitalize'}}>{dataFormatada}</p>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px'}}>
                   {horarios.map(h => (
-                    <div key={h.horario} onClick={() => h.disponivel && selecionarHorario(h.horario)} style={{padding:isMobile?'12px 6px':'14px', textAlign:'center', borderRadius:'10px', fontSize:isMobile?'14px':'15px', fontWeight:'700', border:horarioSel===h.horario?'2px solid '+VERMELHO:'1px solid #dde1f0', cursor:h.disponivel?'pointer':'not-allowed', background:horarioSel===h.horario?VERMELHO:!h.disponivel?'#f9fafb':'#fff', color:horarioSel===h.horario?'#fff':!h.disponivel?'#d1d5db':AZUL, textDecoration:!h.disponivel?'line-through':'none', transition:'all 0.15s'}}>
+                    <div key={h.horario} onClick={() => h.disponivel && selecionarHorario(h.horario)} style={{padding:isMobile?'12px 6px':'14px', textAlign:'center', borderRadius:'10px', fontSize:isMobile?'14px':'15px', fontWeight:'700', border:horarioSel===h.horario?'2px solid '+VERMELHO:'1px solid #dde1f0', cursor:h.disponivel?'pointer':'not-allowed', background:horarioSel===h.horario?VERMELHO:!h.disponivel?'#f9fafb':'#f0f7ff', color:horarioSel===h.horario?'#fff':!h.disponivel?'#d1d5db':'#1d4ed8', textDecoration:!h.disponivel?'line-through':'none', transition:'all 0.15s'}}>
                       {h.horario}
                       {!h.disponivel && <div style={{fontSize:'9px', fontWeight:'400', marginTop:'2px'}}>Ocupado</div>}
                     </div>
@@ -209,7 +252,7 @@ export default function Home() {
         )}
 
         {etapa === 2 && (
-          <div style={{background:'#fff', borderRadius:'16px', padding:isMobile?'1rem':'1.5rem', boxShadow:'0 2px 8px rgba(27,47,126,0.08)', maxWidth:'560px', margin:'0 auto'}}>
+          <div style={{background:'#fff', borderRadius:'16px', padding:isMobile?'1rem':'1.5rem', boxShadow:'0 8px 32px rgba(27,47,126,0.10)', maxWidth:'560px', margin:'0 auto'}}>
             <div style={{background:AZUL_CLARO, border:'1px solid #c0c9e8', borderRadius:'10px', padding:'12px 14px', marginBottom:'1.25rem', display:'flex', alignItems:'center', gap:'10px'}}>
               <div style={{width:'32px', height:'32px', background:AZUL, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 8l4 4 8-8" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -280,8 +323,8 @@ export default function Home() {
         )}
 
         {etapa === 3 && (
-          <div style={{background:'#fff', borderRadius:'16px', padding:isMobile?'2rem 1rem':'3rem 2rem', textAlign:'center', boxShadow:'0 2px 8px rgba(27,47,126,0.08)', maxWidth:'480px', margin:'0 auto'}}>
-            <div style={{width:'72px', height:'72px', background:AZUL, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 1.5rem', boxShadow:'0 4px 16px rgba(27,47,126,0.3)'}}>
+          <div style={{background:'#fff', borderRadius:'16px', padding:isMobile?'2rem 1rem':'3rem 2rem', textAlign:'center', boxShadow:'0 8px 32px rgba(27,47,126,0.10)', maxWidth:'480px', margin:'0 auto'}}>
+            <div style={{width:'72px', height:'72px', background:'linear-gradient(135deg,#1B2F7E,#2a45b0)', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 1.5rem', boxShadow:'0 4px 16px rgba(27,47,126,0.3)'}}>
               <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M5 16l8 8 14-14" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </div>
             <h2 style={{fontFamily:'Georgia,serif', fontSize:isMobile?'22px':'26px', fontWeight:'400', margin:'0 0 8px', color:AZUL}}>VISTORIA AGENDADA!</h2>
