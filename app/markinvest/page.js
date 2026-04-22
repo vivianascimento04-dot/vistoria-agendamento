@@ -154,7 +154,7 @@ export default function Home() {
                   const d = i+1
                   const date = new Date(ano, mes, d)
                   const dow = date.getDay()
-                  const isPast = date <= new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())
+                  const isPast = date < new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())
                   const isWeekend = dow===0||dow===6
                   const ds = ano+'-'+String(mes+1).padStart(2,'0')+'-'+String(d).padStart(2,'0')
                   const isSel = dataSel===ds
