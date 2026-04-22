@@ -22,12 +22,13 @@ export default function Home() {
   const [horarios, setHorarios] = useState([])
   const [horarioSel, setHorarioSel] = useState(null)
   const [diasCheios, setDiasCheios] = useState([])
-  const [form, setForm] = useState({ nome:'', cpf:'', email:'', telefone:'', empreendimento:'', torre:'', bloco:'', apartamento:'' })
+  const [mesesBloqueados, setMesesBloqueados] = useState([])
+  const [form, setForm] = useState({ nome:'', cpf:'', email:'', telefone:'', empreendimento:'', torre:'', apartamento:'' })
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
   const [etapa, setEtapa] = useState(1)
   const [isMobile, setIsMobile] = useState(false)
-  const [empreendimentos, setEmpreendimentos] = useState(['Parque Mikonos', 'Parque Olimpia'])
+  const [empreendimentos, setEmpreendimentos] = useState([])
   const [tentouEnviar, setTentouEnviar] = useState(false)
 
   useEffect(() => {
@@ -43,6 +44,10 @@ export default function Home() {
     fetch('/api/empreendimentos')
       .then(r => r.json())
       .then(d => { if (Array.isArray(d) && d.length) setEmpreendimentos(d) })
+      .catch(() => {})
+    fetch('/api/meses-bloqueados')
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setMesesBloqueados(d) })
       .catch(() => {})
   }, [])
 
@@ -103,8 +108,12 @@ export default function Home() {
 
   const primeiroDia = new Date(ano, mes, 1).getDay()
   const diasNoMes = new Date(ano, mes + 1, 0).getDate()
+  const mesKey = ano + '-' + String(mes+1).padStart(2,'0')
+  const mesBloqueado = mesesBloqueados.includes(mesKey)
+
   function prevMes() { if(mes===0){setMes(11);setAno(a=>a-1)}else setMes(m=>m-1); setDataSel(null); setHorarios([]) }
   function nextMes() { if(mes===11){setMes(0);setAno(a=>a+1)}else setMes(m=>m+1); setDataSel(null); setHorarios([]) }
+
   const dataFormatada = dataSel ? new Date(dataSel+'T12:00:00').toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long', year:'numeric'}) : ''
   const inp = { width:'100%', padding:'10px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'14px', boxSizing:'border-box', outline:'none', fontFamily:'inherit' }
   const erroBorda = { ...inp, border:'2px solid '+VERMELHO, background:'#fff8f8' }
@@ -130,13 +139,27 @@ export default function Home() {
 
       <div style={{maxWidth:'900px', margin:'0 auto', padding:isMobile?'1rem':'2rem 1rem'}}>
         {etapa === 1 && (
-          <div style={{display:'grid', gridTemplateColumns:(!isMobile&&horarios.length>0)?'1fr 1fr':'1fr', gap:'1rem', alignItems:'start'}}>
+          <div style={{display:'grid', gridTemplateColumns:(!isMobile&&horarios.length>0&&!mesBloqueado)?'1fr 1fr':'1fr', gap:'1rem', alignItems:'start'}}>
             <div style={{background:'#fff', borderRadius:'16px', padding:isMobile?'1rem':'1.5rem', boxShadow:'0 2px 8px rgba(27,47,126,0.08)'}}>
               <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1rem'}}>
                 <button onClick={prevMes} style={{background:'none', border:'1px solid #dde1f0', borderRadius:'8px', width:'34px', height:'34px', cursor:'pointer', fontSize:'18px', color:AZUL, fontWeight:'bold'}}>&#8249;</button>
-                <span style={{fontFamily:'Georgia,serif', fontSize:isMobile?'14px':'16px', color:AZUL, fontWeight:'600', textTransform:'uppercase', letterSpacing:'0.05em'}}>{MESES[mes]} {ano}</span>
+                <div style={{textAlign:'center'}}>
+                  <span style={{fontFamily:'Georgia,serif', fontSize:isMobile?'14px':'16px', color:AZUL, fontWeight:'600', textTransform:'uppercase', letterSpacing:'0.05em'}}>{MESES[mes]} {ano}</span>
+                  {mesBloqueado && <div style={{fontSize:'10px', color:'#dc2626', fontWeight:'700', letterSpacing:'0.05em', marginTop:'2px'}}>🔒 MES INDISPONIVEL</div>}
+                </div>
                 <button onClick={nextMes} style={{background:'none', border:'1px solid #dde1f0', borderRadius:'8px', width:'34px', height:'34px', cursor:'pointer', fontSize:'18px', color:AZUL, fontWeight:'bold'}}>&#8250;</button>
               </div>
+
+              {mesBloqueado && (
+                <div style={{background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'10px', padding:'12px 16px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'10px'}}>
+                  <span style={{fontSize:'20px'}}>🔒</span>
+                  <div>
+                    <p style={{fontSize:'13px', fontWeight:'700', color:'#dc2626', margin:'0 0 2px'}}>Mes indisponivel para agendamento</p>
+                    <p style={{fontSize:'12px', color:'#9ca3af', margin:0}}>Este mes nao possui datas disponiveis. Selecione outro mes.</p>
+                  </div>
+                </div>
+              )}
+
               <div style={{display:'flex', gap:'10px', marginBottom:'12px', flexWrap:'wrap', padding:'8px 10px', background:'#f8f9ff', borderRadius:'8px', border:'1px solid #e8ebf5'}}>
                 {[{bg:VERMELHO,bd:'none',label:'Selecionado'},{bg:'#fee2e2',bd:'1.5px solid #ef4444',label:'Lotado'},{bg:'#fff',bd:'1px solid #d1d5db',label:'Disponivel'},{bg:'#f9fafb',bd:'none',label:'Indisponivel'}].map(l => (
                   <div key={l.label} style={{display:'flex', alignItems:'center', gap:'5px'}}>
@@ -145,6 +168,7 @@ export default function Home() {
                   </div>
                 ))}
               </div>
+
               <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', textAlign:'center', marginBottom:'6px'}}>
                 {['D','S','T','Q','Q','S','S'].map((d,i) => <span key={i} style={{fontSize:'11px', fontWeight:'700', color:'#9ca3af', padding:'3px 0'}}>{d}</span>)}
               </div>
@@ -160,13 +184,14 @@ export default function Home() {
                   const isSel = dataSel===ds
                   const isToday = d===hoje.getDate()&&mes===hoje.getMonth()&&ano===hoje.getFullYear()
                   const isCheio = diasCheios.includes(ds)
-                  if (isPast||isWeekend) return <div key={d} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#d1d5db', borderRadius:'6px', background:'#f9fafb'}}>{d}</div>
+                  if (isPast||isWeekend||mesBloqueado) return <div key={d} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#d1d5db', borderRadius:'6px', background:'#f9fafb'}}>{d}</div>
                   if (isCheio&&!isSel) return <div key={d} title="Dia lotado" style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'11px', color:'#dc2626', borderRadius:'6px', background:'#fee2e2', border:'1.5px solid #ef4444', cursor:'not-allowed', fontWeight:'600'}}>{d}<div style={{fontSize:'7px', fontWeight:'700', marginTop:'1px'}}>LOTADO</div></div>
                   return <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:isSel?'700':'500', borderRadius:'6px', cursor:'pointer', background:isSel?VERMELHO:isToday?AZUL_CLARO:'#fff', color:isSel?'#fff':isToday?AZUL:'#333', border:isSel?'2px solid '+VERMELHO:isToday?'2px solid '+AZUL:'1px solid #e5e7eb', transition:'all 0.15s'}}>{d}</div>
                 })}
               </div>
             </div>
-            {horarios.length > 0 && (
+
+            {horarios.length > 0 && !mesBloqueado && (
               <div style={{background:'#fff', borderRadius:'16px', padding:isMobile?'1rem':'1.5rem', boxShadow:'0 2px 8px rgba(27,47,126,0.08)'}}>
                 <p style={{fontSize:'11px', fontWeight:'700', color:AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 4px'}}>HORARIOS DISPONIVEIS</p>
                 <p style={{fontSize:'12px', color:'#6b7280', margin:'0 0 1rem', textTransform:'capitalize'}}>{dataFormatada}</p>

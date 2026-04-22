@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 const POR_PAGINA = 10
+const MESES_NOMES = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
 export default function Admin() {
   const { data: session, status } = useSession()
@@ -23,9 +24,11 @@ export default function Admin() {
   const [novoEmp, setNovoEmp] = useState('')
   const [salvandoEmp, setSalvandoEmp] = useState(false)
   const [erroEmp, setErroEmp] = useState('')
+  const [mesesBloqueados, setMesesBloqueados] = useState([])
+  const [salvandoMes, setSalvandoMes] = useState(false)
 
   useEffect(() => { if (status === 'unauthenticated') router.push('/admin/login') }, [status])
-  useEffect(() => { if (status === 'authenticated') { buscarAgendamentos(); buscarEmpreendimentos() } }, [status])
+  useEffect(() => { if (status === 'authenticated') { buscarAgendamentos(); buscarEmpreendimentos(); buscarMesesBloqueados() } }, [status])
   useEffect(() => { setPagina(1) }, [filtro, busca, ordem, dataInicio, dataFim])
 
   async function buscarAgendamentos() {
@@ -43,6 +46,28 @@ export default function Admin() {
       const data = await res.json()
       setEmpreendimentos(Array.isArray(data) ? data : [])
     } catch(e) {}
+  }
+
+  async function buscarMesesBloqueados() {
+    try {
+      const res = await fetch('/api/meses-bloqueados')
+      const data = await res.json()
+      setMesesBloqueados(Array.isArray(data) ? data : [])
+    } catch(e) {}
+  }
+
+  async function toggleMes(anoMes) {
+    setSalvandoMes(true)
+    try {
+      const bloqueado = mesesBloqueados.includes(anoMes)
+      await fetch('/api/meses-bloqueados', {
+        method: bloqueado ? 'DELETE' : 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ano_mes: anoMes})
+      })
+      buscarMesesBloqueados()
+    } catch(e) {}
+    setSalvandoMes(false)
   }
 
   async function adicionarEmpreendimento() {
@@ -179,56 +204,35 @@ export default function Admin() {
           cols.forEach(c => doc.text(c.label, c.x+1, y+5.5))
           y += 9; doc.setFont('helvetica','normal')
         }
-
         const rowH = 8
-        if (idx%2===0) {
-          doc.setFillColor(247,249,255)
-          doc.rect(M, y, W-M*2, rowH, 'F')
-        }
+        if (idx%2===0) { doc.setFillColor(247,249,255); doc.rect(M, y, W-M*2, rowH, 'F') }
         doc.setDrawColor(220,225,240)
         doc.line(M, y+rowH, W-M, y+rowH)
         doc.setFontSize(7.5)
-
         doc.setTextColor(30,30,30); doc.setFont('helvetica','bold')
         doc.text((a.nome||'').slice(0,20), cols[0].x+1, y+5.5)
-
         const aptoStr = a.apartamento || ''
         const partes = aptoStr.split(' - ')
         const empreend = partes[0] || ''
         const apto = partes.slice(1).join(' - ') || aptoStr
-
         doc.setFont('helvetica','normal'); doc.setTextColor(27,47,126)
         doc.text(empreend.slice(0,20), cols[1].x+1, y+5.5)
-
         doc.setTextColor(60,60,60)
         doc.text(apto.slice(0,25), cols[2].x+1, y+5.5)
-
         doc.setTextColor(27,47,126); doc.setFont('helvetica','bold')
         doc.text(new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'), cols[3].x+1, y+5.5)
-
         doc.text((a.horario||'').slice(0,5), cols[4].x+1, y+5.5)
-
         doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80)
         doc.text((a.telefone||'').slice(0,16), cols[5].x+1, y+5.5)
-
         const criadoEm = a.criado_em ? new Date(a.criado_em) : null
-        const criadoFmt = criadoEm
-          ? criadoEm.toLocaleDateString('pt-BR') + ' ' + criadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
-          : '-'
+        const criadoFmt = criadoEm ? criadoEm.toLocaleDateString('pt-BR') + ' ' + criadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '-'
         doc.setTextColor(100,100,100)
         doc.text(criadoFmt, cols[6].x+1, y+5.5)
-
         const cancelado = a.status === 'cancelado'
-        if (cancelado) {
-          doc.setFillColor(254,226,226); doc.rect(cols[7].x, y+1.5, 22, 5.5, 'F')
-          doc.setTextColor(180,30,30)
-        } else {
-          doc.setFillColor(220,252,231); doc.rect(cols[7].x, y+1.5, 22, 5.5, 'F')
-          doc.setTextColor(22,101,52)
-        }
+        if (cancelado) { doc.setFillColor(254,226,226); doc.rect(cols[7].x, y+1.5, 22, 5.5, 'F'); doc.setTextColor(180,30,30) }
+        else { doc.setFillColor(220,252,231); doc.rect(cols[7].x, y+1.5, 22, 5.5, 'F'); doc.setTextColor(22,101,52) }
         doc.setFont('helvetica','bold'); doc.setFontSize(7)
         doc.text((a.status||'').toUpperCase(), cols[7].x+2, y+5.5)
-
         y += rowH
       })
 
@@ -240,7 +244,6 @@ export default function Admin() {
         doc.text('Markinvest - Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo', W/2, 204.5, {align:'center'})
         doc.text('Pagina '+i+' de '+total, W-M, 204.5, {align:'right'})
       }
-
       doc.save('relatorio-vistorias-'+new Date().toISOString().split('T')[0]+'.pdf')
     } catch(e) { console.error(e); alert('Erro ao gerar PDF.') }
     setGerandoPDF(false)
@@ -273,6 +276,17 @@ export default function Admin() {
       <p style={{color:'#6b7280'}}>Carregando...</p>
     </main>
   )
+
+  const hoje = new Date()
+  const mesesGrid = []
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1)
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')
+    const nomeMes = MESES_NOMES[d.getMonth()]
+    const anoMes = d.getFullYear()
+    const bloqueado = mesesBloqueados.includes(key)
+    mesesGrid.push({ key, nomeMes, anoMes, bloqueado })
+  }
 
   return (
     <main style={{minHeight:'100vh', background:'#f4f6fb', fontFamily:"'Segoe UI',sans-serif"}}>
@@ -308,12 +322,45 @@ export default function Admin() {
       </div>
 
       <div style={{background:'#fff', borderBottom:'1px solid #e5e7eb', display:'flex', padding:'0 1.5rem'}}>
-        {[{id:'agendamentos',label:'Agendamentos'},{id:'empreendimentos',label:'Empreendimentos'}].map(a => (
+        {[{id:'agendamentos',label:'Agendamentos'},{id:'empreendimentos',label:'Empreendimentos'},{id:'configuracoes',label:'Configuracoes'}].map(a => (
           <button key={a.id} onClick={() => setAbaAtiva(a.id)} style={{padding:'12px 20px', background:'none', border:'none', borderBottom:abaAtiva===a.id?'3px solid #1B2F7E':'3px solid transparent', fontSize:'13px', fontWeight:'700', cursor:'pointer', color:abaAtiva===a.id?'#1B2F7E':'#6b7280', transition:'all 0.15s'}}>{a.label}</button>
         ))}
       </div>
 
       <div style={{maxWidth:'960px', margin:'0 auto', padding:'1.5rem 1rem'}}>
+
+        {abaAtiva === 'configuracoes' && (
+          <div style={{background:'#fff', borderRadius:'12px', padding:'1.5rem', boxShadow:'0 1px 4px rgba(27,47,126,0.08)'}}>
+            <h2 style={{fontSize:'16px', fontWeight:'700', color:'#1B2F7E', margin:'0 0 8px'}}>Bloquear / Liberar Meses</h2>
+            <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 16px', lineHeight:'1.6'}}>Meses bloqueados nao permitem novos agendamentos pelos clientes. Clique no mes para alternar.</p>
+            <div style={{display:'flex', gap:'16px', marginBottom:'20px', padding:'10px 14px', background:'#f8f9ff', borderRadius:'8px', border:'1px solid #e0e5f5', flexWrap:'wrap'}}>
+              <div style={{display:'flex', alignItems:'center', gap:'6px'}}>
+                <div style={{width:'12px', height:'12px', borderRadius:'3px', background:'#f0fdf4', border:'2px solid #1D9E75'}}></div>
+                <span style={{fontSize:'12px', fontWeight:'600', color:'#374151'}}>Liberado — clientes podem agendar</span>
+              </div>
+              <div style={{display:'flex', alignItems:'center', gap:'6px'}}>
+                <div style={{width:'12px', height:'12px', borderRadius:'3px', background:'#fff5f5', border:'2px solid #dc2626'}}></div>
+                <span style={{fontSize:'12px', fontWeight:'600', color:'#374151'}}>Bloqueado — agendamentos desativados</span>
+              </div>
+            </div>
+            <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'10px'}}>
+              {mesesGrid.map(({ key, nomeMes, anoMes, bloqueado }) => (
+                <button key={key} onClick={() => toggleMes(key)} disabled={salvandoMes} style={{padding:'16px 12px', borderRadius:'12px', border:bloqueado?'2px solid #dc2626':'2px solid #1D9E75', background:bloqueado?'#fff5f5':'#f0fdf4', cursor:'pointer', transition:'all 0.2s', textAlign:'center', opacity:salvandoMes?0.7:1}}>
+                  <div style={{fontSize:'14px', fontWeight:'700', color:bloqueado?'#dc2626':'#15803d', marginBottom:'2px', textTransform:'capitalize'}}>{nomeMes}</div>
+                  <div style={{fontSize:'11px', color:bloqueado?'#dc2626':'#15803d', marginBottom:'8px', opacity:0.7}}>{anoMes}</div>
+                  <div style={{display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'20px', background:bloqueado?'#dc2626':'#1D9E75', color:'#fff', fontSize:'10px', fontWeight:'700'}}>
+                    {bloqueado ? '🔒 BLOQUEADO' : '✓ LIBERADO'}
+                  </div>
+                </button>
+              ))}
+            </div>
+            {mesesBloqueados.length > 0 && (
+              <div style={{marginTop:'16px', padding:'12px 16px', background:'#fff8e1', border:'1px solid #fde68a', borderRadius:'8px'}}>
+                <p style={{fontSize:'12px', color:'#92400e', margin:0, fontWeight:'600'}}>⚠ {mesesBloqueados.length} mes(es) bloqueado(s) para agendamento.</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {abaAtiva === 'empreendimentos' && (
           <div style={{background:'#fff', borderRadius:'12px', padding:'1.5rem', boxShadow:'0 1px 4px rgba(27,47,126,0.08)'}}>
