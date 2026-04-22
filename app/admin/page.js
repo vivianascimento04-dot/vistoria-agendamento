@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 
 const POR_PAGINA = 10
 const MESES_NOMES = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+const AZUL = '#1B2F7E'
+const VERDE = '#1D9E75'
+const VERMELHO = '#dc2626'
 
 export default function Admin() {
   const { data: session, status } = useSession()
@@ -178,14 +181,14 @@ export default function Admin() {
       y += 12
 
       const cols = [
-        {x:M,      w:38, label:'NOME'},
-        {x:M+39,   w:30, label:'EMPREENDIMENTO'},
-        {x:M+70,   w:40, label:'UNIDADE'},
-        {x:M+111,  w:22, label:'DATA VISTORIA'},
-        {x:M+134,  w:14, label:'HORA'},
-        {x:M+149,  w:28, label:'TELEFONE'},
-        {x:M+178,  w:35, label:'AGENDADO EM'},
-        {x:M+214,  w:22, label:'STATUS'},
+        {x:M,      label:'NOME'},
+        {x:M+39,   label:'EMPREENDIMENTO'},
+        {x:M+70,   label:'UNIDADE'},
+        {x:M+111,  label:'DATA VISTORIA'},
+        {x:M+134,  label:'HORA'},
+        {x:M+149,  label:'TELEFONE'},
+        {x:M+178,  label:'AGENDADO EM'},
+        {x:M+214,  label:'STATUS'},
       ]
 
       doc.setFillColor(27,47,126)
@@ -271,25 +274,22 @@ export default function Admin() {
   const totalConf = agendamentos.filter(a=>a.status==='confirmado').length
   const totalCanc = agendamentos.filter(a=>a.status==='cancelado').length
 
-  if (status==='loading'||loading) return (
-    <main style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center'}}>
-      <p style={{color:'#6b7280'}}>Carregando...</p>
-    </main>
-  )
-
   const hoje = new Date()
   const mesesGrid = []
   for (let i = 0; i < 12; i++) {
     const d = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1)
     const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')
-    const nomeMes = MESES_NOMES[d.getMonth()]
-    const anoMes = d.getFullYear()
-    const bloqueado = mesesBloqueados.includes(key)
-    mesesGrid.push({ key, nomeMes, anoMes, bloqueado })
+    mesesGrid.push({ key, nomeMes: MESES_NOMES[d.getMonth()], anoMes: d.getFullYear(), bloqueado: mesesBloqueados.includes(key) })
   }
 
+  if (status==='loading'||loading) return (
+    <main style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f0f3fa'}}>
+      <p style={{color:'#6b7280'}}>Carregando...</p>
+    </main>
+  )
+
   return (
-    <main style={{minHeight:'100vh', background:'#f4f6fb', fontFamily:"'Segoe UI',sans-serif"}}>
+    <main style={{minHeight:'100vh', background:'#f0f3fa', fontFamily:"'Segoe UI',sans-serif"}}>
 
       {popup && (
         <div onClick={() => setPopup(null)} style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.6)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem'}}>
@@ -299,7 +299,7 @@ export default function Admin() {
             </div>
             <h3 style={{fontSize:'18px', fontWeight:'700', color:'#111', textAlign:'center', margin:'0 0 8px'}}>Cancelar agendamento?</h3>
             <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0 0 6px', lineHeight:'1.6'}}>Voce esta prestes a cancelar o agendamento de</p>
-            <p style={{fontSize:'15px', fontWeight:'700', color:'#1B2F7E', textAlign:'center', margin:'0 0 4px'}}>{popup.nome}</p>
+            <p style={{fontSize:'15px', fontWeight:'700', color:AZUL, textAlign:'center', margin:'0 0 4px'}}>{popup.nome}</p>
             <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0 0 1.25rem'}}>{new Date(popup.data+'T12:00:00').toLocaleDateString('pt-BR')} as {popup.horario?.slice(0,5)}</p>
             <div style={{background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'8px', padding:'10px', marginBottom:'1.25rem', fontSize:'12px', color:'#dc2626', textAlign:'center', fontWeight:'600'}}>Esta acao nao podera ser desfeita facilmente</div>
             <div style={{display:'flex', gap:'10px'}}>
@@ -310,43 +310,49 @@ export default function Admin() {
         </div>
       )}
 
-      <div style={{background:'#1B2F7E', padding:'1rem 2rem', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'8px'}}>
-        <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-          <img src="/logo.png" alt="Markinvest" style={{height:'36px', objectFit:'contain', filter:'brightness(0) invert(1)'}}/>
-          <span style={{color:'rgba(255,255,255,0.7)', fontSize:'12px', letterSpacing:'0.08em', textTransform:'uppercase'}}>Painel Administrativo</span>
+      {/* Header */}
+      <div style={{background:'linear-gradient(135deg, #1B2F7E 0%, #2a45b0 100%)', padding:'0 2rem', display:'flex', alignItems:'center', justifyContent:'space-between', height:'60px', boxShadow:'0 4px 20px rgba(27,47,126,0.25)'}}>
+        <div style={{display:'flex', alignItems:'center', gap:'14px'}}>
+          <img src="/logo.png" alt="Markinvest" style={{height:'32px', objectFit:'contain', filter:'brightness(0) invert(1)'}}/>
+          <div style={{width:'1px', height:'28px', background:'rgba(255,255,255,0.2)'}}></div>
+          <div style={{color:'rgba(255,255,255,0.6)', fontSize:'11px', letterSpacing:'0.1em', textTransform:'uppercase'}}>Painel Administrativo</div>
         </div>
-        <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-          <span style={{fontSize:'12px', color:'rgba(255,255,255,0.7)'}}>{session?.user?.email}</span>
-          <button onClick={() => signOut({callbackUrl:'/admin/login'})} style={{padding:'6px 14px', background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'8px', fontSize:'12px', cursor:'pointer', color:'#fff', fontWeight:'600'}}>SAIR</button>
+        <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+          <div style={{display:'flex', alignItems:'center', gap:'8px', background:'rgba(255,255,255,0.1)', borderRadius:'20px', padding:'5px 12px', border:'1px solid rgba(255,255,255,0.2)'}}>
+            <div style={{width:'22px', height:'22px', borderRadius:'50%', background:'rgba(255,255,255,0.25)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'11px', color:'#fff', fontWeight:'700'}}>{session?.user?.email?.charAt(0).toUpperCase()}</div>
+            <span style={{fontSize:'12px', color:'rgba(255,255,255,0.8)'}}>{session?.user?.email}</span>
+          </div>
+          <button onClick={() => signOut({callbackUrl:'/admin/login'})} style={{padding:'6px 14px', background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.25)', borderRadius:'8px', fontSize:'12px', cursor:'pointer', color:'#fff', fontWeight:'600'}}>SAIR</button>
         </div>
       </div>
 
-      <div style={{background:'#fff', borderBottom:'1px solid #e5e7eb', display:'flex', padding:'0 1.5rem'}}>
-        {[{id:'agendamentos',label:'Agendamentos'},{id:'empreendimentos',label:'Empreendimentos'},{id:'configuracoes',label:'Configuracoes'}].map(a => (
-          <button key={a.id} onClick={() => setAbaAtiva(a.id)} style={{padding:'12px 20px', background:'none', border:'none', borderBottom:abaAtiva===a.id?'3px solid #1B2F7E':'3px solid transparent', fontSize:'13px', fontWeight:'700', cursor:'pointer', color:abaAtiva===a.id?'#1B2F7E':'#6b7280', transition:'all 0.15s'}}>{a.label}</button>
+      {/* Abas */}
+      <div style={{background:'#fff', borderBottom:'2px solid #e8ecf5', display:'flex', padding:'0 2rem', gap:'4px'}}>
+        {[{id:'agendamentos',label:'📋 Agendamentos'},{id:'empreendimentos',label:'🏢 Empreendimentos'},{id:'configuracoes',label:'⚙️ Configuracoes'}].map(a => (
+          <button key={a.id} onClick={() => setAbaAtiva(a.id)} style={{padding:'14px 20px', background:'none', border:'none', borderBottom:abaAtiva===a.id?'3px solid '+AZUL:'3px solid transparent', fontSize:'13px', fontWeight:'700', cursor:'pointer', color:abaAtiva===a.id?AZUL:'#9ca3af', transition:'all 0.15s', marginBottom:'-2px'}}>{a.label}</button>
         ))}
       </div>
 
-      <div style={{maxWidth:'960px', margin:'0 auto', padding:'1.5rem 1rem'}}>
+      <div style={{maxWidth:'1100px', margin:'0 auto', padding:'1.5rem'}}>
 
         {abaAtiva === 'configuracoes' && (
-          <div style={{background:'#fff', borderRadius:'12px', padding:'1.5rem', boxShadow:'0 1px 4px rgba(27,47,126,0.08)'}}>
-            <h2 style={{fontSize:'16px', fontWeight:'700', color:'#1B2F7E', margin:'0 0 8px'}}>Bloquear / Liberar Meses</h2>
-            <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 16px', lineHeight:'1.6'}}>Meses bloqueados nao permitem novos agendamentos pelos clientes. Clique no mes para alternar.</p>
+          <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
+            <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 8px'}}>Bloquear / Liberar Meses</h2>
+            <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 16px', lineHeight:'1.6'}}>Meses bloqueados nao permitem novos agendamentos. Clique para alternar.</p>
             <div style={{display:'flex', gap:'16px', marginBottom:'20px', padding:'10px 14px', background:'#f8f9ff', borderRadius:'8px', border:'1px solid #e0e5f5', flexWrap:'wrap'}}>
               <div style={{display:'flex', alignItems:'center', gap:'6px'}}>
                 <div style={{width:'12px', height:'12px', borderRadius:'3px', background:'#f0fdf4', border:'2px solid #1D9E75'}}></div>
-                <span style={{fontSize:'12px', fontWeight:'600', color:'#374151'}}>Liberado — clientes podem agendar</span>
+                <span style={{fontSize:'12px', fontWeight:'600', color:'#374151'}}>Liberado</span>
               </div>
               <div style={{display:'flex', alignItems:'center', gap:'6px'}}>
                 <div style={{width:'12px', height:'12px', borderRadius:'3px', background:'#fff5f5', border:'2px solid #dc2626'}}></div>
-                <span style={{fontSize:'12px', fontWeight:'600', color:'#374151'}}>Bloqueado — agendamentos desativados</span>
+                <span style={{fontSize:'12px', fontWeight:'600', color:'#374151'}}>Bloqueado</span>
               </div>
             </div>
             <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'10px'}}>
               {mesesGrid.map(({ key, nomeMes, anoMes, bloqueado }) => (
                 <button key={key} onClick={() => toggleMes(key)} disabled={salvandoMes} style={{padding:'16px 12px', borderRadius:'12px', border:bloqueado?'2px solid #dc2626':'2px solid #1D9E75', background:bloqueado?'#fff5f5':'#f0fdf4', cursor:'pointer', transition:'all 0.2s', textAlign:'center', opacity:salvandoMes?0.7:1}}>
-                  <div style={{fontSize:'14px', fontWeight:'700', color:bloqueado?'#dc2626':'#15803d', marginBottom:'2px', textTransform:'capitalize'}}>{nomeMes}</div>
+                  <div style={{fontSize:'14px', fontWeight:'700', color:bloqueado?'#dc2626':'#15803d', marginBottom:'2px'}}>{nomeMes}</div>
                   <div style={{fontSize:'11px', color:bloqueado?'#dc2626':'#15803d', marginBottom:'8px', opacity:0.7}}>{anoMes}</div>
                   <div style={{display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'20px', background:bloqueado?'#dc2626':'#1D9E75', color:'#fff', fontSize:'10px', fontWeight:'700'}}>
                     {bloqueado ? '🔒 BLOQUEADO' : '✓ LIBERADO'}
@@ -356,29 +362,29 @@ export default function Admin() {
             </div>
             {mesesBloqueados.length > 0 && (
               <div style={{marginTop:'16px', padding:'12px 16px', background:'#fff8e1', border:'1px solid #fde68a', borderRadius:'8px'}}>
-                <p style={{fontSize:'12px', color:'#92400e', margin:0, fontWeight:'600'}}>⚠ {mesesBloqueados.length} mes(es) bloqueado(s) para agendamento.</p>
+                <p style={{fontSize:'12px', color:'#92400e', margin:0, fontWeight:'600'}}>⚠ {mesesBloqueados.length} mes(es) bloqueado(s).</p>
               </div>
             )}
           </div>
         )}
 
         {abaAtiva === 'empreendimentos' && (
-          <div style={{background:'#fff', borderRadius:'12px', padding:'1.5rem', boxShadow:'0 1px 4px rgba(27,47,126,0.08)'}}>
-            <h2 style={{fontSize:'16px', fontWeight:'700', color:'#1B2F7E', margin:'0 0 8px'}}>Gerenciar Empreendimentos</h2>
-            <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 20px', lineHeight:'1.6'}}>Os empreendimentos cadastrados aqui aparecerao na lista suspensa para os clientes ao realizar o agendamento.</p>
+          <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
+            <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 8px'}}>Gerenciar Empreendimentos</h2>
+            <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 20px', lineHeight:'1.6'}}>Os empreendimentos cadastrados aparecerao na lista suspensa para os clientes.</p>
             <div style={{display:'flex', gap:'10px', marginBottom:'12px'}}>
-              <input value={novoEmp} onChange={e => setNovoEmp(e.target.value)} onKeyDown={e => e.key==='Enter' && adicionarEmpreendimento()} placeholder="Nome do novo empreendimento" style={{flex:1, padding:'10px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'14px', outline:'none'}}/>
-              <button onClick={adicionarEmpreendimento} disabled={salvandoEmp||!novoEmp.trim()} style={{padding:'10px 20px', background:salvandoEmp||!novoEmp.trim()?'#9ca3af':'#1B2F7E', color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'700', cursor:salvandoEmp||!novoEmp.trim()?'not-allowed':'pointer', whiteSpace:'nowrap'}}>
+              <input value={novoEmp} onChange={e => setNovoEmp(e.target.value)} onKeyDown={e => e.key==='Enter' && adicionarEmpreendimento()} placeholder="Nome do novo empreendimento" style={{flex:1, padding:'10px 12px', border:'1px solid #dde1f0', borderRadius:'10px', fontSize:'14px', outline:'none'}}/>
+              <button onClick={adicionarEmpreendimento} disabled={salvandoEmp||!novoEmp.trim()} style={{padding:'10px 20px', background:salvandoEmp||!novoEmp.trim()?'#9ca3af':AZUL, color:'#fff', border:'none', borderRadius:'10px', fontSize:'13px', fontWeight:'700', cursor:salvandoEmp||!novoEmp.trim()?'not-allowed':'pointer', whiteSpace:'nowrap'}}>
                 {salvandoEmp?'SALVANDO...':'+ ADICIONAR'}
               </button>
             </div>
             {erroEmp && <p style={{color:'#dc2626', fontSize:'13px', margin:'0 0 12px', fontWeight:'600'}}>{erroEmp}</p>}
             <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
               {empreendimentos.map(emp => (
-                <div key={emp} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'#f8f9ff', borderRadius:'8px', border:'1px solid #e0e5f5'}}>
+                <div key={emp} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'#f8f9ff', borderRadius:'10px', border:'1px solid #e0e5f5'}}>
                   <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                    <div style={{width:'8px', height:'8px', borderRadius:'50%', background:'#1B2F7E', flexShrink:0}}></div>
-                    <span style={{fontSize:'14px', fontWeight:'600', color:'#1B2F7E'}}>{emp}</span>
+                    <div style={{width:'8px', height:'8px', borderRadius:'50%', background:AZUL, flexShrink:0}}></div>
+                    <span style={{fontSize:'14px', fontWeight:'600', color:AZUL}}>{emp}</span>
                   </div>
                   <button onClick={() => removerEmpreendimento(emp)} style={{padding:'5px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'6px', fontSize:'12px', color:'#dc2626', cursor:'pointer', fontWeight:'600'}}>REMOVER</button>
                 </div>
@@ -390,30 +396,42 @@ export default function Admin() {
 
         {abaAtiva === 'agendamentos' && (
           <>
-            <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px', marginBottom:'1.5rem'}}>
-              {[{label:'TOTAL',val:agendamentos.length,cor:'#1B2F7E'},{label:'CONFIRMADOS',val:totalConf,cor:'#1D9E75'},{label:'CANCELADOS',val:totalCanc,cor:'#dc2626'}].map(c => (
-                <div key={c.label} style={{background:'#fff', borderRadius:'12px', padding:'1rem 1.25rem', boxShadow:'0 1px 4px rgba(27,47,126,0.08)', borderLeft:'4px solid '+c.cor}}>
-                  <p style={{fontSize:'11px', fontWeight:'700', color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', margin:'0 0 4px'}}>{c.label}</p>
-                  <p style={{fontSize:'28px', fontWeight:'700', color:c.cor, margin:0}}>{c.val}</p>
+            {/* Cards resumo */}
+            <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'16px', marginBottom:'1.5rem'}}>
+              {[
+                {label:'TOTAL', val:agendamentos.length, cor:AZUL, icon:'📅', bg:'#eff3ff'},
+                {label:'CONFIRMADOS', val:totalConf, cor:VERDE, icon:'✅', bg:'#f0fdf4'},
+                {label:'CANCELADOS', val:totalCanc, cor:VERMELHO, icon:'❌', bg:'#fff5f5'},
+              ].map(c => (
+                <div key={c.label} style={{background:'#fff', borderRadius:'16px', padding:'1.25rem 1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)', borderLeft:'4px solid '+c.cor, display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+                  <div>
+                    <p style={{fontSize:'10px', fontWeight:'700', color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 6px'}}>{c.label}</p>
+                    <p style={{fontSize:'32px', fontWeight:'800', color:c.cor, margin:0, lineHeight:1}}>{c.val}</p>
+                  </div>
+                  <div style={{width:'48px', height:'48px', background:c.bg, borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'22px'}}>{c.icon}</div>
                 </div>
               ))}
             </div>
 
-            <div style={{background:'#fff', borderRadius:'12px', padding:'1rem 1.25rem', marginBottom:'1rem', boxShadow:'0 1px 4px rgba(27,47,126,0.08)'}}>
+            {/* Filtros */}
+            <div style={{background:'#fff', borderRadius:'16px', padding:'1rem 1.25rem', marginBottom:'1rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
               <div style={{display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'center', marginBottom:'10px'}}>
-                <div style={{display:'flex', gap:'6px'}}>
+                <div style={{display:'flex', gap:'4px', background:'#f4f6fb', borderRadius:'10px', padding:'4px'}}>
                   {['todos','confirmado','cancelado'].map(f => (
-                    <button key={f} onClick={() => setFiltro(f)} style={{padding:'6px 14px', borderRadius:'20px', border:filtro===f?'none':'1px solid #e5e7eb', background:filtro===f?(f==='cancelado'?'#dc2626':f==='confirmado'?'#1D9E75':'#1B2F7E'):'#fff', color:filtro===f?'#fff':'#6b7280', fontSize:'12px', fontWeight:'700', cursor:'pointer', textTransform:'uppercase'}}>{f}</button>
+                    <button key={f} onClick={() => setFiltro(f)} style={{padding:'6px 16px', borderRadius:'8px', border:'none', background:filtro===f?(f==='cancelado'?VERMELHO:f==='confirmado'?VERDE:AZUL):'transparent', color:filtro===f?'#fff':'#9ca3af', fontSize:'12px', fontWeight:'700', cursor:'pointer', textTransform:'uppercase', transition:'all 0.15s'}}>{f}</button>
                   ))}
                 </div>
-                <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar nome, email, CPF, apartamento..." style={{flex:1, minWidth:'180px', padding:'8px 12px', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none'}}/>
-                <select value={ordem} onChange={e => setOrdem(e.target.value)} style={{padding:'8px 12px', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none', background:'#fff', cursor:'pointer'}}>
+                <div style={{flex:1, position:'relative', minWidth:'180px'}}>
+                  <span style={{position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)', fontSize:'13px'}}>🔍</span>
+                  <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar nome, email, CPF, apartamento..." style={{width:'100%', padding:'8px 12px 8px 34px', border:'1px solid #e5e7eb', borderRadius:'10px', fontSize:'13px', outline:'none', background:'#f9fafb', boxSizing:'border-box'}}/>
+                </div>
+                <select value={ordem} onChange={e => setOrdem(e.target.value)} style={{padding:'8px 12px', border:'1px solid #e5e7eb', borderRadius:'10px', fontSize:'13px', outline:'none', background:'#f9fafb', cursor:'pointer'}}>
                   <option value="mais-antigo">Mais antigo primeiro</option>
                   <option value="mais-novo">Mais novo primeiro</option>
                 </select>
               </div>
               <div style={{display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'center', marginBottom:'10px'}}>
-                <span style={{fontSize:'12px', fontWeight:'600', color:'#6b7280'}}>Filtrar por data da vistoria:</span>
+                <span style={{fontSize:'12px', fontWeight:'600', color:'#6b7280'}}>Filtrar por data:</span>
                 <div style={{display:'flex', alignItems:'center', gap:'6px'}}>
                   <label style={{fontSize:'12px', color:'#6b7280'}}>De:</label>
                   <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} style={{padding:'6px 10px', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none'}}/>
@@ -425,57 +443,68 @@ export default function Admin() {
                 {(dataInicio||dataFim) && <button onClick={() => {setDataInicio('');setDataFim('')}} style={{padding:'6px 12px', background:'#f3f4f6', border:'none', borderRadius:'8px', fontSize:'12px', cursor:'pointer', color:'#6b7280', fontWeight:'600'}}>Limpar</button>}
               </div>
               <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
-                <button onClick={exportarCSV} style={{padding:'8px 16px', background:'#1B2F7E', color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:'pointer', display:'flex', alignItems:'center', gap:'6px'}}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  EXPORTAR CSV
+                <button onClick={exportarCSV} style={{padding:'8px 18px', background:AZUL, color:'#fff', border:'none', borderRadius:'10px', fontSize:'12px', fontWeight:'700', cursor:'pointer', display:'flex', alignItems:'center', gap:'6px'}}>
+                  ⬇ EXPORTAR CSV
                 </button>
-                <button onClick={gerarPDF} disabled={gerandoPDF} style={{padding:'8px 16px', background:gerandoPDF?'#9ca3af':'#C0392B', color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:gerandoPDF?'not-allowed':'pointer', display:'flex', alignItems:'center', gap:'6px'}}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><polyline points="14,2 14,8 20,8" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  {gerandoPDF?'GERANDO...':'EXPORTAR PDF'}
+                <button onClick={gerarPDF} disabled={gerandoPDF} style={{padding:'8px 18px', background:gerandoPDF?'#9ca3af':'#C0392B', color:'#fff', border:'none', borderRadius:'10px', fontSize:'12px', fontWeight:'700', cursor:gerandoPDF?'not-allowed':'pointer', display:'flex', alignItems:'center', gap:'6px'}}>
+                  📄 {gerandoPDF?'GERANDO...':'EXPORTAR PDF'}
                 </button>
               </div>
             </div>
 
+            {/* Lista */}
             {paginados.length === 0 ? (
-              <div style={{textAlign:'center', padding:'3rem', color:'#9ca3af', fontSize:'14px', background:'#fff', borderRadius:'12px'}}>Nenhum agendamento encontrado</div>
+              <div style={{textAlign:'center', padding:'3rem', color:'#9ca3af', fontSize:'14px', background:'#fff', borderRadius:'16px'}}>Nenhum agendamento encontrado</div>
             ) : (
               <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
                 {paginados.map(a => {
                   const cancelado = a.status==='cancelado'
+                  const partes = (a.apartamento||'').split(' - ')
+                  const empreend = partes[0] || ''
+                  const unidade = partes.slice(1).join(' - ') || ''
                   const criadoEm = a.criado_em ? new Date(a.criado_em) : null
-                  const criadoFmt = criadoEm ? criadoEm.toLocaleDateString('pt-BR')+' as '+criadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : null
+
                   return (
-                    <div key={a.id} style={{background:cancelado?'#fff5f5':'#fff', border:cancelado?'1.5px solid #fca5a5':'1px solid #e5e7eb', borderRadius:'12px', padding:'1.25rem 1.5rem', boxShadow:'0 1px 4px rgba(27,47,126,0.04)', position:'relative', overflow:'hidden'}}>
-                      <div style={{position:'absolute', left:0, top:0, bottom:0, width:'4px', background:cancelado?'#dc2626':'#1D9E75', borderRadius:'12px 0 0 12px'}}></div>
-                      <div style={{display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:'10px', paddingLeft:'8px'}}>
-                        <div>
-                          <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px', flexWrap:'wrap'}}>
-                            <span style={{fontSize:'15px', fontWeight:'700', color:cancelado?'#9ca3af':'#111', textDecoration:cancelado?'line-through':'none'}}>{a.nome}</span>
-                            <span style={{fontSize:'11px', padding:'3px 10px', borderRadius:'20px', background:cancelado?'#dc2626':'#1D9E75', color:'#fff', fontWeight:'700', textTransform:'uppercase'}}>{a.status}</span>
+                    <div key={a.id} style={{background:cancelado?'#fff8f8':'#fff', borderRadius:'14px', padding:'1rem 1.25rem', boxShadow:'0 2px 12px rgba(27,47,126,0.06)', border:cancelado?'1px solid #fecaca':'1px solid #e8ecf5', display:'flex', alignItems:'center', gap:'1rem', position:'relative', overflow:'hidden'}}>
+                      <div style={{position:'absolute', left:0, top:0, bottom:0, width:'5px', background:cancelado?'linear-gradient(180deg,#ef4444,#dc2626)':'linear-gradient(180deg,#1D9E75,#16a34a)', borderRadius:'14px 0 0 14px'}}></div>
+
+                      <div style={{width:'44px', height:'44px', borderRadius:'12px', background:cancelado?'#fee2e2':'#eff3ff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', fontWeight:'800', color:cancelado?VERMELHO:AZUL, flexShrink:0, marginLeft:'8px'}}>
+                        {(a.nome||'?').charAt(0).toUpperCase()}
+                      </div>
+
+                      <div style={{flex:1, minWidth:0}}>
+                        <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'3px', flexWrap:'wrap'}}>
+                          <span style={{fontSize:'14px', fontWeight:'700', color:cancelado?'#9ca3af':'#111', textDecoration:cancelado?'line-through':'none'}}>{a.nome}</span>
+                          <span style={{fontSize:'10px', padding:'2px 8px', borderRadius:'20px', background:cancelado?'#fee2e2':'#dcfce7', color:cancelado?VERMELHO:'#16a34a', fontWeight:'700', textTransform:'uppercase'}}>{a.status}</span>
+                        </div>
+                        <div style={{fontSize:'12px', color:cancelado?'#d1d5db':'#6b7280', marginBottom:'4px'}}>
+                          <span style={{fontWeight:'600', color:cancelado?'#d1d5db':AZUL}}>{empreend}</span>
+                          {unidade && <span> · {unidade}</span>}
+                        </div>
+                        <div style={{display:'flex', gap:'12px', fontSize:'11px', color:'#9ca3af', flexWrap:'wrap'}}>
+                          <span>✉ {a.email}</span>
+                          <span>📱 {a.telefone}</span>
+                          {a.cpf && <span>🪪 {a.cpf}</span>}
+                        </div>
+                      </div>
+
+                      <div style={{textAlign:'center', flexShrink:0, background:cancelado?'#fff5f5':'#f0f7ff', borderRadius:'12px', padding:'10px 16px', border:cancelado?'1px solid #fecaca':'1px solid #bfdbfe'}}>
+                        <div style={{fontSize:'18px', fontWeight:'800', color:cancelado?'#d1d5db':AZUL, lineHeight:1}}>{new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</div>
+                        <div style={{fontSize:'10px', color:'#9ca3af', marginTop:'2px'}}>{new Date(a.data+'T12:00:00').getFullYear()}</div>
+                        <div style={{fontSize:'13px', fontWeight:'700', color:cancelado?'#d1d5db':'#1d4ed8', marginTop:'4px'}}>{a.horario?.slice(0,5)}</div>
+                      </div>
+
+                      <div style={{flexShrink:0, textAlign:'right'}}>
+                        {criadoEm && (
+                          <div style={{fontSize:'10px', color:'#c4c9d9', marginBottom:'8px', whiteSpace:'nowrap'}}>
+                            Agendado em<br/>
+                            <span style={{fontWeight:'600', color:'#b0b8d0'}}>{criadoEm.toLocaleDateString('pt-BR')} {criadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
                           </div>
-                          <div style={{fontSize:'13px', color:cancelado?'#9ca3af':'#6b7280', fontWeight:'500'}}>{a.apartamento}</div>
-                        </div>
-                        <div style={{textAlign:'right', flexShrink:0}}>
-                          <div style={{fontSize:'14px', fontWeight:'700', color:cancelado?'#9ca3af':'#1B2F7E'}}>{new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR')}</div>
-                          <div style={{fontSize:'13px', color:'#9ca3af'}}>{a.horario?.slice(0,5)}</div>
-                        </div>
-                      </div>
-                      <div style={{display:'flex', gap:'16px', fontSize:'12px', color:cancelado?'#9ca3af':'#6b7280', marginBottom:'8px', flexWrap:'wrap', paddingLeft:'8px'}}>
-                        <span>✉ {a.email}</span>
-                        <span>📱 {a.telefone}</span>
-                        {a.cpf && <span>🪪 {a.cpf}</span>}
-                      </div>
-                      {criadoFmt && (
-                        <div style={{paddingLeft:'8px', marginBottom:'12px'}}>
-                          <span style={{fontSize:'11px', color:'#9ca3af', background:'#f4f6fb', padding:'3px 10px', borderRadius:'20px', display:'inline-flex', alignItems:'center', gap:'4px'}}>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#9ca3af" strokeWidth="2"/><path d="M12 6v6l4 2" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round"/></svg>
-                            Agendado em {criadoFmt}
-                          </span>
-                        </div>
-                      )}
-                      <div style={{paddingLeft:'8px'}}>
-                        {!cancelado && <button onClick={() => confirmarCancelamento(a)} style={{padding:'6px 16px', background:'#dc2626', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', color:'#fff', cursor:'pointer'}}>CANCELAR AGENDAMENTO</button>}
-                        {cancelado && <button onClick={() => atualizarStatus(a.id,'confirmado')} style={{padding:'6px 16px', background:'#1D9E75', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', color:'#fff', cursor:'pointer'}}>REATIVAR</button>}
+                        )}
+                        {!cancelado
+                          ? <button onClick={() => confirmarCancelamento(a)} style={{padding:'6px 14px', background:'#fff0f0', border:'1px solid #fca5a5', borderRadius:'8px', fontSize:'11px', fontWeight:'700', color:VERMELHO, cursor:'pointer'}}>CANCELAR</button>
+                          : <button onClick={() => atualizarStatus(a.id,'confirmado')} style={{padding:'6px 14px', background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'8px', fontSize:'11px', fontWeight:'700', color:VERDE, cursor:'pointer'}}>REATIVAR</button>
+                        }
                       </div>
                     </div>
                   )
@@ -487,7 +516,7 @@ export default function Admin() {
               <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', marginTop:'1.5rem', flexWrap:'wrap'}}>
                 <button onClick={() => setPagina(p=>Math.max(1,p-1))} disabled={pagina===1} style={{padding:'6px 14px', background:pagina===1?'#f3f4f6':'#fff', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:pagina===1?'not-allowed':'pointer', color:pagina===1?'#9ca3af':'#374151'}}>&#8249; Anterior</button>
                 {Array.from({length:totalPaginas},(_,i)=>i+1).map(p => (
-                  <button key={p} onClick={() => setPagina(p)} style={{width:'36px', height:'36px', borderRadius:'8px', border:pagina===p?'none':'1px solid #e5e7eb', background:pagina===p?'#1B2F7E':'#fff', color:pagina===p?'#fff':'#374151', fontSize:'13px', fontWeight:'700', cursor:'pointer'}}>{p}</button>
+                  <button key={p} onClick={() => setPagina(p)} style={{width:'36px', height:'36px', borderRadius:'8px', border:pagina===p?'none':'1px solid #e5e7eb', background:pagina===p?AZUL:'#fff', color:pagina===p?'#fff':'#374151', fontSize:'13px', fontWeight:'700', cursor:'pointer'}}>{p}</button>
                 ))}
                 <button onClick={() => setPagina(p=>Math.min(totalPaginas,p+1))} disabled={pagina===totalPaginas} style={{padding:'6px 14px', background:pagina===totalPaginas?'#f3f4f6':'#fff', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:pagina===totalPaginas?'not-allowed':'pointer', color:pagina===totalPaginas?'#9ca3af':'#374151'}}>Proximo &#8250;</button>
               </div>
