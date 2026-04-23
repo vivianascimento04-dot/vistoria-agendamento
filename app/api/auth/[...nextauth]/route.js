@@ -1,37 +1,62 @@
 import NextAuth from 'next-auth'
-import GoogleProvider from 'next-auth/providers/google'
+import CredentialsProvider from 'next-auth/providers/credentials'
+import { createClient } from '@supabase/supabase-js'
+import bcrypt from 'bcryptjs'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+)
 
 const handler = NextAuth({
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      authorization: {
-        params: {
-          scope: 'openid email profile https://www.googleapis.com/auth/calendar',
-          access_type: 'offline',
-          prompt: 'consent',
-        },
+    CredentialsProvider({
+      name: 'credentials',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Senha', type: 'password' }
       },
-    }),
-  ],
-  callbacks: {
-    async jwt({ token, account }) {
-      if (account) {
-        token.accessToken = account.access_token
-        token.refreshToken = account.refresh_token
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null
+
+        try {
+          const { data: admin, error } = await supabase
+            .from('admins')
+            .select('id, email, nome, senha_hash')
+            .eq('email', credentials.email.toLowerCase().trim())
+            .single()
+
+          if (error || !admin) return null
+
+          const senhaCorreta = await bcrypt.compare(credentials.password, admin.senha_hash)
+          if (!senhaCorreta) return null
+
+          return { id: admin.id, email: admin.email, name: admin.nome }
+        } catch(e) {
+          console.error('Erro auth:', e.message)
+          return null
+        }
       }
+    })
+  ],
+  pages: {
+    signIn: '/markinvest/admin/login'
+  },
+  session: {
+    strategy: 'jwt',
+    maxAge: 24 * 60 * 60
+  },
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) { token.id = user.id; token.name = user.name }
       return token
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken
-      session.refreshToken = token.refreshToken
+      if (token) { session.user.id = token.id; session.user.name = token.name }
       return session
-    },
+    }
   },
-  pages: {
-    signIn: '/admin/login',
-  },
+  secret: process.env.NEXTAUTH_SECRET
 })
 
 export { handler as GET, handler as POST }
