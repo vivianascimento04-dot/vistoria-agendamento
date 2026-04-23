@@ -23,6 +23,7 @@ export default function Home() {
   const [horarioSel, setHorarioSel] = useState(null)
   const [diasCheios, setDiasCheios] = useState([])
   const [mesesBloqueados, setMesesBloqueados] = useState([])
+  const [diasEspeciais, setDiasEspeciais] = useState([])
   const [form, setForm] = useState({ nome:'', cpf:'', email:'', telefone:'', empreendimento:'', torre:'', apartamento:'' })
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
@@ -49,6 +50,10 @@ export default function Home() {
       .then(r => r.json())
       .then(d => { if (Array.isArray(d)) setMesesBloqueados(d) })
       .catch(() => {})
+    fetch('/api/dias-especiais')
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setDiasEspeciais(d) })
+      .catch(() => {})
   }, [])
 
   async function carregarDiasCheios(a, m) {
@@ -71,6 +76,13 @@ export default function Home() {
   }
 
   function selecionarHorario(h) { setHorarioSel(h); setEtapa(2) }
+
+  function isDiaBloqueado(ds) {
+    for (const d of diasEspeciais) {
+      if (ds >= d.data_inicio && ds <= d.data_fim && d.tipo === 'bloqueado') return true
+    }
+    return false
+  }
 
   async function confirmar() {
     setTentouEnviar(true)
@@ -140,9 +152,7 @@ export default function Home() {
       <div style={{maxWidth:'900px', margin:'0 auto', padding:isMobile?'1rem':'2rem 1rem'}}>
         {etapa === 1 && (
           <div style={{display:'grid', gridTemplateColumns:(!isMobile&&horarios.length>0&&!mesBloqueado)?'1fr 1fr':'1fr', gap:'1.25rem', alignItems:'start', justifyContent:'center'}}>
-
             <div style={{maxWidth:'420px', width:'100%', margin:'0 auto'}}>
-              {/* Header calendário */}
               <div style={{background:'linear-gradient(135deg, #1B2F7E 0%, #2a45b0 100%)', borderRadius:'16px 16px 0 0', padding:'1.25rem 1.5rem', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 4px 20px rgba(27,47,126,0.2)'}}>
                 <button onClick={prevMes} style={{background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'10px', width:'36px', height:'36px', cursor:'pointer', fontSize:'18px', color:'#fff', fontWeight:'bold', display:'flex', alignItems:'center', justifyContent:'center'}}>&#8249;</button>
                 <div style={{textAlign:'center'}}>
@@ -153,9 +163,7 @@ export default function Home() {
                 <button onClick={nextMes} style={{background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'10px', width:'36px', height:'36px', cursor:'pointer', fontSize:'18px', color:'#fff', fontWeight:'bold', display:'flex', alignItems:'center', justifyContent:'center'}}>&#8250;</button>
               </div>
 
-              {/* Corpo calendário */}
               <div style={{background:'#fff', borderRadius:'0 0 16px 16px', padding:'1.25rem', boxShadow:'0 8px 32px rgba(27,47,126,0.10)'}}>
-
                 {mesBloqueado && (
                   <div style={{background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'10px', padding:'12px 16px', marginBottom:'14px', display:'flex', alignItems:'center', gap:'10px'}}>
                     <span style={{fontSize:'18px'}}>🔒</span>
@@ -166,13 +174,12 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Legenda */}
                 <div style={{display:'flex', gap:'8px', marginBottom:'14px', justifyContent:'center', flexWrap:'wrap'}}>
                   {[
                     {bg:'linear-gradient(135deg,#1B2F7E,#2a45b0)', label:'Selecionado'},
                     {bg:'#fee2e2', border:'1.5px solid #fca5a5', label:'Lotado', cor:'#dc2626'},
                     {bg:'#f0f7ff', border:'1px solid #bfdbfe', label:'Disponivel', cor:'#1d4ed8'},
-                    {bg:'#f5f5f5', label:'Indisponivel', cor:'#bbb'},
+                    {bg:'#f9fafb', label:'Indisponivel', cor:'#bbb'},
                   ].map(l => (
                     <div key={l.label} style={{display:'flex', alignItems:'center', gap:'4px'}}>
                       <div style={{width:'12px', height:'12px', borderRadius:'3px', background:l.bg, border:l.border||'none', flexShrink:0}}></div>
@@ -181,14 +188,12 @@ export default function Home() {
                   ))}
                 </div>
 
-                {/* Dias da semana */}
                 <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', textAlign:'center', marginBottom:'8px'}}>
                   {['Dom','Seg','Ter','Qua','Qui','Sex','Sab'].map((d,i) => (
                     <span key={i} style={{fontSize:'10px', fontWeight:'700', color:i===0||i===6?'#e5e7eb':'#9ca3af', padding:'4px 0', letterSpacing:'0.03em'}}>{d}</span>
                   ))}
                 </div>
 
-                {/* Grade de dias */}
                 <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'4px'}}>
                   {Array(primeiroDia).fill(null).map((_,i) => <div key={i}/>)}
                   {Array(diasNoMes).fill(null).map((_,i) => {
@@ -201,8 +206,9 @@ export default function Home() {
                     const isSel = dataSel===ds
                     const isToday = d===hoje.getDate()&&mes===hoje.getMonth()&&ano===hoje.getFullYear()
                     const isCheio = diasCheios.includes(ds)
+                    const bloqueadoEspecial = isDiaBloqueado(ds)
 
-                    if (isPast||isWeekend||mesBloqueado) return (
+                    if (isPast||isWeekend||mesBloqueado||bloqueadoEspecial) return (
                       <div key={d} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#d1d5db', borderRadius:'8px', background:'#f9fafb', fontWeight:'500'}}>{d}</div>
                     )
                     if (isCheio&&!isSel) return (
@@ -226,9 +232,7 @@ export default function Home() {
 
                 {dataSel && (
                   <div style={{marginTop:'14px', padding:'10px 14px', background:'linear-gradient(135deg,#f0f7ff,#e0edff)', borderRadius:'10px', border:'1px solid #bfdbfe', textAlign:'center'}}>
-                    <p style={{fontSize:'13px', fontWeight:'700', color:AZUL, margin:0, textTransform:'capitalize'}}>
-                      ✓ {dataFormatada}
-                    </p>
+                    <p style={{fontSize:'13px', fontWeight:'700', color:AZUL, margin:0, textTransform:'capitalize'}}>✓ {dataFormatada}</p>
                   </div>
                 )}
               </div>
