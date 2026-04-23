@@ -128,9 +128,7 @@ export default function Admin() {
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ data_inicio: dataInicioEspecial, data_fim: dataFimEspecial, tipo, observacao: obsEspecial })
       })
-      setDataInicioEspecial('')
-      setDataFimEspecial('')
-      setObsEspecial('')
+      setDataInicioEspecial(''); setDataFimEspecial(''); setObsEspecial('')
       buscarDiasEspeciais()
     } catch(e) {}
     setSalvandoDia(false)
@@ -149,8 +147,7 @@ export default function Admin() {
 
   async function adicionarEmpreendimento() {
     if (!novoEmp.trim()) return
-    setSalvandoEmp(true)
-    setErroEmp('')
+    setSalvandoEmp(true); setErroEmp('')
     try {
       const res = await fetch('/api/empreendimentos', {
         method: 'POST',
@@ -192,12 +189,13 @@ export default function Admin() {
   }
 
   function exportarCSV() {
-    const cab = ['Nome','CPF','Email','Telefone','Apartamento','Data Vistoria','Horario','Status','Criado Em']
+    const cab = ['Nome','CPF','Email','Telefone','Apartamento','Data Vistoria','Horario','Status','Criado Em','Acompanhante','CPF Acompanhante']
     const linhas = filtrados.map(a => [
       a.nome, a.cpf||'', a.email, a.telefone, a.apartamento,
       new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'),
       a.horario?.slice(0,5), a.status,
-      a.criado_em ? new Date(a.criado_em).toLocaleString('pt-BR') : ''
+      a.criado_em ? new Date(a.criado_em).toLocaleString('pt-BR') : '',
+      a.nome_acompanhante||'', a.cpf_acompanhante||''
     ])
     const csv = [cab,...linhas].map(l => l.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n')
     const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'})
@@ -220,13 +218,16 @@ export default function Admin() {
       const doc = new jsPDF({orientation:'landscape', unit:'mm', format:'a4'})
       const W = 297, M = 12
       let y = 0
+
       doc.setFillColor(27,47,126); doc.rect(0,0,W,32,'F')
       doc.setTextColor(255,255,255); doc.setFontSize(20); doc.setFont('helvetica','bold')
       doc.text('MARKINVEST', W/2, 13, {align:'center'})
       doc.setFontSize(9); doc.setFont('helvetica','normal')
       doc.text('Relatorio de Agendamentos de Vistoria', W/2, 21, {align:'center'})
-      doc.setFontSize(7.5); doc.text('Gerado em: ' + new Date().toLocaleString('pt-BR'), W/2, 28, {align:'center'})
+      doc.setFontSize(7.5)
+      doc.text('Gerado em: ' + new Date().toLocaleString('pt-BR'), W/2, 28, {align:'center'})
       y = 38
+
       doc.setFillColor(240,243,250); doc.rect(M, y-4, W-M*2, 10, 'F')
       doc.setTextColor(60,60,100); doc.setFontSize(7.5); doc.setFont('helvetica','italic')
       let ftxt = 'Filtros: Status = ' + (filtro==='todos'?'Todos':filtro)
@@ -234,14 +235,22 @@ export default function Admin() {
       if (dataFim) ftxt += ' | Ate: ' + new Date(dataFim+'T12:00:00').toLocaleDateString('pt-BR')
       ftxt += ' | Total: ' + filtrados.length + ' registro(s)'
       doc.text(ftxt, M+3, y+2); y += 12
+
       const cols = [
-        {x:M, label:'NOME'},{x:M+39, label:'EMPREENDIMENTO'},{x:M+70, label:'UNIDADE'},
-        {x:M+111, label:'DATA VISTORIA'},{x:M+134, label:'HORA'},{x:M+149, label:'TELEFONE'},
-        {x:M+178, label:'AGENDADO EM'},{x:M+214, label:'STATUS'},
+        {x:M,      label:'NOME'},
+        {x:M+34,   label:'EMPREENDIMENTO'},
+        {x:M+62,   label:'UNIDADE'},
+        {x:M+120,  label:'DATA'},
+        {x:M+140,  label:'HORA'},
+        {x:M+152,  label:'TELEFONE'},
+        {x:M+178,  label:'AGENDADO EM'},
+        {x:M+212,  label:'STATUS'},
       ]
+
       doc.setFillColor(27,47,126); doc.rect(M, y, W-M*2, 8, 'F')
       doc.setTextColor(255,255,255); doc.setFontSize(7.5); doc.setFont('helvetica','bold')
       cols.forEach(c => doc.text(c.label, c.x+1, y+5.5)); y += 9
+
       doc.setFont('helvetica','normal')
       filtrados.forEach((a, idx) => {
         if (y > 185) {
@@ -253,27 +262,41 @@ export default function Admin() {
         const rowH = 8
         if (idx%2===0) { doc.setFillColor(247,249,255); doc.rect(M, y, W-M*2, rowH, 'F') }
         doc.setDrawColor(220,225,240); doc.line(M, y+rowH, W-M, y+rowH); doc.setFontSize(7.5)
+
         doc.setTextColor(30,30,30); doc.setFont('helvetica','bold')
-        doc.text((a.nome||'').slice(0,20), cols[0].x+1, y+5.5)
-        const partes = (a.apartamento||'').split(' - ')
+        doc.text((a.nome||'').slice(0,17), cols[0].x+1, y+5.5)
+
+        const aptoStr = a.apartamento || ''
+        const partes = aptoStr.split(' - ')
+        const empreend = partes[0] || ''
+        const apto = partes.slice(1).join(' - ') || aptoStr
+
         doc.setFont('helvetica','normal'); doc.setTextColor(27,47,126)
-        doc.text((partes[0]||'').slice(0,18), cols[1].x+1, y+5.5)
+        doc.text(empreend.slice(0,15), cols[1].x+1, y+5.5)
+
         doc.setTextColor(60,60,60)
-        doc.text((partes.slice(1).join(' - ')||'').slice(0,35), cols[2].x+1, y+5.5)
+        doc.text(apto.slice(0,45), cols[2].x+1, y+5.5)
+
         doc.setTextColor(27,47,126); doc.setFont('helvetica','bold')
         doc.text(new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'), cols[3].x+1, y+5.5)
         doc.text((a.horario||'').slice(0,5), cols[4].x+1, y+5.5)
+
         doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80)
         doc.text((a.telefone||'').slice(0,16), cols[5].x+1, y+5.5)
+
         const criadoEm = a.criado_em ? new Date(a.criado_em) : null
         const criadoFmt = criadoEm ? criadoEm.toLocaleDateString('pt-BR')+' '+criadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '-'
-        doc.setTextColor(100,100,100); doc.text(criadoFmt, cols[6].x+1, y+5.5)
-        const cancelado = a.status==='cancelado'
+        doc.setTextColor(100,100,100)
+        doc.text(criadoFmt, cols[6].x+1, y+5.5)
+
+        const cancelado = a.status === 'cancelado'
         if (cancelado) { doc.setFillColor(254,226,226); doc.rect(cols[7].x, y+1.5, 22, 5.5, 'F'); doc.setTextColor(180,30,30) }
         else { doc.setFillColor(220,252,231); doc.rect(cols[7].x, y+1.5, 22, 5.5, 'F'); doc.setTextColor(22,101,52) }
         doc.setFont('helvetica','bold'); doc.setFontSize(7)
-        doc.text((a.status||'').toUpperCase(), cols[7].x+2, y+5.5); y += rowH
+        doc.text((a.status||'').toUpperCase(), cols[7].x+2, y+5.5)
+        y += rowH
       })
+
       const total = doc.getNumberOfPages()
       for (let i=1;i<=total;i++) {
         doc.setPage(i); doc.setFillColor(27,47,126); doc.rect(0,200,W,7,'F')
@@ -382,23 +405,15 @@ export default function Admin() {
                 <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Bloquear / Liberar Meses</h2>
                 <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 16px'}}>Meses bloqueados nao permitem novos agendamentos. Clique para alternar.</p>
                 <div style={{display:'flex', gap:'16px', marginBottom:'20px', padding:'10px 14px', background:'#f8f9ff', borderRadius:'8px', border:'1px solid #e0e5f5', flexWrap:'wrap'}}>
-                  <div style={{display:'flex', alignItems:'center', gap:'6px'}}>
-                    <div style={{width:'12px', height:'12px', borderRadius:'3px', background:'#f0fdf4', border:'2px solid #1D9E75'}}></div>
-                    <span style={{fontSize:'12px', fontWeight:'600', color:'#374151'}}>Liberado</span>
-                  </div>
-                  <div style={{display:'flex', alignItems:'center', gap:'6px'}}>
-                    <div style={{width:'12px', height:'12px', borderRadius:'3px', background:'#fff5f5', border:'2px solid #dc2626'}}></div>
-                    <span style={{fontSize:'12px', fontWeight:'600', color:'#374151'}}>Bloqueado</span>
-                  </div>
+                  <div style={{display:'flex', alignItems:'center', gap:'6px'}}><div style={{width:'12px', height:'12px', borderRadius:'3px', background:'#f0fdf4', border:'2px solid #1D9E75'}}></div><span style={{fontSize:'12px', fontWeight:'600', color:'#374151'}}>Liberado</span></div>
+                  <div style={{display:'flex', alignItems:'center', gap:'6px'}}><div style={{width:'12px', height:'12px', borderRadius:'3px', background:'#fff5f5', border:'2px solid #dc2626'}}></div><span style={{fontSize:'12px', fontWeight:'600', color:'#374151'}}>Bloqueado</span></div>
                 </div>
                 <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'10px'}}>
                   {mesesGrid.map(({ key, nomeMes, anoMes, bloqueado }) => (
                     <button key={key} onClick={() => toggleMes(key)} disabled={salvandoMes} style={{padding:'16px 12px', borderRadius:'12px', border:bloqueado?'2px solid #dc2626':'2px solid #1D9E75', background:bloqueado?'#fff5f5':'#f0fdf4', cursor:'pointer', transition:'all 0.2s', textAlign:'center', opacity:salvandoMes?0.7:1}}>
                       <div style={{fontSize:'14px', fontWeight:'700', color:bloqueado?'#dc2626':'#15803d', marginBottom:'2px'}}>{nomeMes}</div>
                       <div style={{fontSize:'11px', color:bloqueado?'#dc2626':'#15803d', marginBottom:'8px', opacity:0.7}}>{anoMes}</div>
-                      <div style={{display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'20px', background:bloqueado?'#dc2626':'#1D9E75', color:'#fff', fontSize:'10px', fontWeight:'700'}}>
-                        {bloqueado ? '🔒 BLOQUEADO' : '✓ LIBERADO'}
-                      </div>
+                      <div style={{display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'20px', background:bloqueado?'#dc2626':'#1D9E75', color:'#fff', fontSize:'10px', fontWeight:'700'}}>{bloqueado ? '🔒 BLOQUEADO' : '✓ LIBERADO'}</div>
                     </button>
                   ))}
                 </div>
@@ -415,18 +430,14 @@ export default function Admin() {
                 <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Gerenciar Horarios</h2>
                 <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 16px'}}>Ative ou desative horarios. Horarios inativos nao aparecem para os clientes.</p>
                 <div style={{background:'#f0f7ff', border:'1px solid #bfdbfe', borderRadius:'8px', padding:'10px 14px', marginBottom:'20px'}}>
-                  <p style={{fontSize:'12px', color:'#1d4ed8', margin:0, fontWeight:'600'}}>
-                    {horariosAtivos} de {horariosConfig.length} horarios ativos
-                  </p>
+                  <p style={{fontSize:'12px', color:'#1d4ed8', margin:0, fontWeight:'600'}}>{horariosAtivos} de {horariosConfig.length} horarios ativos</p>
                 </div>
                 <div style={{display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:'10px'}}>
                   {horariosConfig.map(h => (
                     <button key={h.horario} onClick={() => toggleHorario(h.horario, h.ativo)} disabled={salvandoHorario}
                       style={{padding:'16px 10px', borderRadius:'12px', border:h.ativo?'2px solid #1D9E75':'2px solid #e5e7eb', background:h.ativo?'#f0fdf4':'#f9fafb', cursor:'pointer', textAlign:'center', transition:'all 0.2s', opacity:salvandoHorario?0.7:1}}>
                       <div style={{fontSize:'20px', fontWeight:'800', color:h.ativo?VERDE:'#d1d5db', marginBottom:'6px'}}>{h.horario}</div>
-                      <div style={{display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'20px', background:h.ativo?VERDE:'#e5e7eb', color:h.ativo?'#fff':'#9ca3af', fontSize:'10px', fontWeight:'700'}}>
-                        {h.ativo ? '✓ ATIVO' : '× INATIVO'}
-                      </div>
+                      <div style={{display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'20px', background:h.ativo?VERDE:'#e5e7eb', color:h.ativo?'#fff':'#9ca3af', fontSize:'10px', fontWeight:'700'}}>{h.ativo ? '✓ ATIVO' : '× INATIVO'}</div>
                     </button>
                   ))}
                 </div>
@@ -437,7 +448,6 @@ export default function Admin() {
               <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Periodos Especiais</h2>
                 <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 20px'}}>Libere ou bloqueie periodos especificos, independente da configuracao do mes.</p>
-
                 <div style={{background:'#f8f9ff', border:'1px solid #e0e5f5', borderRadius:'12px', padding:'1.25rem', marginBottom:'1.5rem'}}>
                   <p style={{fontSize:'13px', fontWeight:'700', color:AZUL, margin:'0 0 12px'}}>Adicionar novo periodo</p>
                   <div style={{display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'flex-end'}}>
@@ -465,23 +475,17 @@ export default function Admin() {
                     </div>
                   </div>
                 </div>
-
                 <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
                   {diasEspeciais.length === 0 && <p style={{color:'#9ca3af', fontSize:'13px', textAlign:'center', padding:'2rem'}}>Nenhum periodo especial cadastrado.</p>}
                   {diasEspeciais.map((d) => (
                     <div key={d.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', background:d.tipo==='liberado'?'#f0fdf4':'#fff5f5', borderRadius:'10px', border:d.tipo==='liberado'?'1px solid #86efac':'1px solid #fca5a5'}}>
                       <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-                        <div style={{width:'36px', height:'36px', borderRadius:'10px', background:d.tipo==='liberado'?VERDE:VERMELHO, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', color:'#fff', fontWeight:'700', flexShrink:0}}>
-                          {d.tipo==='liberado'?'✓':'🔒'}
-                        </div>
+                        <div style={{width:'36px', height:'36px', borderRadius:'10px', background:d.tipo==='liberado'?VERDE:VERMELHO, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', color:'#fff', fontWeight:'700', flexShrink:0}}>{d.tipo==='liberado'?'✓':'🔒'}</div>
                         <div>
                           <div style={{fontSize:'14px', fontWeight:'700', color:d.tipo==='liberado'?VERDE:VERMELHO}}>
                             {new Date(d.data_inicio+'T12:00:00').toLocaleDateString('pt-BR')} ate {new Date(d.data_fim+'T12:00:00').toLocaleDateString('pt-BR')}
                           </div>
-                          <div style={{fontSize:'12px', color:'#6b7280'}}>
-                            {d.tipo==='liberado'?'Periodo liberado':'Periodo bloqueado'}
-                            {d.observacao && ' — ' + d.observacao}
-                          </div>
+                          <div style={{fontSize:'12px', color:'#6b7280'}}>{d.tipo==='liberado'?'Periodo liberado':'Periodo bloqueado'}{d.observacao && ' — ' + d.observacao}</div>
                         </div>
                       </div>
                       <button onClick={() => removerDiaEspecial(d.id)} style={{padding:'6px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'8px', fontSize:'12px', color:VERMELHO, cursor:'pointer', fontWeight:'600', flexShrink:0}}>REMOVER</button>
@@ -596,6 +600,7 @@ export default function Admin() {
                           <span>✉ {a.email}</span>
                           <span>📱 {a.telefone}</span>
                           {a.cpf && <span>🪪 {a.cpf}</span>}
+                          {a.nome_acompanhante && <span>👤 {a.nome_acompanhante}</span>}
                         </div>
                       </div>
                       <div style={{textAlign:'center', flexShrink:0, background:cancelado?'#fff5f5':'#f0f7ff', borderRadius:'12px', padding:'10px 16px', border:cancelado?'1px solid #fecaca':'1px solid #bfdbfe'}}>
@@ -632,11 +637,11 @@ export default function Admin() {
             )}
 
             <p style={{textAlign:'center', fontSize:'12px', color:'#9ca3af', marginTop:'1rem'}}>
-             Mostrando {filtrados.length===0?0:((pagina-1)*POR_PAGINA)+1} - {Math.min(pagina*POR_PAGINA,filtrados.length)} de {filtrados.length} agendamentos
-          </p>
-          <p style={{textAlign:'center', fontSize:'11px', color:'#d1d5db', marginTop:'6px', marginBottom:'1rem'}}>
-           © 2026 Markinvest. Todos os direitos reservados.
-    </p>
+              Mostrando {filtrados.length===0?0:((pagina-1)*POR_PAGINA)+1} - {Math.min(pagina*POR_PAGINA,filtrados.length)} de {filtrados.length} agendamentos
+            </p>
+            <p style={{textAlign:'center', fontSize:'11px', color:'#d1d5db', marginTop:'6px', marginBottom:'1rem'}}>
+              © 2026 Markinvest. Todos os direitos reservados.
+            </p>
           </>
         )}
       </div>
