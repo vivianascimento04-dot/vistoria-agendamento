@@ -632,8 +632,11 @@ export default function Admin() {
             )}
 
             <p style={{textAlign:'center', fontSize:'12px', color:'#9ca3af', marginTop:'1rem'}}>
-              Mostrando {filtrados.length===0?0:((pagina-1)*POR_PAGINA)+1} - {Math.min(pagina*POR_PAGINA,filtrados.length)} de {filtrados.length} agendamentos
-            </p>
+             Mostrando {filtrados.length===0?0:((pagina-1)*POR_PAGINA)+1} - {Math.min(pagina*POR_PAGINA,filtrados.length)} de {filtrados.length} agendamentos
+          </p>
+          <p style={{textAlign:'center', fontSize:'11px', color:'#d1d5db', marginTop:'6px', marginBottom:'1rem'}}>
+           © 2026 Markinvest. Todos os direitos reservados.
+    </p>
           </>
         )}
       </div>

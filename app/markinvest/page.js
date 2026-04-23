@@ -42,18 +42,9 @@ export default function Home() {
   useEffect(() => { carregarDiasCheios(ano, mes) }, [ano, mes])
 
   useEffect(() => {
-    fetch('/api/empreendimentos')
-      .then(r => r.json())
-      .then(d => { if (Array.isArray(d) && d.length) setEmpreendimentos(d) })
-      .catch(() => {})
-    fetch('/api/meses-bloqueados')
-      .then(r => r.json())
-      .then(d => { if (Array.isArray(d)) setMesesBloqueados(d) })
-      .catch(() => {})
-    fetch('/api/dias-especiais')
-      .then(r => r.json())
-      .then(d => { if (Array.isArray(d)) setDiasEspeciais(d) })
-      .catch(() => {})
+    fetch('/api/empreendimentos').then(r => r.json()).then(d => { if (Array.isArray(d) && d.length) setEmpreendimentos(d) }).catch(() => {})
+    fetch('/api/meses-bloqueados').then(r => r.json()).then(d => { if (Array.isArray(d)) setMesesBloqueados(d) }).catch(() => {})
+    fetch('/api/dias-especiais').then(r => r.json()).then(d => { if (Array.isArray(d)) setDiasEspeciais(d) }).catch(() => {})
   }, [])
 
   async function carregarDiasCheios(a, m) {
@@ -66,8 +57,7 @@ export default function Home() {
   }
 
   async function selecionarData(ds) {
-    setDataSel(ds)
-    setHorarioSel(null)
+    setDataSel(ds); setHorarioSel(null)
     try {
       const res = await fetch('/api/horarios?data=' + ds)
       const data = await res.json()
@@ -87,34 +77,19 @@ export default function Home() {
   async function confirmar() {
     setTentouEnviar(true)
     const { nome, cpf, email, telefone, empreendimento, torre, apartamento } = form
-    if (!nome || !cpf || !email || !telefone || !empreendimento || !torre || !apartamento) {
-      setErro('Preencha todos os campos obrigatorios.')
-      return
-    }
-    setLoading(true)
-    setErro('')
+    if (!nome || !cpf || !email || !telefone || !empreendimento || !torre || !apartamento) { setErro('Preencha todos os campos obrigatorios.'); return }
+    setLoading(true); setErro('')
     try {
       const aptoCompleto = empreendimento + ' - Torre ' + torre + ', Apto ' + apartamento
-      const res = await fetch('/api/agendamentos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, apartamento: aptoCompleto, data: dataSel, horario: horarioSel })
-      })
+      const res = await fetch('/api/agendamentos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, apartamento: aptoCompleto, data: dataSel, horario: horarioSel }) })
       const data = await res.json()
-      if (res.ok) {
-        setEtapa(3)
-      } else {
-        if (data.error && (data.error.includes('ja esta confirmado') || data.error.includes('Relacionamento'))) {
-          setErro('Nao e possivel realizar agendamento para o CPF informado pois ja existe um agendamento ativo. Por favor, entre em contato com o Relacionamento.')
-        } else if (data.error === 'Horario ja ocupado') {
-          setErro('Este horario acabou de ser reservado. Escolha outro horario.')
-        } else {
-          setErro(data.error || 'Erro ao agendar. Tente novamente.')
-        }
+      if (res.ok) { setEtapa(3) }
+      else {
+        if (data.error && (data.error.includes('ja esta confirmado') || data.error.includes('Relacionamento'))) setErro('Nao e possivel realizar agendamento para o CPF informado pois ja existe um agendamento ativo. Por favor, entre em contato com o Relacionamento.')
+        else if (data.error === 'Horario ja ocupado') setErro('Este horario acabou de ser reservado. Escolha outro horario.')
+        else setErro(data.error || 'Erro ao agendar. Tente novamente.')
       }
-    } catch(e) {
-      setErro('Erro de conexao. Verifique sua internet e tente novamente.')
-    }
+    } catch(e) { setErro('Erro de conexao. Verifique sua internet e tente novamente.') }
     setLoading(false)
   }
 
@@ -175,12 +150,7 @@ export default function Home() {
                 )}
 
                 <div style={{display:'flex', gap:'8px', marginBottom:'14px', justifyContent:'center', flexWrap:'wrap'}}>
-                  {[
-                    {bg:'linear-gradient(135deg,#1B2F7E,#2a45b0)', label:'Selecionado'},
-                    {bg:'#fee2e2', border:'1.5px solid #fca5a5', label:'Lotado', cor:'#dc2626'},
-                    {bg:'#f0f7ff', border:'1px solid #bfdbfe', label:'Disponivel', cor:'#1d4ed8'},
-                    {bg:'#f9fafb', label:'Indisponivel', cor:'#bbb'},
-                  ].map(l => (
+                  {[{bg:'linear-gradient(135deg,#1B2F7E,#2a45b0)', label:'Selecionado'},{bg:'#fee2e2', border:'1.5px solid #fca5a5', label:'Lotado'},{bg:'#f0f7ff', border:'1px solid #bfdbfe', label:'Disponivel'},{bg:'#f9fafb', label:'Indisponivel'}].map(l => (
                     <div key={l.label} style={{display:'flex', alignItems:'center', gap:'4px'}}>
                       <div style={{width:'12px', height:'12px', borderRadius:'3px', background:l.bg, border:l.border||'none', flexShrink:0}}></div>
                       <span style={{fontSize:'10px', fontWeight:'600', color:'#555'}}>{l.label}</span>
@@ -190,7 +160,7 @@ export default function Home() {
 
                 <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', textAlign:'center', marginBottom:'8px'}}>
                   {['Dom','Seg','Ter','Qua','Qui','Sex','Sab'].map((d,i) => (
-                    <span key={i} style={{fontSize:'10px', fontWeight:'700', color:i===0||i===6?'#e5e7eb':'#9ca3af', padding:'4px 0', letterSpacing:'0.03em'}}>{d}</span>
+                    <span key={i} style={{fontSize:'10px', fontWeight:'700', color:i===0||i===6?'#e5e7eb':'#9ca3af', padding:'4px 0'}}>{d}</span>
                   ))}
                 </div>
 
@@ -207,26 +177,11 @@ export default function Home() {
                     const isToday = d===hoje.getDate()&&mes===hoje.getMonth()&&ano===hoje.getFullYear()
                     const isCheio = diasCheios.includes(ds)
                     const bloqueadoEspecial = isDiaBloqueado(ds)
-
-                    if (isPast||isWeekend||mesBloqueado||bloqueadoEspecial) return (
-                      <div key={d} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#d1d5db', borderRadius:'8px', background:'#f9fafb', fontWeight:'500'}}>{d}</div>
-                    )
-                    if (isCheio&&!isSel) return (
-                      <div key={d} title="Dia lotado" style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'11px', color:'#dc2626', borderRadius:'8px', background:'#fee2e2', border:'1.5px solid #fca5a5', cursor:'not-allowed', fontWeight:'700'}}>
-                        {d}<div style={{fontSize:'7px', fontWeight:'700', marginTop:'1px'}}>LOTADO</div>
-                      </div>
-                    )
-                    if (isSel) return (
-                      <div key={d} onClick={() => setDataSel(null)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'800', borderRadius:'8px', cursor:'pointer', background:'linear-gradient(135deg, #1B2F7E, #2a45b0)', color:'#fff', boxShadow:'0 4px 12px rgba(27,47,126,0.4)', transition:'all 0.15s'}}>{d}</div>
-                    )
-                    if (isToday) return (
-                      <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700', borderRadius:'8px', cursor:'pointer', background:'#eff6ff', color:AZUL, border:'2px solid '+AZUL, transition:'all 0.15s'}}>
-                        {d}<div style={{width:'4px', height:'4px', borderRadius:'50%', background:AZUL, marginTop:'1px'}}></div>
-                      </div>
-                    )
-                    return (
-                      <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'600', borderRadius:'8px', cursor:'pointer', background:'#f0f7ff', color:'#1d4ed8', border:'1px solid #bfdbfe', transition:'all 0.15s'}}>{d}</div>
-                    )
+                    if (isPast||isWeekend||mesBloqueado||bloqueadoEspecial) return <div key={d} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#d1d5db', borderRadius:'8px', background:'#f9fafb', fontWeight:'500'}}>{d}</div>
+                    if (isCheio&&!isSel) return <div key={d} title="Dia lotado" style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'11px', color:'#dc2626', borderRadius:'8px', background:'#fee2e2', border:'1.5px solid #fca5a5', cursor:'not-allowed', fontWeight:'700'}}>{d}<div style={{fontSize:'7px', fontWeight:'700', marginTop:'1px'}}>LOTADO</div></div>
+                    if (isSel) return <div key={d} onClick={() => setDataSel(null)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'800', borderRadius:'8px', cursor:'pointer', background:'linear-gradient(135deg, #1B2F7E, #2a45b0)', color:'#fff', boxShadow:'0 4px 12px rgba(27,47,126,0.4)', transition:'all 0.15s'}}>{d}</div>
+                    if (isToday) return <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700', borderRadius:'8px', cursor:'pointer', background:'#eff6ff', color:AZUL, border:'2px solid '+AZUL, transition:'all 0.15s'}}>{d}<div style={{width:'4px', height:'4px', borderRadius:'50%', background:AZUL, marginTop:'1px'}}></div></div>
+                    return <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'600', borderRadius:'8px', cursor:'pointer', background:'#f0f7ff', color:'#1d4ed8', border:'1px solid #bfdbfe', transition:'all 0.15s'}}>{d}</div>
                   })}
                 </div>
 
@@ -360,6 +315,9 @@ export default function Home() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               <p style={{fontSize:'13px', color:'#15803d', margin:0, fontWeight:'500', textAlign:'left'}}>E-mail enviado! Verifique sua caixa de entrada e o spam.</p>
             </div>
+            <p style={{fontSize:'10px', color:'#d1d5db', textAlign:'center', marginTop:'1.5rem', marginBottom:0}}>
+              © 2026 Markinvest. Todos os direitos reservados.
+            </p>
           </div>
         )}
       </div>

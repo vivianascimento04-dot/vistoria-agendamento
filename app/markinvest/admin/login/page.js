@@ -50,11 +50,7 @@ export default function Login() {
 
         <div style={{textAlign:'center', marginBottom:'2rem'}}>
           <div style={{margin:'0 auto 1rem'}}>
-            <img
-              src="/logo.png"
-              alt="Markinvest"
-              style={{height:'64px', objectFit:'contain', filter:'brightness(0) invert(1)'}}
-            />
+            <img src="/logo.png" alt="Markinvest" style={{height:'64px', objectFit:'contain', filter:'brightness(0) invert(1)'}}/>
           </div>
           <p style={{color:'rgba(255,255,255,0.6)', fontSize:'13px', margin:0, letterSpacing:'0.1em', textTransform:'uppercase'}}>Painel Administrativo</p>
         </div>
@@ -71,7 +67,7 @@ export default function Login() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="seu@email.com"
-                style={{width:'100%', padding:'12px 14px', border:'1.5px solid #e5e7eb', borderRadius:'10px', fontSize:'14px', outline:'none', boxSizing:'border-box', fontFamily:'inherit', transition:'border-color 0.15s'}}
+                style={{width:'100%', padding:'12px 14px', border:'1.5px solid #e5e7eb', borderRadius:'10px', fontSize:'14px', outline:'none', boxSizing:'border-box', fontFamily:'inherit'}}
                 onFocus={e => e.target.style.borderColor='#1B2F7E'}
                 onBlur={e => e.target.style.borderColor='#e5e7eb'}
               />
@@ -85,15 +81,12 @@ export default function Login() {
                   value={senha}
                   onChange={e => setSenha(e.target.value)}
                   placeholder="••••••••"
-                  style={{width:'100%', padding:'12px 44px 12px 14px', border:'1.5px solid #e5e7eb', borderRadius:'10px', fontSize:'14px', outline:'none', boxSizing:'border-box', fontFamily:'inherit', transition:'border-color 0.15s'}}
+                  style={{width:'100%', padding:'12px 44px 12px 14px', border:'1.5px solid #e5e7eb', borderRadius:'10px', fontSize:'14px', outline:'none', boxSizing:'border-box', fontFamily:'inherit'}}
                   onFocus={e => e.target.style.borderColor='#1B2F7E'}
                   onBlur={e => e.target.style.borderColor='#e5e7eb'}
                 />
-                <button
-                  type="button"
-                  onClick={() => setMostrarSenha(!mostrarSenha)}
-                  style={{position:'absolute', right:'12px', top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#9ca3af', fontSize:'16px', padding:'4px'}}
-                >
+                <button type="button" onClick={() => setMostrarSenha(!mostrarSenha)}
+                  style={{position:'absolute', right:'12px', top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#9ca3af', fontSize:'16px', padding:'4px'}}>
                   {mostrarSenha ? '🙈' : '👁'}
                 </button>
               </div>
@@ -106,17 +99,14 @@ export default function Login() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              style={{width:'100%', padding:'13px', background:loading?'#9ca3af':'linear-gradient(135deg, #1B2F7E, #2a45b0)', color:'#fff', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:'700', cursor:loading?'not-allowed':'pointer', letterSpacing:'0.05em', boxShadow:loading?'none':'0 4px 12px rgba(27,47,126,0.35)', transition:'all 0.15s'}}
-            >
+            <button type="submit" disabled={loading}
+              style={{width:'100%', padding:'13px', background:loading?'#9ca3af':'linear-gradient(135deg, #1B2F7E, #2a45b0)', color:'#fff', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:'700', cursor:loading?'not-allowed':'pointer', letterSpacing:'0.05em', boxShadow:loading?'none':'0 4px 12px rgba(27,47,126,0.35)'}}>
               {loading ? 'ENTRANDO...' : 'ENTRAR'}
             </button>
           </form>
 
           <p style={{fontSize:'11px', color:'#d1d5db', textAlign:'center', marginTop:'1.5rem', marginBottom:0}}>
-            Acesso restrito — Markinvest © 2026
+            © 2026 Markinvest. Todos os direitos reservados.
           </p>
         </div>
       </div>
