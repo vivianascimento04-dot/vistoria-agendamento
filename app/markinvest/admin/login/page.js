@@ -49,10 +49,13 @@ export default function Login() {
       <div style={{width:'100%', maxWidth:'400px'}}>
 
         <div style={{textAlign:'center', marginBottom:'2rem'}}>
-          <div style={{width:'64px', height:'64px', background:'rgba(255,255,255,0.15)', borderRadius:'16px', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 1rem', border:'1px solid rgba(255,255,255,0.2)'}}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" fill="white"/></svg>
+          <div style={{margin:'0 auto 1rem'}}>
+            <img
+              src="/logo.png"
+              alt="Markinvest"
+              style={{height:'64px', objectFit:'contain', filter:'brightness(0) invert(1)'}}
+            />
           </div>
-          <h1 style={{color:'#fff', fontSize:'24px', fontWeight:'700', margin:'0 0 4px', letterSpacing:'0.05em'}}>MARKINVEST</h1>
           <p style={{color:'rgba(255,255,255,0.6)', fontSize:'13px', margin:0, letterSpacing:'0.1em', textTransform:'uppercase'}}>Painel Administrativo</p>
         </div>
 
