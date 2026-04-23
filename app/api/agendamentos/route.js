@@ -18,9 +18,9 @@ const transporter = nodemailer.createTransport({
 
 export async function POST(request) {
   const body = await request.json()
-  const { nome, cpf, email, telefone, apartamento, data, horario } = body
+  const { nome, cpf, email, telefone, apartamento, data, horario, nome_acompanhante, cpf_acompanhante } = body
 
-  if (!nome || !cpf || !email || !telefone || !apartamento || !data || !horario) {
+  if (!nome || !cpf || !email || !telefone || !apartamento || !data || !horario || !nome_acompanhante || !cpf_acompanhante) {
     return NextResponse.json({ error: 'Preencha todos os campos obrigatorios.' }, { status: 400 })
   }
 
@@ -55,7 +55,7 @@ export async function POST(request) {
 
   const { data: agendamento, error } = await supabase
     .from('agendamentos')
-    .insert([{ nome, cpf, email, telefone, apartamento, data, horario }])
+    .insert([{ nome, cpf, email, telefone, apartamento, data, horario, nome_acompanhante, cpf_acompanhante }])
     .select()
     .single()
 
@@ -76,7 +76,7 @@ export async function POST(request) {
       calendarId: 'primary',
       requestBody: {
         summary: 'Vistoria - ' + apartamento + ' (' + nome + ')',
-        description: 'Cliente: ' + nome + '\nApto: ' + apartamento + '\nCPF: ' + cpf + '\nTel: ' + telefone + '\nEmail: ' + email,
+        description: 'Cliente: ' + nome + '\nApto: ' + apartamento + '\nCPF: ' + cpf + '\nTel: ' + telefone + '\nEmail: ' + email + '\nAcompanhante: ' + nome_acompanhante + '\nCPF Acomp: ' + cpf_acompanhante,
         start: { dateTime: inicio.toISOString(), timeZone: 'America/Sao_Paulo' },
         end: { dateTime: fim.toISOString(), timeZone: 'America/Sao_Paulo' },
         attendees: [{ email }],
@@ -95,7 +95,6 @@ export async function POST(request) {
   const emailsEquipe = [process.env.EMAIL_EQUIPE].filter(Boolean).join(',')
 
   try {
-    // Email confirmacao para o cliente
     await transporter.sendMail({
       from: '"Markinvest" <' + process.env.EMAIL_USER + '>',
       to: email,
@@ -140,8 +139,12 @@ export async function POST(request) {
                   <td style="padding:10px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:14px;font-weight:600;color:#374151;margin:0;">${apartamento}</p></td>
                 </tr>
                 <tr>
-                  <td style="padding:10px 0;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin:0;">Telefone</p></td>
-                  <td style="padding:10px 0;"><p style="font-size:14px;color:#374151;margin:0;">${telefone}</p></td>
+                  <td style="padding:10px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin:0;">Acompanhante</p></td>
+                  <td style="padding:10px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:14px;font-weight:600;color:#374151;margin:0;">${nome_acompanhante}</p></td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 0;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin:0;">CPF Acompanhante</p></td>
+                  <td style="padding:10px 0;"><p style="font-size:14px;color:#374151;margin:0;">${cpf_acompanhante}</p></td>
                 </tr>
               </table>
             </td></tr>
@@ -152,7 +155,7 @@ export async function POST(request) {
               <p style="font-size:13px;color:#92400e;margin:0;line-height:1.5;">Seu horario ja esta confirmado. Em caso de duvidas ou necessidade de alteracao, entre em contato com o Relacionamento.</p>
             </td></tr>
           </table>
-          <p style="color:#6b7280;font-size:13px;line-height:1.7;margin:0;">Alteracoes so podem ser realizadas pela equipe MARKINVEST. Aguardamos voce!</p>
+          <p style="color:#6b7280;font-size:13px;line-height:1.7;margin:0;">Alteracoes so podem ser realizadas pela equipe Markinvest. Aguardamos voce!</p>
         </td>
       </tr>
       <tr>
@@ -169,7 +172,6 @@ export async function POST(request) {
 </html>`
     })
 
-    // Email notificacao para a equipe com CCO para relacionamento@markinvest.com.br
     await transporter.sendMail({
       from: '"Markinvest" <' + process.env.EMAIL_USER + '>',
       to: emailsEquipe,
@@ -214,8 +216,16 @@ export async function POST(request) {
                   <td style="padding:9px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:14px;color:#1B2F7E;font-weight:600;margin:0;">${email}</p></td>
                 </tr>
                 <tr>
-                  <td style="padding:9px 0;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin:0;">Telefone</p></td>
-                  <td style="padding:9px 0;"><p style="font-size:14px;color:#374151;margin:0;">${telefone}</p></td>
+                  <td style="padding:9px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin:0;">Telefone</p></td>
+                  <td style="padding:9px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:14px;color:#374151;margin:0;">${telefone}</p></td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin:0;">Acompanhante</p></td>
+                  <td style="padding:9px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:14px;color:#374151;margin:0;">${nome_acompanhante}</p></td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin:0;">CPF Acompanhante</p></td>
+                  <td style="padding:9px 0;"><p style="font-size:14px;color:#374151;margin:0;">${cpf_acompanhante}</p></td>
                 </tr>
               </table>
             </td></tr>

@@ -24,7 +24,7 @@ export default function Home() {
   const [diasCheios, setDiasCheios] = useState([])
   const [mesesBloqueados, setMesesBloqueados] = useState([])
   const [diasEspeciais, setDiasEspeciais] = useState([])
-  const [form, setForm] = useState({ nome:'', cpf:'', email:'', telefone:'', empreendimento:'', torre:'', apartamento:'' })
+  const [form, setForm] = useState({ nome:'', cpf:'', email:'', telefone:'', empreendimento:'', torre:'', apartamento:'', nomeAcompanhante:'', cpfAcompanhante:'' })
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
   const [etapa, setEtapa] = useState(1)
@@ -76,12 +76,19 @@ export default function Home() {
 
   async function confirmar() {
     setTentouEnviar(true)
-    const { nome, cpf, email, telefone, empreendimento, torre, apartamento } = form
-    if (!nome || !cpf || !email || !telefone || !empreendimento || !torre || !apartamento) { setErro('Preencha todos os campos obrigatorios.'); return }
+    const { nome, cpf, email, telefone, empreendimento, torre, apartamento, nomeAcompanhante, cpfAcompanhante } = form
+    if (!nome || !cpf || !email || !telefone || !empreendimento || !torre || !apartamento || !nomeAcompanhante || !cpfAcompanhante) {
+      setErro('Preencha todos os campos obrigatorios.')
+      return
+    }
     setLoading(true); setErro('')
     try {
       const aptoCompleto = empreendimento + ' - Torre ' + torre + ', Apto ' + apartamento
-      const res = await fetch('/api/agendamentos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, apartamento: aptoCompleto, data: dataSel, horario: horarioSel }) })
+      const res = await fetch('/api/agendamentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, apartamento: aptoCompleto, data: dataSel, horario: horarioSel, nome_acompanhante: nomeAcompanhante, cpf_acompanhante: cpfAcompanhante })
+      })
       const data = await res.json()
       if (res.ok) { setEtapa(3) }
       else {
@@ -137,7 +144,6 @@ export default function Home() {
                 </div>
                 <button onClick={nextMes} style={{background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', borderRadius:'10px', width:'36px', height:'36px', cursor:'pointer', fontSize:'18px', color:'#fff', fontWeight:'bold', display:'flex', alignItems:'center', justifyContent:'center'}}>&#8250;</button>
               </div>
-
               <div style={{background:'#fff', borderRadius:'0 0 16px 16px', padding:'1.25rem', boxShadow:'0 8px 32px rgba(27,47,126,0.10)'}}>
                 {mesBloqueado && (
                   <div style={{background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'10px', padding:'12px 16px', marginBottom:'14px', display:'flex', alignItems:'center', gap:'10px'}}>
@@ -148,7 +154,6 @@ export default function Home() {
                     </div>
                   </div>
                 )}
-
                 <div style={{display:'flex', gap:'8px', marginBottom:'14px', justifyContent:'center', flexWrap:'wrap'}}>
                   {[{bg:'linear-gradient(135deg,#1B2F7E,#2a45b0)', label:'Selecionado'},{bg:'#fee2e2', border:'1.5px solid #fca5a5', label:'Lotado'},{bg:'#f0f7ff', border:'1px solid #bfdbfe', label:'Disponivel'},{bg:'#f9fafb', label:'Indisponivel'}].map(l => (
                     <div key={l.label} style={{display:'flex', alignItems:'center', gap:'4px'}}>
@@ -157,13 +162,11 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-
                 <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', textAlign:'center', marginBottom:'8px'}}>
                   {['Dom','Seg','Ter','Qua','Qui','Sex','Sab'].map((d,i) => (
                     <span key={i} style={{fontSize:'10px', fontWeight:'700', color:i===0||i===6?'#e5e7eb':'#9ca3af', padding:'4px 0'}}>{d}</span>
                   ))}
                 </div>
-
                 <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'4px'}}>
                   {Array(primeiroDia).fill(null).map((_,i) => <div key={i}/>)}
                   {Array(diasNoMes).fill(null).map((_,i) => {
@@ -184,7 +187,6 @@ export default function Home() {
                     return <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'600', borderRadius:'8px', cursor:'pointer', background:'#f0f7ff', color:'#1d4ed8', border:'1px solid #bfdbfe', transition:'all 0.15s'}}>{d}</div>
                   })}
                 </div>
-
                 {dataSel && (
                   <div style={{marginTop:'14px', padding:'10px 14px', background:'linear-gradient(135deg,#f0f7ff,#e0edff)', borderRadius:'10px', border:'1px solid #bfdbfe', textAlign:'center'}}>
                     <p style={{fontSize:'13px', fontWeight:'700', color:AZUL, margin:0, textTransform:'capitalize'}}>✓ {dataFormatada}</p>
@@ -192,7 +194,6 @@ export default function Home() {
                 )}
               </div>
             </div>
-
             {horarios.length > 0 && !mesBloqueado && (
               <div style={{background:'#fff', borderRadius:'16px', padding:isMobile?'1rem':'1.5rem', boxShadow:'0 8px 32px rgba(27,47,126,0.10)'}}>
                 <p style={{fontSize:'11px', fontWeight:'700', color:AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 4px'}}>HORARIOS DISPONIVEIS</p>
@@ -221,7 +222,12 @@ export default function Home() {
                 <div style={{fontSize:'12px', color:'#5a6fa8'}}>as {horarioSel} &middot; <span onClick={() => {setEtapa(1);setHorarioSel(null)}} style={{cursor:'pointer', textDecoration:'underline', fontWeight:'600'}}>Alterar</span></div>
               </div>
             </div>
-            <p style={{fontSize:'11px', fontWeight:'700', color:AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem'}}>DADOS PESSOAIS</p>
+
+            {/* DADOS PESSOAIS */}
+            <p style={{fontSize:'11px', fontWeight:'700', color:AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem', display:'flex', alignItems:'center', gap:'6px'}}>
+              <span style={{width:'4px', height:'16px', background:AZUL, borderRadius:'2px', display:'inline-block'}}></span>
+              DADOS PESSOAIS
+            </p>
             <div style={{display:'grid', gridTemplateColumns:isMobile?'1fr':'1fr 1fr', gap:'10px', marginBottom:'10px'}}>
               <div>
                 <label style={{fontSize:'12px', fontWeight:'700', color:tentouEnviar&&!form.nome?VERMELHO:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Nome Completo *</label>
@@ -246,7 +252,12 @@ export default function Home() {
                 {tentouEnviar&&!form.telefone && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
               </div>
             </div>
-            <p style={{fontSize:'11px', fontWeight:'700', color:AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem'}}>DADOS DO IMOVEL</p>
+
+            {/* DADOS DO IMOVEL */}
+            <p style={{fontSize:'11px', fontWeight:'700', color:AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem', display:'flex', alignItems:'center', gap:'6px'}}>
+              <span style={{width:'4px', height:'16px', background:AZUL, borderRadius:'2px', display:'inline-block'}}></span>
+              DADOS DO IMOVEL
+            </p>
             <div style={{marginBottom:'10px'}}>
               <label style={{fontSize:'12px', fontWeight:'700', color:tentouEnviar&&!form.empreendimento?VERMELHO:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Empreendimento *</label>
               <select value={form.empreendimento} onChange={e => setForm({...form,empreendimento:e.target.value})} style={{...(tentouEnviar&&!form.empreendimento?erroBorda:inp), background:'#fff', cursor:'pointer', color:form.empreendimento?'#111':'#9ca3af'}}>
@@ -267,6 +278,27 @@ export default function Home() {
                 {tentouEnviar&&!form.apartamento && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
               </div>
             </div>
+
+            {/* DADOS DO ACOMPANHANTE */}
+            <div style={{background:'#f8f9ff', border:'1px solid #e0e5f5', borderRadius:'12px', padding:'1rem', marginBottom:'1.25rem'}}>
+              <p style={{fontSize:'11px', fontWeight:'700', color:AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem', display:'flex', alignItems:'center', gap:'6px'}}>
+                <span style={{width:'4px', height:'16px', background:'#6366f1', borderRadius:'2px', display:'inline-block'}}></span>
+                DADOS DO ACOMPANHANTE
+              </p>
+              <div style={{display:'grid', gridTemplateColumns:isMobile?'1fr':'1fr 1fr', gap:'10px'}}>
+                <div>
+                  <label style={{fontSize:'12px', fontWeight:'700', color:tentouEnviar&&!form.nomeAcompanhante?VERMELHO:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Nome do Acompanhante *</label>
+                  <input value={form.nomeAcompanhante} onChange={e => setForm({...form,nomeAcompanhante:e.target.value})} placeholder="Nome completo" style={tentouEnviar&&!form.nomeAcompanhante?erroBorda:inp}/>
+                  {tentouEnviar&&!form.nomeAcompanhante && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
+                </div>
+                <div>
+                  <label style={{fontSize:'12px', fontWeight:'700', color:tentouEnviar&&!form.cpfAcompanhante?VERMELHO:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>CPF do Acompanhante *</label>
+                  <input value={form.cpfAcompanhante} onChange={e => setForm({...form,cpfAcompanhante:mascaraCPF(e.target.value)})} placeholder="000.000.000-00" maxLength={14} style={tentouEnviar&&!form.cpfAcompanhante?erroBorda:inp}/>
+                  {tentouEnviar&&!form.cpfAcompanhante && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
+                </div>
+              </div>
+            </div>
+
             {erro && (
               <div style={{background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'8px', padding:'10px 14px', marginBottom:'12px'}}>
                 <p style={{color:VERMELHO, fontSize:'13px', fontWeight:'600', margin:0}}>&#9888; {erro}</p>
@@ -308,6 +340,11 @@ export default function Home() {
                 <div>
                   <div style={{fontSize:'11px', color:'#6b7280', fontWeight:'600', textTransform:'uppercase', marginBottom:'4px'}}>Unidade</div>
                   <div style={{fontSize:'13px', fontWeight:'700', color:'#374151'}}>Torre {form.torre}, Apto {form.apartamento}</div>
+                </div>
+                <div style={{borderTop:'1px solid #e0e5f5', paddingTop:'8px', marginTop:'4px'}}>
+                  <div style={{fontSize:'11px', color:'#6b7280', fontWeight:'600', textTransform:'uppercase', marginBottom:'4px'}}>Acompanhante</div>
+                  <div style={{fontSize:'13px', fontWeight:'700', color:'#374151'}}>{form.nomeAcompanhante}</div>
+                  <div style={{fontSize:'12px', color:'#6b7280'}}>{form.cpfAcompanhante}</div>
                 </div>
               </div>
             </div>
