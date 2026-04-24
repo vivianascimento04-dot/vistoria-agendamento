@@ -10,6 +10,15 @@ const AZUL = '#1B2F7E'
 const VERDE = '#1D9E75'
 const VERMELHO = '#dc2626'
 
+const MOTIVOS = [
+  'Selecione o motivo',
+  'Cliente solicitou cancelamento',
+  'Reagendamento necessario',
+  'Imovel indisponivel',
+  'Ausencia do cliente',
+  'Outro'
+]
+
 export default function Admin() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -18,6 +27,9 @@ export default function Admin() {
   const [filtro, setFiltro] = useState('todos')
   const [busca, setBusca] = useState('')
   const [popup, setPopup] = useState(null)
+  const [motivoCancelamento, setMotivoCancelamento] = useState('')
+  const [obsCancelamento, setObsCancelamento] = useState('')
+  const [erroMotivo, setErroMotivo] = useState(false)
   const [pagina, setPagina] = useState(1)
   const [ordem, setOrdem] = useState('mais-antigo')
   const [dataInicio, setDataInicio] = useState('')
@@ -168,12 +180,29 @@ export default function Admin() {
     } catch(e) {}
   }
 
-  function confirmarCancelamento(a) { setPopup(a) }
+  function confirmarCancelamento(a) {
+    setPopup(a)
+    setMotivoCancelamento('')
+    setObsCancelamento('')
+    setErroMotivo(false)
+  }
 
   async function executarCancelamento() {
     if (!popup) return
+    if (!motivoCancelamento || motivoCancelamento === 'Selecione o motivo') {
+      setErroMotivo(true)
+      return
+    }
     try {
-      const res = await fetch('/api/agendamentos/' + popup.id, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({status:'cancelado'}) })
+      const res = await fetch('/api/agendamentos/' + popup.id, {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          status: 'cancelado',
+          motivo_cancelamento: motivoCancelamento,
+          obs_cancelamento: obsCancelamento
+        })
+      })
       if (res.ok) buscarAgendamentos()
       else alert('Erro ao cancelar.')
     } catch(e) { alert('Erro de conexao.') }
@@ -182,18 +211,23 @@ export default function Admin() {
 
   async function atualizarStatus(id, novoStatus) {
     try {
-      const res = await fetch('/api/agendamentos/' + id, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({status: novoStatus}) })
+      const res = await fetch('/api/agendamentos/' + id, {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({status: novoStatus})
+      })
       if (res.ok) buscarAgendamentos()
       else alert('Erro ao atualizar.')
     } catch(e) { alert('Erro de conexao.') }
   }
 
   function exportarCSV() {
-    const cab = ['Nome','CPF','Email','Telefone','Apartamento','Data Vistoria','Horario','Status','Criado Em','Acompanhante','CPF Acompanhante']
+    const cab = ['Nome','CPF','Email','Telefone','Apartamento','Data Vistoria','Horario','Status','Motivo Cancelamento','Obs Cancelamento','Criado Em','Acompanhante','CPF Acompanhante']
     const linhas = filtrados.map(a => [
       a.nome, a.cpf||'', a.email, a.telefone, a.apartamento,
       new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'),
       a.horario?.slice(0,5), a.status,
+      a.motivo_cancelamento||'', a.obs_cancelamento||'',
       a.criado_em ? new Date(a.criado_em).toLocaleString('pt-BR') : '',
       a.nome_acompanhante||'', a.cpf_acompanhante||''
     ])
@@ -240,11 +274,12 @@ export default function Admin() {
         {x:M,      label:'NOME'},
         {x:M+34,   label:'EMPREENDIMENTO'},
         {x:M+62,   label:'UNIDADE'},
-        {x:M+120,  label:'DATA'},
-        {x:M+140,  label:'HORA'},
-        {x:M+152,  label:'TELEFONE'},
-        {x:M+178,  label:'AGENDADO EM'},
-        {x:M+212,  label:'STATUS'},
+        {x:M+118,  label:'DATA'},
+        {x:M+138,  label:'HORA'},
+        {x:M+150,  label:'TELEFONE'},
+        {x:M+176,  label:'AGENDADO EM'},
+        {x:M+206,  label:'STATUS'},
+        {x:M+222,  label:'MOTIVO'},
       ]
 
       doc.setFillColor(27,47,126); doc.rect(M, y, W-M*2, 8, 'F')
@@ -275,14 +310,14 @@ export default function Admin() {
         doc.text(empreend.slice(0,15), cols[1].x+1, y+5.5)
 
         doc.setTextColor(60,60,60)
-        doc.text(apto.slice(0,45), cols[2].x+1, y+5.5)
+        doc.text(apto.slice(0,42), cols[2].x+1, y+5.5)
 
         doc.setTextColor(27,47,126); doc.setFont('helvetica','bold')
         doc.text(new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'), cols[3].x+1, y+5.5)
         doc.text((a.horario||'').slice(0,5), cols[4].x+1, y+5.5)
 
         doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80)
-        doc.text((a.telefone||'').slice(0,16), cols[5].x+1, y+5.5)
+        doc.text((a.telefone||'').slice(0,14), cols[5].x+1, y+5.5)
 
         const criadoEm = a.criado_em ? new Date(a.criado_em) : null
         const criadoFmt = criadoEm ? criadoEm.toLocaleDateString('pt-BR')+' '+criadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '-'
@@ -290,10 +325,16 @@ export default function Admin() {
         doc.text(criadoFmt, cols[6].x+1, y+5.5)
 
         const cancelado = a.status === 'cancelado'
-        if (cancelado) { doc.setFillColor(254,226,226); doc.rect(cols[7].x, y+1.5, 22, 5.5, 'F'); doc.setTextColor(180,30,30) }
-        else { doc.setFillColor(220,252,231); doc.rect(cols[7].x, y+1.5, 22, 5.5, 'F'); doc.setTextColor(22,101,52) }
-        doc.setFont('helvetica','bold'); doc.setFontSize(7)
-        doc.text((a.status||'').toUpperCase(), cols[7].x+2, y+5.5)
+        if (cancelado) { doc.setFillColor(254,226,226); doc.rect(cols[7].x, y+1.5, 15, 5.5, 'F'); doc.setTextColor(180,30,30) }
+        else { doc.setFillColor(220,252,231); doc.rect(cols[7].x, y+1.5, 15, 5.5, 'F'); doc.setTextColor(22,101,52) }
+        doc.setFont('helvetica','bold'); doc.setFontSize(6.5)
+        doc.text(cancelado?'CANCEL.':'CONF.', cols[7].x+1, y+5.5)
+
+        if (cancelado && a.motivo_cancelamento) {
+          doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(180,30,30)
+          doc.text((a.motivo_cancelamento||'').slice(0,22), cols[8].x+1, y+5.5)
+        }
+
         y += rowH
       })
 
@@ -352,15 +393,34 @@ export default function Admin() {
 
       {popup && (
         <div onClick={() => setPopup(null)} style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.6)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem'}}>
-          <div onClick={e => e.stopPropagation()} style={{background:'#fff', borderRadius:'16px', padding:'2rem', maxWidth:'400px', width:'100%', boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
+          <div onClick={e => e.stopPropagation()} style={{background:'#fff', borderRadius:'16px', padding:'2rem', maxWidth:'420px', width:'100%', boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
             <div style={{width:'56px', height:'56px', background:'#fee2e2', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 1rem'}}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </div>
             <h3 style={{fontSize:'18px', fontWeight:'700', color:'#111', textAlign:'center', margin:'0 0 8px'}}>Cancelar agendamento?</h3>
-            <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0 0 6px', lineHeight:'1.6'}}>Voce esta prestes a cancelar o agendamento de</p>
+            <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0 0 4px', lineHeight:'1.6'}}>Voce esta prestes a cancelar o agendamento de</p>
             <p style={{fontSize:'15px', fontWeight:'700', color:AZUL, textAlign:'center', margin:'0 0 4px'}}>{popup.nome}</p>
             <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0 0 1.25rem'}}>{new Date(popup.data+'T12:00:00').toLocaleDateString('pt-BR')} as {popup.horario?.slice(0,5)}</p>
-            <div style={{background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'8px', padding:'10px', marginBottom:'1.25rem', fontSize:'12px', color:'#dc2626', textAlign:'center', fontWeight:'600'}}>Esta acao nao podera ser desfeita facilmente</div>
+
+            <div style={{marginBottom:'12px'}}>
+              <label style={{fontSize:'12px', fontWeight:'700', color:erroMotivo?VERMELHO:'#6b7280', display:'block', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em'}}>Motivo do cancelamento *</label>
+              <select value={motivoCancelamento} onChange={e => {setMotivoCancelamento(e.target.value); setErroMotivo(false)}}
+                style={{width:'100%', padding:'10px 12px', border:erroMotivo?'2px solid '+VERMELHO:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none', background:'#fff', cursor:'pointer'}}>
+                {MOTIVOS.map(m => <option key={m} value={m === 'Selecione o motivo' ? '' : m}>{m}</option>)}
+              </select>
+              {erroMotivo && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Selecione o motivo do cancelamento</p>}
+            </div>
+
+            <div style={{marginBottom:'1.25rem'}}>
+              <label style={{fontSize:'12px', fontWeight:'700', color:'#6b7280', display:'block', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em'}}>Observacao (opcional)</label>
+              <textarea value={obsCancelamento} onChange={e => setObsCancelamento(e.target.value)}
+                placeholder="Detalhe o motivo se necessario..."
+                style={{width:'100%', padding:'10px 12px', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none', resize:'none', height:'72px', boxSizing:'border-box', fontFamily:'inherit'}}/>
+            </div>
+
+            <div style={{background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'8px', padding:'10px', marginBottom:'1.25rem', fontSize:'12px', color:'#dc2626', textAlign:'center', fontWeight:'600'}}>
+              Esta acao nao podera ser desfeita facilmente
+            </div>
             <div style={{display:'flex', gap:'10px'}}>
               <button onClick={() => setPopup(null)} style={{flex:1, padding:'12px', background:'#fff', color:'#6b7280', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:'pointer'}}>NAO, MANTER</button>
               <button onClick={executarCancelamento} style={{flex:1, padding:'12px', background:'#dc2626', color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'700', cursor:'pointer'}}>SIM, CANCELAR</button>
@@ -602,6 +662,13 @@ export default function Admin() {
                           {a.cpf && <span>🪪 {a.cpf}</span>}
                           {a.nome_acompanhante && <span>👤 {a.nome_acompanhante}</span>}
                         </div>
+                        {cancelado && a.motivo_cancelamento && (
+                          <div style={{marginTop:'6px', background:'#fff5f5', borderRadius:'6px', padding:'5px 10px', borderLeft:'2px solid #dc2626', display:'inline-block'}}>
+                            <span style={{fontSize:'11px', color:'#dc2626', fontWeight:'600'}}>Motivo: </span>
+                            <span style={{fontSize:'11px', color:'#9ca3af'}}>{a.motivo_cancelamento}</span>
+                            {a.obs_cancelamento && <span style={{fontSize:'11px', color:'#9ca3af'}}> — {a.obs_cancelamento}</span>}
+                          </div>
+                        )}
                       </div>
                       <div style={{textAlign:'center', flexShrink:0, background:cancelado?'#fff5f5':'#f0f7ff', borderRadius:'12px', padding:'10px 16px', border:cancelado?'1px solid #fecaca':'1px solid #bfdbfe'}}>
                         <div style={{fontSize:'18px', fontWeight:'800', color:cancelado?'#d1d5db':AZUL, lineHeight:1}}>{new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</div>
