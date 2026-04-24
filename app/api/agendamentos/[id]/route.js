@@ -6,9 +6,9 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
-export async function PATCH(request, context) {
+export async function PATCH(request, { params }) {
   try {
-    const id = context.params.id
+    const { id } = await params
     const body = await request.json()
     const { status, motivo_cancelamento, obs_cancelamento } = body
 
