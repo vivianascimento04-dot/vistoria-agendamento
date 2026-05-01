@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 
 const POR_PAGINA = 10
 const MESES_NOMES = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
-const TODOS_HORARIOS = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30']
 const AZUL = '#1B2F7E'
 const VERDE = '#1D9E75'
 const VERMELHO = '#dc2626'
@@ -18,6 +17,10 @@ const MOTIVOS = [
   'Ausencia do cliente',
   'Outro'
 ]
+
+function mascaraCPF(v) {
+  return v.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2').slice(0,14)
+}
 
 export default function Admin() {
   const { data: session, status } = useSession()
@@ -50,6 +53,12 @@ export default function Admin() {
   const [dataFimEspecial, setDataFimEspecial] = useState('')
   const [obsEspecial, setObsEspecial] = useState('')
   const [salvandoDia, setSalvandoDia] = useState(false)
+  const [cpfsAutorizados, setCpfsAutorizados] = useState([])
+  const [novoCpf, setNovoCpf] = useState('')
+  const [nomeNovoCpf, setNomeNovoCpf] = useState('')
+  const [salvandoCpf, setSalvandoCpf] = useState(false)
+  const [erroCpf, setErroCpf] = useState('')
+  const [buscaCpf, setBuscaCpf] = useState('')
 
   useEffect(() => { if (status === 'unauthenticated') router.push('/admin/login') }, [status])
   useEffect(() => {
@@ -59,6 +68,7 @@ export default function Admin() {
       buscarMesesBloqueados()
       buscarHorariosConfig()
       buscarDiasEspeciais()
+      buscarCpfsAutorizados()
     }
   }, [status])
   useEffect(() => { setPagina(1) }, [filtro, busca, ordem, dataInicio, dataFim])
@@ -101,6 +111,41 @@ export default function Admin() {
       const res = await fetch('/api/dias-especiais')
       const data = await res.json()
       setDiasEspeciais(Array.isArray(data) ? data : [])
+    } catch(e) {}
+  }
+
+  async function buscarCpfsAutorizados() {
+    try {
+      const res = await fetch('/api/cpfs-autorizados')
+      const data = await res.json()
+      setCpfsAutorizados(Array.isArray(data) ? data : [])
+    } catch(e) {}
+  }
+
+  async function adicionarCpf() {
+    if (!novoCpf.trim()) return
+    setSalvandoCpf(true); setErroCpf('')
+    try {
+      const res = await fetch('/api/cpfs-autorizados', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ cpf: novoCpf, nome: nomeNovoCpf })
+      })
+      if (res.ok) { setNovoCpf(''); setNomeNovoCpf(''); buscarCpfsAutorizados() }
+      else { const d = await res.json(); setErroCpf(d.error || 'Erro ao salvar.') }
+    } catch(e) { setErroCpf('Erro de conexao.') }
+    setSalvandoCpf(false)
+  }
+
+  async function removerCpf(cpf) {
+    if (!confirm('Remover CPF ' + cpf + '?')) return
+    try {
+      await fetch('/api/cpfs-autorizados', {
+        method: 'DELETE',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ cpf })
+      })
+      buscarCpfsAutorizados()
     } catch(e) {}
   }
 
@@ -181,27 +226,17 @@ export default function Admin() {
   }
 
   function confirmarCancelamento(a) {
-    setPopup(a)
-    setMotivoCancelamento('')
-    setObsCancelamento('')
-    setErroMotivo(false)
+    setPopup(a); setMotivoCancelamento(''); setObsCancelamento(''); setErroMotivo(false)
   }
 
   async function executarCancelamento() {
     if (!popup) return
-    if (!motivoCancelamento || motivoCancelamento === 'Selecione o motivo') {
-      setErroMotivo(true)
-      return
-    }
+    if (!motivoCancelamento || motivoCancelamento === 'Selecione o motivo') { setErroMotivo(true); return }
     try {
       const res = await fetch('/api/agendamentos/' + popup.id, {
         method: 'PATCH',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({
-          status: 'cancelado',
-          motivo_cancelamento: motivoCancelamento,
-          obs_cancelamento: obsCancelamento
-        })
+        body: JSON.stringify({ status: 'cancelado', motivo_cancelamento: motivoCancelamento, obs_cancelamento: obsCancelamento })
       })
       if (res.ok) buscarAgendamentos()
       else alert('Erro ao cancelar.')
@@ -252,7 +287,6 @@ export default function Admin() {
       const doc = new jsPDF({orientation:'landscape', unit:'mm', format:'a4'})
       const W = 297, M = 12
       let y = 0
-
       doc.setFillColor(27,47,126); doc.rect(0,0,W,32,'F')
       doc.setTextColor(255,255,255); doc.setFontSize(20); doc.setFont('helvetica','bold')
       doc.text('MARKINVEST', W/2, 13, {align:'center'})
@@ -261,7 +295,6 @@ export default function Admin() {
       doc.setFontSize(7.5)
       doc.text('Gerado em: ' + new Date().toLocaleString('pt-BR'), W/2, 28, {align:'center'})
       y = 38
-
       doc.setFillColor(240,243,250); doc.rect(M, y-4, W-M*2, 10, 'F')
       doc.setTextColor(60,60,100); doc.setFontSize(7.5); doc.setFont('helvetica','italic')
       let ftxt = 'Filtros: Status = ' + (filtro==='todos'?'Todos':filtro)
@@ -269,7 +302,6 @@ export default function Admin() {
       if (dataFim) ftxt += ' | Ate: ' + new Date(dataFim+'T12:00:00').toLocaleDateString('pt-BR')
       ftxt += ' | Total: ' + filtrados.length + ' registro(s)'
       doc.text(ftxt, M+3, y+2); y += 12
-
       const cols = [
         {x:M,      label:'NOME'},
         {x:M+34,   label:'EMPREENDIMENTO'},
@@ -281,11 +313,9 @@ export default function Admin() {
         {x:M+206,  label:'STATUS'},
         {x:M+222,  label:'MOTIVO'},
       ]
-
       doc.setFillColor(27,47,126); doc.rect(M, y, W-M*2, 8, 'F')
       doc.setTextColor(255,255,255); doc.setFontSize(7.5); doc.setFont('helvetica','bold')
       cols.forEach(c => doc.text(c.label, c.x+1, y+5.5)); y += 9
-
       doc.setFont('helvetica','normal')
       filtrados.forEach((a, idx) => {
         if (y > 185) {
@@ -297,47 +327,36 @@ export default function Admin() {
         const rowH = 8
         if (idx%2===0) { doc.setFillColor(247,249,255); doc.rect(M, y, W-M*2, rowH, 'F') }
         doc.setDrawColor(220,225,240); doc.line(M, y+rowH, W-M, y+rowH); doc.setFontSize(7.5)
-
         doc.setTextColor(30,30,30); doc.setFont('helvetica','bold')
         doc.text((a.nome||'').slice(0,17), cols[0].x+1, y+5.5)
-
         const aptoStr = a.apartamento || ''
         const partes = aptoStr.split(' - ')
         const empreend = partes[0] || ''
         const apto = partes.slice(1).join(' - ') || aptoStr
-
         doc.setFont('helvetica','normal'); doc.setTextColor(27,47,126)
         doc.text(empreend.slice(0,15), cols[1].x+1, y+5.5)
-
         doc.setTextColor(60,60,60)
         doc.text(apto.slice(0,42), cols[2].x+1, y+5.5)
-
         doc.setTextColor(27,47,126); doc.setFont('helvetica','bold')
         doc.text(new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'), cols[3].x+1, y+5.5)
         doc.text((a.horario||'').slice(0,5), cols[4].x+1, y+5.5)
-
         doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80)
         doc.text((a.telefone||'').slice(0,14), cols[5].x+1, y+5.5)
-
         const criadoEm = a.criado_em ? new Date(a.criado_em) : null
         const criadoFmt = criadoEm ? criadoEm.toLocaleDateString('pt-BR')+' '+criadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '-'
         doc.setTextColor(100,100,100)
         doc.text(criadoFmt, cols[6].x+1, y+5.5)
-
         const cancelado = a.status === 'cancelado'
         if (cancelado) { doc.setFillColor(254,226,226); doc.rect(cols[7].x, y+1.5, 15, 5.5, 'F'); doc.setTextColor(180,30,30) }
         else { doc.setFillColor(220,252,231); doc.rect(cols[7].x, y+1.5, 15, 5.5, 'F'); doc.setTextColor(22,101,52) }
         doc.setFont('helvetica','bold'); doc.setFontSize(6.5)
         doc.text(cancelado?'CANCEL.':'CONF.', cols[7].x+1, y+5.5)
-
         if (cancelado && a.motivo_cancelamento) {
           doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(180,30,30)
           doc.text((a.motivo_cancelamento||'').slice(0,22), cols[8].x+1, y+5.5)
         }
-
         y += rowH
       })
-
       const total = doc.getNumberOfPages()
       for (let i=1;i<=total;i++) {
         doc.setPage(i); doc.setFillColor(27,47,126); doc.rect(0,200,W,7,'F')
@@ -381,6 +400,9 @@ export default function Admin() {
   }
 
   const horariosAtivos = horariosConfig.filter(h => h.ativo).length
+  const cpfsFiltrados = cpfsAutorizados.filter(c =>
+    !buscaCpf || c.cpf?.includes(buscaCpf.replace(/\D/g,'')) || c.nome?.toLowerCase().includes(buscaCpf.toLowerCase())
+  )
 
   if (status==='loading'||loading) return (
     <main style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f0f3fa'}}>
@@ -401,7 +423,6 @@ export default function Admin() {
             <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0 0 4px', lineHeight:'1.6'}}>Voce esta prestes a cancelar o agendamento de</p>
             <p style={{fontSize:'15px', fontWeight:'700', color:AZUL, textAlign:'center', margin:'0 0 4px'}}>{popup.nome}</p>
             <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0 0 1.25rem'}}>{new Date(popup.data+'T12:00:00').toLocaleDateString('pt-BR')} as {popup.horario?.slice(0,5)}</p>
-
             <div style={{marginBottom:'12px'}}>
               <label style={{fontSize:'12px', fontWeight:'700', color:erroMotivo?VERMELHO:'#6b7280', display:'block', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em'}}>Motivo do cancelamento *</label>
               <select value={motivoCancelamento} onChange={e => {setMotivoCancelamento(e.target.value); setErroMotivo(false)}}
@@ -410,17 +431,13 @@ export default function Admin() {
               </select>
               {erroMotivo && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Selecione o motivo do cancelamento</p>}
             </div>
-
             <div style={{marginBottom:'1.25rem'}}>
               <label style={{fontSize:'12px', fontWeight:'700', color:'#6b7280', display:'block', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em'}}>Observacao (opcional)</label>
               <textarea value={obsCancelamento} onChange={e => setObsCancelamento(e.target.value)}
                 placeholder="Detalhe o motivo se necessario..."
                 style={{width:'100%', padding:'10px 12px', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none', resize:'none', height:'72px', boxSizing:'border-box', fontFamily:'inherit'}}/>
             </div>
-
-            <div style={{background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'8px', padding:'10px', marginBottom:'1.25rem', fontSize:'12px', color:'#dc2626', textAlign:'center', fontWeight:'600'}}>
-              Esta acao nao podera ser desfeita facilmente
-            </div>
+            <div style={{background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'8px', padding:'10px', marginBottom:'1.25rem', fontSize:'12px', color:'#dc2626', textAlign:'center', fontWeight:'600'}}>Esta acao nao podera ser desfeita facilmente</div>
             <div style={{display:'flex', gap:'10px'}}>
               <button onClick={() => setPopup(null)} style={{flex:1, padding:'12px', background:'#fff', color:'#6b7280', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:'pointer'}}>NAO, MANTER</button>
               <button onClick={executarCancelamento} style={{flex:1, padding:'12px', background:'#dc2626', color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'700', cursor:'pointer'}}>SIM, CANCELAR</button>
@@ -444,13 +461,85 @@ export default function Admin() {
         </div>
       </div>
 
-      <div style={{background:'#fff', borderBottom:'2px solid #e8ecf5', display:'flex', padding:'0 2rem', gap:'4px'}}>
-        {[{id:'agendamentos',label:'📋 Agendamentos'},{id:'empreendimentos',label:'🏢 Empreendimentos'},{id:'configuracoes',label:'⚙️ Configuracoes'}].map(a => (
-          <button key={a.id} onClick={() => setAbaAtiva(a.id)} style={{padding:'14px 20px', background:'none', border:'none', borderBottom:abaAtiva===a.id?'3px solid '+AZUL:'3px solid transparent', fontSize:'13px', fontWeight:'700', cursor:'pointer', color:abaAtiva===a.id?AZUL:'#9ca3af', transition:'all 0.15s', marginBottom:'-2px'}}>{a.label}</button>
+      <div style={{background:'#fff', borderBottom:'2px solid #e8ecf5', display:'flex', padding:'0 2rem', gap:'4px', overflowX:'auto'}}>
+        {[
+          {id:'agendamentos',label:'📋 Agendamentos'},
+          {id:'empreendimentos',label:'🏢 Empreendimentos'},
+          {id:'cpfs',label:'🔐 CPFs Autorizados'},
+          {id:'configuracoes',label:'⚙️ Configuracoes'}
+        ].map(a => (
+          <button key={a.id} onClick={() => setAbaAtiva(a.id)} style={{padding:'14px 20px', background:'none', border:'none', borderBottom:abaAtiva===a.id?'3px solid '+AZUL:'3px solid transparent', fontSize:'13px', fontWeight:'700', cursor:'pointer', color:abaAtiva===a.id?AZUL:'#9ca3af', transition:'all 0.15s', marginBottom:'-2px', whiteSpace:'nowrap'}}>{a.label}</button>
         ))}
       </div>
 
       <div style={{maxWidth:'1100px', margin:'0 auto', padding:'1.5rem'}}>
+
+        {abaAtiva === 'cpfs' && (
+          <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
+            <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>CPFs Autorizados</h2>
+            <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 20px', lineHeight:'1.6'}}>
+              Somente CPFs cadastrados aqui conseguem acessar a agenda de vistoria. A URL de acesso e:
+              <span style={{display:'block', marginTop:'4px', fontWeight:'600', color:AZUL}}>https://vistoria-agendamento.vercel.app/markinvest/verificar</span>
+            </p>
+
+            <div style={{background:'#f8f9ff', border:'1px solid #e0e5f5', borderRadius:'12px', padding:'1.25rem', marginBottom:'1.5rem'}}>
+              <p style={{fontSize:'13px', fontWeight:'700', color:AZUL, margin:'0 0 12px'}}>Adicionar CPF autorizado</p>
+              <div style={{display:'flex', gap:'10px', flexWrap:'wrap'}}>
+                <div style={{flex:1, minWidth:'140px'}}>
+                  <label style={{fontSize:'11px', fontWeight:'700', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>CPF *</label>
+                  <input value={novoCpf} onChange={e => {setNovoCpf(mascaraCPF(e.target.value)); setErroCpf('')}} placeholder="000.000.000-00" maxLength={14}
+                    style={{width:'100%', padding:'9px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'14px', outline:'none', boxSizing:'border-box'}}/>
+                </div>
+                <div style={{flex:2, minWidth:'180px'}}>
+                  <label style={{fontSize:'11px', fontWeight:'700', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Nome (opcional)</label>
+                  <input value={nomeNovoCpf} onChange={e => setNomeNovoCpf(e.target.value)} placeholder="Nome do proprietario"
+                    style={{width:'100%', padding:'9px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'14px', outline:'none', boxSizing:'border-box'}}/>
+                </div>
+                <div style={{display:'flex', alignItems:'flex-end'}}>
+                  <button onClick={adicionarCpf} disabled={salvandoCpf||!novoCpf.trim()}
+                    style={{padding:'9px 20px', background:salvandoCpf||!novoCpf.trim()?'#9ca3af':AZUL, color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'700', cursor:salvandoCpf||!novoCpf.trim()?'not-allowed':'pointer', whiteSpace:'nowrap'}}>
+                    {salvandoCpf?'SALVANDO...':'+ ADICIONAR'}
+                  </button>
+                </div>
+              </div>
+              {erroCpf && <p style={{color:'#dc2626', fontSize:'12px', margin:'8px 0 0', fontWeight:'600'}}>{erroCpf}</p>}
+            </div>
+
+            <div style={{display:'flex', gap:'10px', alignItems:'center', marginBottom:'12px'}}>
+              <div style={{flex:1, position:'relative'}}>
+                <span style={{position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)', fontSize:'13px'}}>🔍</span>
+                <input value={buscaCpf} onChange={e => setBuscaCpf(e.target.value)} placeholder="Buscar por CPF ou nome..."
+                  style={{width:'100%', padding:'8px 12px 8px 34px', border:'1px solid #e5e7eb', borderRadius:'10px', fontSize:'13px', outline:'none', background:'#f9fafb', boxSizing:'border-box'}}/>
+              </div>
+              <span style={{fontSize:'12px', color:'#9ca3af', whiteSpace:'nowrap'}}>{cpfsFiltrados.length} de {cpfsAutorizados.length} CPFs</span>
+            </div>
+
+            <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+              {cpfsFiltrados.length === 0 && (
+                <p style={{color:'#9ca3af', fontSize:'13px', textAlign:'center', padding:'2rem'}}>
+                  {cpfsAutorizados.length === 0 ? 'Nenhum CPF cadastrado.' : 'Nenhum resultado encontrado.'}
+                </p>
+              )}
+              {cpfsFiltrados.map(c => (
+                <div key={c.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'#f8f9ff', borderRadius:'10px', border:'1px solid #e0e5f5'}}>
+                  <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+                    <div style={{width:'36px', height:'36px', borderRadius:'10px', background:AZUL, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:'14px', fontWeight:'700', flexShrink:0}}>
+                      {(c.nome||'?').charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      {c.nome && <div style={{fontSize:'13px', fontWeight:'600', color:AZUL, marginBottom:'2px'}}>{c.nome}</div>}
+                      <div style={{fontSize:'13px', color:'#374151', fontFamily:'monospace'}}>{c.cpf?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}</div>
+                    </div>
+                  </div>
+                  <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+                    <span style={{fontSize:'10px', padding:'3px 10px', borderRadius:'20px', background:'#dcfce7', color:'#16a34a', fontWeight:'700'}}>AUTORIZADO</span>
+                    <button onClick={() => removerCpf(c.cpf)} style={{padding:'5px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'6px', fontSize:'12px', color:'#dc2626', cursor:'pointer', fontWeight:'600'}}>REMOVER</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {abaAtiva === 'configuracoes' && (
           <div>
@@ -525,13 +614,9 @@ export default function Admin() {
                     </div>
                     <div style={{display:'flex', gap:'8px'}}>
                       <button onClick={() => adicionarDiaEspecial('liberado')} disabled={!dataInicioEspecial||!dataFimEspecial||salvandoDia}
-                        style={{padding:'8px 16px', background:!dataInicioEspecial||!dataFimEspecial?'#9ca3af':VERDE, color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:!dataInicioEspecial||!dataFimEspecial?'not-allowed':'pointer', whiteSpace:'nowrap'}}>
-                        ✓ LIBERAR
-                      </button>
+                        style={{padding:'8px 16px', background:!dataInicioEspecial||!dataFimEspecial?'#9ca3af':VERDE, color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:!dataInicioEspecial||!dataFimEspecial?'not-allowed':'pointer', whiteSpace:'nowrap'}}>✓ LIBERAR</button>
                       <button onClick={() => adicionarDiaEspecial('bloqueado')} disabled={!dataInicioEspecial||!dataFimEspecial||salvandoDia}
-                        style={{padding:'8px 16px', background:!dataInicioEspecial||!dataFimEspecial?'#9ca3af':VERMELHO, color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:!dataInicioEspecial||!dataFimEspecial?'not-allowed':'pointer', whiteSpace:'nowrap'}}>
-                        🔒 BLOQUEAR
-                      </button>
+                        style={{padding:'8px 16px', background:!dataInicioEspecial||!dataFimEspecial?'#9ca3af':VERMELHO, color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:!dataInicioEspecial||!dataFimEspecial?'not-allowed':'pointer', whiteSpace:'nowrap'}}>🔒 BLOQUEAR</button>
                     </div>
                   </div>
                 </div>

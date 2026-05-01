@@ -180,11 +180,24 @@ export default function Home() {
                     const isToday = d===hoje.getDate()&&mes===hoje.getMonth()&&ano===hoje.getFullYear()
                     const isCheio = diasCheios.includes(ds)
                     const bloqueadoEspecial = isDiaBloqueado(ds)
-                    if (isPast||isWeekend||mesBloqueado||bloqueadoEspecial) return <div key={d} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#d1d5db', borderRadius:'8px', background:'#f9fafb', fontWeight:'500'}}>{d}</div>
-                    if (isCheio&&!isSel) return <div key={d} title="Dia lotado" style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'11px', color:'#dc2626', borderRadius:'8px', background:'#fee2e2', border:'1.5px solid #fca5a5', cursor:'not-allowed', fontWeight:'700'}}>{d}<div style={{fontSize:'7px', fontWeight:'700', marginTop:'1px'}}>LOTADO</div></div>
-                    if (isSel) return <div key={d} onClick={() => setDataSel(null)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'800', borderRadius:'8px', cursor:'pointer', background:'linear-gradient(135deg, #1B2F7E, #2a45b0)', color:'#fff', boxShadow:'0 4px 12px rgba(27,47,126,0.4)', transition:'all 0.15s'}}>{d}</div>
-                    if (isToday) return <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700', borderRadius:'8px', cursor:'pointer', background:'#eff6ff', color:AZUL, border:'2px solid '+AZUL, transition:'all 0.15s'}}>{d}<div style={{width:'4px', height:'4px', borderRadius:'50%', background:AZUL, marginTop:'1px'}}></div></div>
-                    return <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'600', borderRadius:'8px', cursor:'pointer', background:'#f0f7ff', color:'#1d4ed8', border:'1px solid #bfdbfe', transition:'all 0.15s'}}>{d}</div>
+
+                    if (isPast||isWeekend||mesBloqueado||bloqueadoEspecial) return (
+                      <div key={d} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#d1d5db', borderRadius:'8px', background:'#f9fafb', fontWeight:'500'}}>{d}</div>
+                    )
+                    if (isCheio&&!isSel) return (
+                      <div key={d} title="Dia lotado" style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'11px', color:'#dc2626', borderRadius:'8px', background:'#fee2e2', border:'1.5px solid #fca5a5', cursor:'not-allowed', fontWeight:'700'}}>{d}<div style={{fontSize:'7px', fontWeight:'700', marginTop:'1px'}}>LOTADO</div></div>
+                    )
+                    if (isSel) return (
+                      <div key={d} onClick={() => setDataSel(null)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'800', borderRadius:'8px', cursor:'pointer', background:'linear-gradient(135deg, #1B2F7E, #2a45b0)', color:'#fff', boxShadow:'0 4px 12px rgba(27,47,126,0.4)', transition:'all 0.15s'}}>{d}</div>
+                    )
+                    if (isToday&&!isCheio) return (
+                      <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700', borderRadius:'8px', cursor:'pointer', background:'#eff6ff', color:AZUL, border:'2px solid '+AZUL, transition:'all 0.15s'}}>
+                        {d}<div style={{width:'4px', height:'4px', borderRadius:'50%', background:AZUL, marginTop:'1px'}}></div>
+                      </div>
+                    )
+                    return (
+                      <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'600', borderRadius:'8px', cursor:'pointer', background:'#f0f7ff', color:'#1d4ed8', border:'1px solid #bfdbfe', transition:'all 0.15s'}}>{d}</div>
+                    )
                   })}
                 </div>
                 {dataSel && (
@@ -194,6 +207,7 @@ export default function Home() {
                 )}
               </div>
             </div>
+
             {horarios.length > 0 && !mesBloqueado && (
               <div style={{background:'#fff', borderRadius:'16px', padding:isMobile?'1rem':'1.5rem', boxShadow:'0 8px 32px rgba(27,47,126,0.10)'}}>
                 <p style={{fontSize:'11px', fontWeight:'700', color:AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 4px'}}>HORARIOS DISPONIVEIS</p>
@@ -223,7 +237,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* DADOS PESSOAIS */}
             <p style={{fontSize:'11px', fontWeight:'700', color:AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem', display:'flex', alignItems:'center', gap:'6px'}}>
               <span style={{width:'4px', height:'16px', background:AZUL, borderRadius:'2px', display:'inline-block'}}></span>
               DADOS PESSOAIS
@@ -253,7 +266,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* DADOS DO IMOVEL */}
             <p style={{fontSize:'11px', fontWeight:'700', color:AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem', display:'flex', alignItems:'center', gap:'6px'}}>
               <span style={{width:'4px', height:'16px', background:AZUL, borderRadius:'2px', display:'inline-block'}}></span>
               DADOS DO IMOVEL
@@ -279,7 +291,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* DADOS DO ACOMPANHANTE */}
             <div style={{background:'#f8f9ff', border:'1px solid #e0e5f5', borderRadius:'12px', padding:'1rem', marginBottom:'1.25rem'}}>
               <p style={{fontSize:'11px', fontWeight:'700', color:AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem', display:'flex', alignItems:'center', gap:'6px'}}>
                 <span style={{width:'4px', height:'16px', background:'#6366f1', borderRadius:'2px', display:'inline-block'}}></span>
