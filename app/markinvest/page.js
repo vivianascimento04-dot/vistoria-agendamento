@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 const MESES = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const AZUL = '#1B2F7E'
@@ -15,6 +16,7 @@ function mascaraTelefone(v) {
 }
 
 export default function Home() {
+  const router = useRouter()
   const hoje = new Date()
   const [ano, setAno] = useState(hoje.getFullYear())
   const [mes, setMes] = useState(hoje.getMonth())
@@ -31,6 +33,7 @@ export default function Home() {
   const [isMobile, setIsMobile] = useState(false)
   const [empreendimentos, setEmpreendimentos] = useState([])
   const [tentouEnviar, setTentouEnviar] = useState(false)
+  const [verificando, setVerificando] = useState(true)
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 640)
@@ -42,9 +45,24 @@ export default function Home() {
   useEffect(() => { carregarDiasCheios(ano, mes) }, [ano, mes])
 
   useEffect(() => {
-    fetch('/api/empreendimentos').then(r => r.json()).then(d => { if (Array.isArray(d) && d.length) setEmpreendimentos(d) }).catch(() => {})
-    fetch('/api/meses-bloqueados').then(r => r.json()).then(d => { if (Array.isArray(d)) setMesesBloqueados(d) }).catch(() => {})
-    fetch('/api/dias-especiais').then(r => r.json()).then(d => { if (Array.isArray(d)) setDiasEspeciais(d) }).catch(() => {})
+    async function init() {
+      try {
+        const resCpfs = await fetch('/api/cpfs-autorizados')
+        const cpfs = await resCpfs.json()
+        if (Array.isArray(cpfs) && cpfs.length > 0) {
+          const cpfAutorizado = sessionStorage.getItem('cpf_autorizado')
+          if (!cpfAutorizado) {
+            router.push('/markinvest/verificar')
+            return
+          }
+        }
+      } catch(e) {}
+      setVerificando(false)
+      fetch('/api/empreendimentos').then(r => r.json()).then(d => { if (Array.isArray(d) && d.length) setEmpreendimentos(d) }).catch(() => {})
+      fetch('/api/meses-bloqueados').then(r => r.json()).then(d => { if (Array.isArray(d)) setMesesBloqueados(d) }).catch(() => {})
+      fetch('/api/dias-especiais').then(r => r.json()).then(d => { if (Array.isArray(d)) setDiasEspeciais(d) }).catch(() => {})
+    }
+    init()
   }, [])
 
   async function carregarDiasCheios(a, m) {
@@ -111,6 +129,12 @@ export default function Home() {
   const dataFormatada = dataSel ? new Date(dataSel+'T12:00:00').toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long', year:'numeric'}) : ''
   const inp = { width:'100%', padding:'10px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'14px', boxSizing:'border-box', outline:'none', fontFamily:'inherit' }
   const erroBorda = { ...inp, border:'2px solid '+VERMELHO, background:'#fff8f8' }
+
+  if (verificando) return (
+    <main style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f0f3fa'}}>
+      <p style={{color:'#6b7280', fontSize:'14px'}}>Carregando...</p>
+    </main>
+  )
 
   return (
     <main style={{minHeight:'100vh', background:'#f0f3fa', fontFamily:"'Segoe UI',sans-serif", margin:0, padding:0}}>
@@ -180,7 +204,6 @@ export default function Home() {
                     const isToday = d===hoje.getDate()&&mes===hoje.getMonth()&&ano===hoje.getFullYear()
                     const isCheio = diasCheios.includes(ds)
                     const bloqueadoEspecial = isDiaBloqueado(ds)
-
                     if (isPast||isWeekend||mesBloqueado||bloqueadoEspecial) return (
                       <div key={d} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#d1d5db', borderRadius:'8px', background:'#f9fafb', fontWeight:'500'}}>{d}</div>
                     )
