@@ -60,6 +60,8 @@ export default function Admin() {
   const [erroCpf, setErroCpf] = useState('')
   const [buscaCpf, setBuscaCpf] = useState('')
   const [cpfsSelecionados, setCpfsSelecionados] = useState([])
+  const [cpfDatas, setCpfDatas] = useState({})
+  const [novaDataCpf, setNovaDataCpf] = useState({})
 
   useEffect(() => { if (status === 'unauthenticated') router.push('/admin/login') }, [status])
   useEffect(() => {
@@ -120,6 +122,41 @@ export default function Admin() {
       const res = await fetch('/api/cpfs-autorizados')
       const data = await res.json()
       setCpfsAutorizados(Array.isArray(data) ? data : [])
+      const resDatas = await fetch('/api/cpf-datas')
+      const datas = await resDatas.json()
+      const porCpf = {}
+      if (Array.isArray(datas)) {
+        datas.forEach(d => {
+          if (!porCpf[d.cpf]) porCpf[d.cpf] = []
+          porCpf[d.cpf].push(d.data)
+        })
+      }
+      setCpfDatas(porCpf)
+    } catch(e) {}
+  }
+
+  async function adicionarDataCpf(cpf) {
+    const data = novaDataCpf[cpf]
+    if (!data) return
+    try {
+      await fetch('/api/cpf-datas', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ cpf, data })
+      })
+      setNovaDataCpf(prev => ({...prev, [cpf]: ''}))
+      buscarCpfsAutorizados()
+    } catch(e) {}
+  }
+
+  async function removerDataCpf(cpf, data) {
+    try {
+      await fetch('/api/cpf-datas', {
+        method: 'DELETE',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ cpf, data })
+      })
+      buscarCpfsAutorizados()
     } catch(e) {}
   }
 
@@ -146,6 +183,11 @@ export default function Admin() {
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ cpf })
       })
+      await fetch('/api/cpf-datas', {
+        method: 'DELETE',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ cpf, todos_cpf: true })
+      })
       buscarCpfsAutorizados()
     } catch(e) {}
   }
@@ -159,6 +201,13 @@ export default function Admin() {
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ cpfs: cpfsSelecionados })
       })
+      for (const cpf of cpfsSelecionados) {
+        await fetch('/api/cpf-datas', {
+          method: 'DELETE',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ cpf, todos_cpf: true })
+        })
+      }
       setCpfsSelecionados([])
       buscarCpfsAutorizados()
     } catch(e) {}
@@ -566,7 +615,7 @@ export default function Admin() {
               <span style={{fontSize:'12px', color:'#9ca3af', whiteSpace:'nowrap'}}>{cpfsFiltrados.length} de {cpfsAutorizados.length} CPFs</span>
             </div>
 
-            <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+            <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
               {cpfsFiltrados.length === 0 && (
                 <p style={{color:'#9ca3af', fontSize:'13px', textAlign:'center', padding:'2rem'}}>
                   {cpfsAutorizados.length === 0 ? 'Nenhum CPF cadastrado.' : 'Nenhum resultado encontrado.'}
@@ -574,23 +623,51 @@ export default function Admin() {
               )}
               {cpfsFiltrados.map(c => {
                 const selecionado = cpfsSelecionados.includes(c.cpf)
+                const datas = cpfDatas[c.cpf] || []
                 return (
-                  <div key={c.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:selecionado?'#eff3ff':'#f8f9ff', borderRadius:'10px', border:selecionado?'1px solid #a5b4fc':'1px solid #e0e5f5', transition:'all 0.15s'}}>
-                    <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-                      <input type="checkbox" checked={selecionado}
-                        onChange={e => setCpfsSelecionados(prev => e.target.checked ? [...prev, c.cpf] : prev.filter(x => x !== c.cpf))}
-                        style={{width:'16px', height:'16px', cursor:'pointer', accentColor:AZUL}}/>
-                      <div style={{width:'36px', height:'36px', borderRadius:'10px', background:AZUL, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:'14px', fontWeight:'700', flexShrink:0}}>
-                        {(c.nome||'?').charAt(0).toUpperCase()}
+                  <div key={c.id} style={{background:selecionado?'#eff3ff':'#f8f9ff', borderRadius:'12px', border:selecionado?'1px solid #a5b4fc':'1px solid #e0e5f5', transition:'all 0.15s', overflow:'hidden'}}>
+                    <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px'}}>
+                      <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+                        <input type="checkbox" checked={selecionado}
+                          onChange={e => setCpfsSelecionados(prev => e.target.checked ? [...prev, c.cpf] : prev.filter(x => x !== c.cpf))}
+                          style={{width:'16px', height:'16px', cursor:'pointer', accentColor:AZUL}}/>
+                        <div style={{width:'36px', height:'36px', borderRadius:'10px', background:AZUL, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:'14px', fontWeight:'700', flexShrink:0}}>
+                          {(c.nome||'?').charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          {c.nome && <div style={{fontSize:'13px', fontWeight:'600', color:AZUL, marginBottom:'2px'}}>{c.nome}</div>}
+                          <div style={{fontSize:'13px', color:'#374151', fontFamily:'monospace'}}>{c.cpf?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}</div>
+                        </div>
                       </div>
-                      <div>
-                        {c.nome && <div style={{fontSize:'13px', fontWeight:'600', color:AZUL, marginBottom:'2px'}}>{c.nome}</div>}
-                        <div style={{fontSize:'13px', color:'#374151', fontFamily:'monospace'}}>{c.cpf?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}</div>
+                      <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+                        <span style={{fontSize:'10px', padding:'3px 10px', borderRadius:'20px', background: datas.length > 0 ? '#dbeafe' : '#dcfce7', color: datas.length > 0 ? '#1d4ed8' : '#16a34a', fontWeight:'700'}}>
+                          {datas.length > 0 ? datas.length + ' DATA(S)' : 'TODAS AS DATAS'}
+                        </span>
+                        <button onClick={() => removerCpf(c.cpf)} style={{padding:'5px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'6px', fontSize:'12px', color:'#dc2626', cursor:'pointer', fontWeight:'600'}}>REMOVER</button>
                       </div>
                     </div>
-                    <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                      <span style={{fontSize:'10px', padding:'3px 10px', borderRadius:'20px', background:'#dcfce7', color:'#16a34a', fontWeight:'700'}}>AUTORIZADO</span>
-                      <button onClick={() => removerCpf(c.cpf)} style={{padding:'5px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'6px', fontSize:'12px', color:'#dc2626', cursor:'pointer', fontWeight:'600'}}>REMOVER</button>
+
+                    <div style={{padding:'0 16px 12px 16px', borderTop:'1px solid #e0e5f5'}}>
+                      <p style={{fontSize:'11px', fontWeight:'700', color:'#6b7280', textTransform:'uppercase', letterSpacing:'0.05em', margin:'10px 0 8px'}}>
+                        📅 Datas liberadas {datas.length === 0 && <span style={{fontWeight:'400', color:'#9ca3af'}}>(nenhuma = todas as datas disponiveis)</span>}
+                      </p>
+                      <div style={{display:'flex', flexWrap:'wrap', gap:'6px', marginBottom:'10px'}}>
+                        {datas.map(d => (
+                          <div key={d} style={{display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'20px'}}>
+                            <span style={{fontSize:'12px', color:'#1d4ed8', fontWeight:'600'}}>{new Date(d+'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                            <button onClick={() => removerDataCpf(c.cpf, d)} style={{background:'none', border:'none', cursor:'pointer', color:'#93c5fd', fontSize:'14px', padding:'0', lineHeight:'1', marginLeft:'2px'}}>×</button>
+                          </div>
+                        ))}
+                        {datas.length === 0 && <span style={{fontSize:'12px', color:'#9ca3af', fontStyle:'italic'}}>Sem restricao de data — pode agendar qualquer dia disponivel</span>}
+                      </div>
+                      <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
+                        <input type="date" value={novaDataCpf[c.cpf]||''} onChange={e => setNovaDataCpf(prev => ({...prev, [c.cpf]: e.target.value}))}
+                          style={{padding:'6px 10px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none'}}/>
+                        <button onClick={() => adicionarDataCpf(c.cpf)} disabled={!novaDataCpf[c.cpf]}
+                          style={{padding:'6px 14px', background:!novaDataCpf[c.cpf]?'#9ca3af':AZUL, color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:!novaDataCpf[c.cpf]?'not-allowed':'pointer'}}>
+                          + Adicionar data
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )
