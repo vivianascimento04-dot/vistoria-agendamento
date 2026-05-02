@@ -59,6 +59,7 @@ export default function Admin() {
   const [salvandoCpf, setSalvandoCpf] = useState(false)
   const [erroCpf, setErroCpf] = useState('')
   const [buscaCpf, setBuscaCpf] = useState('')
+  const [cpfsSelecionados, setCpfsSelecionados] = useState([])
 
   useEffect(() => { if (status === 'unauthenticated') router.push('/admin/login') }, [status])
   useEffect(() => {
@@ -145,6 +146,33 @@ export default function Admin() {
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ cpf })
       })
+      buscarCpfsAutorizados()
+    } catch(e) {}
+  }
+
+  async function removerCpfsSelecionados() {
+    if (!cpfsSelecionados.length) return
+    if (!confirm('Remover ' + cpfsSelecionados.length + ' CPF(s) selecionado(s)?')) return
+    try {
+      await fetch('/api/cpfs-autorizados', {
+        method: 'DELETE',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ cpfs: cpfsSelecionados })
+      })
+      setCpfsSelecionados([])
+      buscarCpfsAutorizados()
+    } catch(e) {}
+  }
+
+  async function removerTodosCpfs() {
+    if (!confirm('Remover TODOS os CPFs autorizados? Esta acao nao pode ser desfeita.')) return
+    try {
+      await fetch('/api/cpfs-autorizados', {
+        method: 'DELETE',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ todos: true })
+      })
+      setCpfsSelecionados([])
       buscarCpfsAutorizados()
     } catch(e) {}
   }
@@ -478,8 +506,8 @@ export default function Admin() {
           <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
             <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>CPFs Autorizados</h2>
             <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 20px', lineHeight:'1.6'}}>
-              Somente CPFs cadastrados aqui conseguem acessar a agenda de vistoria. A URL de acesso e:
-              <span style={{display:'block', marginTop:'4px', fontWeight:'600', color:AZUL}}>https://vistoria-agendamento.vercel.app/markinvest/verificar</span>
+              Somente CPFs cadastrados aqui conseguem acessar a agenda. URL de acesso:
+              <span style={{display:'block', marginTop:'4px', fontWeight:'600', color:AZUL, fontSize:'12px'}}>https://vistoria-agendamento.vercel.app/markinvest/verificar</span>
             </p>
 
             <div style={{background:'#f8f9ff', border:'1px solid #e0e5f5', borderRadius:'12px', padding:'1.25rem', marginBottom:'1.5rem'}}>
@@ -505,6 +533,30 @@ export default function Admin() {
               {erroCpf && <p style={{color:'#dc2626', fontSize:'12px', margin:'8px 0 0', fontWeight:'600'}}>{erroCpf}</p>}
             </div>
 
+            {cpfsAutorizados.length > 0 && (
+              <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px', flexWrap:'wrap', gap:'8px', padding:'10px 14px', background:'#f4f6fb', borderRadius:'10px'}}>
+                <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                  <input type="checkbox"
+                    checked={cpfsSelecionados.length === cpfsFiltrados.length && cpfsFiltrados.length > 0}
+                    onChange={e => setCpfsSelecionados(e.target.checked ? cpfsFiltrados.map(c => c.cpf) : [])}
+                    style={{width:'16px', height:'16px', cursor:'pointer', accentColor:AZUL}}/>
+                  <span style={{fontSize:'12px', fontWeight:'600', color:'#374151'}}>Selecionar todos</span>
+                  {cpfsSelecionados.length > 0 && (
+                    <span style={{fontSize:'11px', padding:'2px 10px', borderRadius:'20px', background:AZUL, color:'#fff', fontWeight:'700'}}>{cpfsSelecionados.length} selecionado(s)</span>
+                  )}
+                </div>
+                <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
+                  {cpfsSelecionados.length > 0 && (
+                    <>
+                      <button onClick={() => setCpfsSelecionados([])} style={{padding:'6px 14px', background:'none', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'12px', color:'#6b7280', cursor:'pointer', fontWeight:'600'}}>Limpar selecao</button>
+                      <button onClick={removerCpfsSelecionados} style={{padding:'6px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'8px', fontSize:'12px', color:VERMELHO, cursor:'pointer', fontWeight:'700'}}>🗑 Remover selecionados ({cpfsSelecionados.length})</button>
+                    </>
+                  )}
+                  <button onClick={removerTodosCpfs} style={{padding:'6px 14px', background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'8px', fontSize:'12px', color:VERMELHO, cursor:'pointer', fontWeight:'700'}}>⚠ Remover todos</button>
+                </div>
+              </div>
+            )}
+
             <div style={{display:'flex', gap:'10px', alignItems:'center', marginBottom:'12px'}}>
               <div style={{flex:1, position:'relative'}}>
                 <span style={{position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)', fontSize:'13px'}}>🔍</span>
@@ -520,23 +572,29 @@ export default function Admin() {
                   {cpfsAutorizados.length === 0 ? 'Nenhum CPF cadastrado.' : 'Nenhum resultado encontrado.'}
                 </p>
               )}
-              {cpfsFiltrados.map(c => (
-                <div key={c.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'#f8f9ff', borderRadius:'10px', border:'1px solid #e0e5f5'}}>
-                  <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-                    <div style={{width:'36px', height:'36px', borderRadius:'10px', background:AZUL, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:'14px', fontWeight:'700', flexShrink:0}}>
-                      {(c.nome||'?').charAt(0).toUpperCase()}
+              {cpfsFiltrados.map(c => {
+                const selecionado = cpfsSelecionados.includes(c.cpf)
+                return (
+                  <div key={c.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:selecionado?'#eff3ff':'#f8f9ff', borderRadius:'10px', border:selecionado?'1px solid #a5b4fc':'1px solid #e0e5f5', transition:'all 0.15s'}}>
+                    <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+                      <input type="checkbox" checked={selecionado}
+                        onChange={e => setCpfsSelecionados(prev => e.target.checked ? [...prev, c.cpf] : prev.filter(x => x !== c.cpf))}
+                        style={{width:'16px', height:'16px', cursor:'pointer', accentColor:AZUL}}/>
+                      <div style={{width:'36px', height:'36px', borderRadius:'10px', background:AZUL, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:'14px', fontWeight:'700', flexShrink:0}}>
+                        {(c.nome||'?').charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        {c.nome && <div style={{fontSize:'13px', fontWeight:'600', color:AZUL, marginBottom:'2px'}}>{c.nome}</div>}
+                        <div style={{fontSize:'13px', color:'#374151', fontFamily:'monospace'}}>{c.cpf?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}</div>
+                      </div>
                     </div>
-                    <div>
-                      {c.nome && <div style={{fontSize:'13px', fontWeight:'600', color:AZUL, marginBottom:'2px'}}>{c.nome}</div>}
-                      <div style={{fontSize:'13px', color:'#374151', fontFamily:'monospace'}}>{c.cpf?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}</div>
+                    <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+                      <span style={{fontSize:'10px', padding:'3px 10px', borderRadius:'20px', background:'#dcfce7', color:'#16a34a', fontWeight:'700'}}>AUTORIZADO</span>
+                      <button onClick={() => removerCpf(c.cpf)} style={{padding:'5px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'6px', fontSize:'12px', color:'#dc2626', cursor:'pointer', fontWeight:'600'}}>REMOVER</button>
                     </div>
                   </div>
-                  <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                    <span style={{fontSize:'10px', padding:'3px 10px', borderRadius:'20px', background:'#dcfce7', color:'#16a34a', fontWeight:'700'}}>AUTORIZADO</span>
-                    <button onClick={() => removerCpf(c.cpf)} style={{padding:'5px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'6px', fontSize:'12px', color:'#dc2626', cursor:'pointer', fontWeight:'600'}}>REMOVER</button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}

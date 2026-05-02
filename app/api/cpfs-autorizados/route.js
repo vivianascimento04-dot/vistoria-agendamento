@@ -39,14 +39,41 @@ export async function POST(request) {
 
 export async function DELETE(request) {
   try {
-    const { cpf } = await request.json()
-    const cpfLimpo = cpf.replace(/\D/g, '')
-    const { error } = await supabase
-      .from('cpfs_autorizados')
-      .delete()
-      .eq('cpf', cpfLimpo)
-    if (error) throw error
-    return NextResponse.json({ success: true })
+    const body = await request.json()
+
+    // Remover todos
+    if (body.todos === true) {
+      const { error } = await supabase
+        .from('cpfs_autorizados')
+        .delete()
+        .neq('cpf', '')
+      if (error) throw error
+      return NextResponse.json({ success: true })
+    }
+
+    // Remover lista de CPFs
+    if (Array.isArray(body.cpfs)) {
+      const cpfsLimpos = body.cpfs.map(c => c.replace(/\D/g, ''))
+      const { error } = await supabase
+        .from('cpfs_autorizados')
+        .delete()
+        .in('cpf', cpfsLimpos)
+      if (error) throw error
+      return NextResponse.json({ success: true })
+    }
+
+    // Remover um CPF
+    if (body.cpf) {
+      const cpfLimpo = body.cpf.replace(/\D/g, '')
+      const { error } = await supabase
+        .from('cpfs_autorizados')
+        .delete()
+        .eq('cpf', cpfLimpo)
+      if (error) throw error
+      return NextResponse.json({ success: true })
+    }
+
+    return NextResponse.json({ error: 'Parametro invalido' }, { status: 400 })
   } catch(e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
