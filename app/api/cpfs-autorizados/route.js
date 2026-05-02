@@ -37,11 +37,26 @@ export async function POST(request) {
   }
 }
 
+export async function PATCH(request) {
+  try {
+    const { cpf, nome } = await request.json()
+    if (!cpf) return NextResponse.json({ error: 'CPF obrigatorio' }, { status: 400 })
+    const cpfLimpo = cpf.replace(/\D/g, '')
+    const { error } = await supabase
+      .from('cpfs_autorizados')
+      .update({ nome: nome || '' })
+      .eq('cpf', cpfLimpo)
+    if (error) throw error
+    return NextResponse.json({ success: true })
+  } catch(e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
+}
+
 export async function DELETE(request) {
   try {
     const body = await request.json()
 
-    // Remover todos
     if (body.todos === true) {
       const { error } = await supabase
         .from('cpfs_autorizados')
@@ -51,7 +66,6 @@ export async function DELETE(request) {
       return NextResponse.json({ success: true })
     }
 
-    // Remover lista de CPFs
     if (Array.isArray(body.cpfs)) {
       const cpfsLimpos = body.cpfs.map(c => c.replace(/\D/g, ''))
       const { error } = await supabase
@@ -62,7 +76,6 @@ export async function DELETE(request) {
       return NextResponse.json({ success: true })
     }
 
-    // Remover um CPF
     if (body.cpf) {
       const cpfLimpo = body.cpf.replace(/\D/g, '')
       const { error } = await supabase

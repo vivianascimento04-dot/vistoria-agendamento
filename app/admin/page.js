@@ -62,6 +62,9 @@ export default function Admin() {
   const [cpfsSelecionados, setCpfsSelecionados] = useState([])
   const [cpfDatas, setCpfDatas] = useState({})
   const [novaDataCpf, setNovaDataCpf] = useState({})
+  const [editandoCpf, setEditandoCpf] = useState(null)
+  const [nomeEditando, setNomeEditando] = useState('')
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false)
 
   useEffect(() => { if (status === 'unauthenticated') router.push('/admin/login') }, [status])
   useEffect(() => {
@@ -158,6 +161,22 @@ export default function Admin() {
       })
       buscarCpfsAutorizados()
     } catch(e) {}
+  }
+
+  async function salvarEdicaoCpf() {
+    if (!editandoCpf) return
+    setSalvandoEdicao(true)
+    try {
+      await fetch('/api/cpfs-autorizados', {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ cpf: editandoCpf, nome: nomeEditando })
+      })
+      setEditandoCpf(null)
+      setNomeEditando('')
+      buscarCpfsAutorizados()
+    } catch(e) {}
+    setSalvandoEdicao(false)
   }
 
   async function adicionarCpf() {
@@ -643,9 +662,30 @@ export default function Admin() {
                         <span style={{fontSize:'10px', padding:'3px 10px', borderRadius:'20px', background: datas.length > 0 ? '#dbeafe' : '#dcfce7', color: datas.length > 0 ? '#1d4ed8' : '#16a34a', fontWeight:'700'}}>
                           {datas.length > 0 ? datas.length + ' DATA(S)' : 'TODAS AS DATAS'}
                         </span>
+                        <button onClick={() => { setEditandoCpf(editandoCpf===c.cpf?null:c.cpf); setNomeEditando(c.nome||'') }}
+                          style={{padding:'5px 14px', background:'none', border:'1px solid #bfdbfe', borderRadius:'6px', fontSize:'12px', color:'#1d4ed8', cursor:'pointer', fontWeight:'600'}}>✏ EDITAR</button>
                         <button onClick={() => removerCpf(c.cpf)} style={{padding:'5px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'6px', fontSize:'12px', color:'#dc2626', cursor:'pointer', fontWeight:'600'}}>REMOVER</button>
                       </div>
                     </div>
+
+                    {editandoCpf === c.cpf && (
+                      <div style={{padding:'10px 16px 14px', borderTop:'1px solid #e0e5f5', background:'#f0f7ff'}}>
+                        <p style={{fontSize:'12px', fontWeight:'700', color:AZUL, margin:'0 0 8px'}}>✏ Editar nome</p>
+                        <div style={{display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap'}}>
+                          <input value={nomeEditando} onChange={e => setNomeEditando(e.target.value)}
+                            placeholder="Nome do proprietario"
+                            style={{flex:1, minWidth:'160px', padding:'8px 12px', border:'1px solid #bfdbfe', borderRadius:'8px', fontSize:'13px', outline:'none'}}/>
+                          <button onClick={salvarEdicaoCpf} disabled={salvandoEdicao}
+                            style={{padding:'8px 16px', background:salvandoEdicao?'#9ca3af':VERDE, color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:salvandoEdicao?'not-allowed':'pointer', whiteSpace:'nowrap'}}>
+                            {salvandoEdicao?'SALVANDO...':'✓ SALVAR'}
+                          </button>
+                          <button onClick={() => setEditandoCpf(null)}
+                            style={{padding:'8px 14px', background:'none', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'12px', color:'#6b7280', cursor:'pointer', fontWeight:'600'}}>
+                            CANCELAR
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     <div style={{padding:'0 16px 12px 16px', borderTop:'1px solid #e0e5f5'}}>
                       <p style={{fontSize:'11px', fontWeight:'700', color:'#6b7280', textTransform:'uppercase', letterSpacing:'0.05em', margin:'10px 0 8px'}}>
