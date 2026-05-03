@@ -15,11 +15,11 @@ export async function GET(request) {
       const cpfLimpo = cpf.replace(/\D/g, '')
       const { data, error } = await supabase
         .from('cpf_datas_liberadas')
-        .select('data')
+        .select('data, horarios')
         .eq('cpf', cpfLimpo)
         .order('data', { ascending: true })
       if (error) throw error
-      return NextResponse.json(data?.map(d => d.data) || [])
+      return NextResponse.json(data || [])
     }
 
     const { data, error } = await supabase
@@ -40,11 +40,28 @@ export async function POST(request) {
     const cpfLimpo = cpf.replace(/\D/g, '')
     const { error } = await supabase
       .from('cpf_datas_liberadas')
-      .insert([{ cpf: cpfLimpo, data }])
+      .insert([{ cpf: cpfLimpo, data, horarios: [] }])
     if (error) {
       if (error.code === '23505') return NextResponse.json({ error: 'Data ja cadastrada para este CPF' }, { status: 409 })
       throw error
     }
+    return NextResponse.json({ success: true })
+  } catch(e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
+}
+
+export async function PATCH(request) {
+  try {
+    const { cpf, data, horarios } = await request.json()
+    if (!cpf || !data) return NextResponse.json({ error: 'CPF e data obrigatorios' }, { status: 400 })
+    const cpfLimpo = cpf.replace(/\D/g, '')
+    const { error } = await supabase
+      .from('cpf_datas_liberadas')
+      .update({ horarios: horarios || [] })
+      .eq('cpf', cpfLimpo)
+      .eq('data', data)
+    if (error) throw error
     return NextResponse.json({ success: true })
   } catch(e) {
     return NextResponse.json({ error: e.message }, { status: 500 })

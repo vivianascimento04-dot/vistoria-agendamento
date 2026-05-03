@@ -8,6 +8,7 @@ const MESES_NOMES = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho
 const AZUL = '#1B2F7E'
 const VERDE = '#1D9E75'
 const VERMELHO = '#dc2626'
+const HORARIOS_DISPONIVEIS = ['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00']
 
 const MOTIVOS = [
   'Selecione o motivo',
@@ -65,6 +66,7 @@ export default function Admin() {
   const [editandoCpf, setEditandoCpf] = useState(null)
   const [nomeEditando, setNomeEditando] = useState('')
   const [salvandoEdicao, setSalvandoEdicao] = useState(false)
+  const [horarioSelecionado, setHorarioSelecionado] = useState({})
 
   useEffect(() => { if (status === 'unauthenticated') router.push('/admin/login') }, [status])
   useEffect(() => {
@@ -131,7 +133,7 @@ export default function Admin() {
       if (Array.isArray(datas)) {
         datas.forEach(d => {
           if (!porCpf[d.cpf]) porCpf[d.cpf] = []
-          porCpf[d.cpf].push(d.data)
+          porCpf[d.cpf].push({ data: d.data, horarios: d.horarios || [] })
         })
       }
       setCpfDatas(porCpf)
@@ -163,6 +165,37 @@ export default function Admin() {
     } catch(e) {}
   }
 
+  async function adicionarHorarioCpf(cpf, data, horario) {
+    if (!horario) return
+    const entrada = cpfDatas[cpf]?.find(d => d.data === data)
+    const horariosAtuais = entrada?.horarios || []
+    if (horariosAtuais.includes(horario)) return
+    const novosHorarios = [...horariosAtuais, horario].sort()
+    try {
+      await fetch('/api/cpf-datas', {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ cpf, data, horarios: novosHorarios })
+      })
+      setHorarioSelecionado(prev => ({...prev, [cpf+'_'+data]: ''}))
+      buscarCpfsAutorizados()
+    } catch(e) {}
+  }
+
+  async function removerHorarioCpf(cpf, data, horario) {
+    const entrada = cpfDatas[cpf]?.find(d => d.data === data)
+    const horariosAtuais = entrada?.horarios || []
+    const novosHorarios = horariosAtuais.filter(h => h !== horario)
+    try {
+      await fetch('/api/cpf-datas', {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ cpf, data, horarios: novosHorarios })
+      })
+      buscarCpfsAutorizados()
+    } catch(e) {}
+  }
+
   async function salvarEdicaoCpf() {
     if (!editandoCpf) return
     setSalvandoEdicao(true)
@@ -172,8 +205,7 @@ export default function Admin() {
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ cpf: editandoCpf, nome: nomeEditando })
       })
-      setEditandoCpf(null)
-      setNomeEditando('')
+      setEditandoCpf(null); setNomeEditando('')
       buscarCpfsAutorizados()
     } catch(e) {}
     setSalvandoEdicao(false)
@@ -197,16 +229,8 @@ export default function Admin() {
   async function removerCpf(cpf) {
     if (!confirm('Remover CPF ' + cpf + '?')) return
     try {
-      await fetch('/api/cpfs-autorizados', {
-        method: 'DELETE',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ cpf })
-      })
-      await fetch('/api/cpf-datas', {
-        method: 'DELETE',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ cpf, todos_cpf: true })
-      })
+      await fetch('/api/cpfs-autorizados', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ cpf }) })
+      await fetch('/api/cpf-datas', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ cpf, todos_cpf: true }) })
       buscarCpfsAutorizados()
     } catch(e) {}
   }
@@ -215,33 +239,19 @@ export default function Admin() {
     if (!cpfsSelecionados.length) return
     if (!confirm('Remover ' + cpfsSelecionados.length + ' CPF(s) selecionado(s)?')) return
     try {
-      await fetch('/api/cpfs-autorizados', {
-        method: 'DELETE',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ cpfs: cpfsSelecionados })
-      })
+      await fetch('/api/cpfs-autorizados', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ cpfs: cpfsSelecionados }) })
       for (const cpf of cpfsSelecionados) {
-        await fetch('/api/cpf-datas', {
-          method: 'DELETE',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ cpf, todos_cpf: true })
-        })
+        await fetch('/api/cpf-datas', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ cpf, todos_cpf: true }) })
       }
-      setCpfsSelecionados([])
-      buscarCpfsAutorizados()
+      setCpfsSelecionados([]); buscarCpfsAutorizados()
     } catch(e) {}
   }
 
   async function removerTodosCpfs() {
     if (!confirm('Remover TODOS os CPFs autorizados? Esta acao nao pode ser desfeita.')) return
     try {
-      await fetch('/api/cpfs-autorizados', {
-        method: 'DELETE',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ todos: true })
-      })
-      setCpfsSelecionados([])
-      buscarCpfsAutorizados()
+      await fetch('/api/cpfs-autorizados', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ todos: true }) })
+      setCpfsSelecionados([]); buscarCpfsAutorizados()
     } catch(e) {}
   }
 
@@ -249,11 +259,7 @@ export default function Admin() {
     setSalvandoMes(true)
     try {
       const bloqueado = mesesBloqueados.includes(anoMes)
-      await fetch('/api/meses-bloqueados', {
-        method: bloqueado ? 'DELETE' : 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ano_mes: anoMes})
-      })
+      await fetch('/api/meses-bloqueados', { method: bloqueado ? 'DELETE' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ano_mes: anoMes}) })
       buscarMesesBloqueados()
     } catch(e) {}
     setSalvandoMes(false)
@@ -262,11 +268,7 @@ export default function Admin() {
   async function toggleHorario(horario, ativo) {
     setSalvandoHorario(true)
     try {
-      await fetch('/api/horarios-config', {
-        method: 'PATCH',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({horario, ativo: !ativo})
-      })
+      await fetch('/api/horarios-config', { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({horario, ativo: !ativo}) })
       buscarHorariosConfig()
     } catch(e) {}
     setSalvandoHorario(false)
@@ -276,11 +278,7 @@ export default function Admin() {
     if (!dataInicioEspecial || !dataFimEspecial) return
     setSalvandoDia(true)
     try {
-      await fetch('/api/dias-especiais', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ data_inicio: dataInicioEspecial, data_fim: dataFimEspecial, tipo, observacao: obsEspecial })
-      })
+      await fetch('/api/dias-especiais', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ data_inicio: dataInicioEspecial, data_fim: dataFimEspecial, tipo, observacao: obsEspecial }) })
       setDataInicioEspecial(''); setDataFimEspecial(''); setObsEspecial('')
       buscarDiasEspeciais()
     } catch(e) {}
@@ -289,11 +287,7 @@ export default function Admin() {
 
   async function removerDiaEspecial(id) {
     try {
-      await fetch('/api/dias-especiais', {
-        method: 'DELETE',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({id})
-      })
+      await fetch('/api/dias-especiais', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id}) })
       buscarDiasEspeciais()
     } catch(e) {}
   }
@@ -302,11 +296,7 @@ export default function Admin() {
     if (!novoEmp.trim()) return
     setSalvandoEmp(true); setErroEmp('')
     try {
-      const res = await fetch('/api/empreendimentos', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({nome: novoEmp.trim()})
-      })
+      const res = await fetch('/api/empreendimentos', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({nome: novoEmp.trim()}) })
       if (res.ok) { setNovoEmp(''); buscarEmpreendimentos() }
       else { const d = await res.json(); setErroEmp(d.error || 'Erro ao salvar.') }
     } catch(e) { setErroEmp('Erro de conexao.') }
@@ -321,19 +311,13 @@ export default function Admin() {
     } catch(e) {}
   }
 
-  function confirmarCancelamento(a) {
-    setPopup(a); setMotivoCancelamento(''); setObsCancelamento(''); setErroMotivo(false)
-  }
+  function confirmarCancelamento(a) { setPopup(a); setMotivoCancelamento(''); setObsCancelamento(''); setErroMotivo(false) }
 
   async function executarCancelamento() {
     if (!popup) return
     if (!motivoCancelamento || motivoCancelamento === 'Selecione o motivo') { setErroMotivo(true); return }
     try {
-      const res = await fetch('/api/agendamentos/' + popup.id, {
-        method: 'PATCH',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ status: 'cancelado', motivo_cancelamento: motivoCancelamento, obs_cancelamento: obsCancelamento })
-      })
+      const res = await fetch('/api/agendamentos/' + popup.id, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status: 'cancelado', motivo_cancelamento: motivoCancelamento, obs_cancelamento: obsCancelamento }) })
       if (res.ok) buscarAgendamentos()
       else alert('Erro ao cancelar.')
     } catch(e) { alert('Erro de conexao.') }
@@ -342,11 +326,7 @@ export default function Admin() {
 
   async function atualizarStatus(id, novoStatus) {
     try {
-      const res = await fetch('/api/agendamentos/' + id, {
-        method: 'PATCH',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({status: novoStatus})
-      })
+      const res = await fetch('/api/agendamentos/' + id, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({status: novoStatus}) })
       if (res.ok) buscarAgendamentos()
       else alert('Erro ao atualizar.')
     } catch(e) { alert('Erro de conexao.') }
@@ -399,15 +379,9 @@ export default function Admin() {
       ftxt += ' | Total: ' + filtrados.length + ' registro(s)'
       doc.text(ftxt, M+3, y+2); y += 12
       const cols = [
-        {x:M,      label:'NOME'},
-        {x:M+34,   label:'EMPREENDIMENTO'},
-        {x:M+62,   label:'UNIDADE'},
-        {x:M+118,  label:'DATA'},
-        {x:M+138,  label:'HORA'},
-        {x:M+150,  label:'TELEFONE'},
-        {x:M+176,  label:'AGENDADO EM'},
-        {x:M+206,  label:'STATUS'},
-        {x:M+222,  label:'MOTIVO'},
+        {x:M, label:'NOME'},{x:M+34, label:'EMPREENDIMENTO'},{x:M+62, label:'UNIDADE'},
+        {x:M+118, label:'DATA'},{x:M+138, label:'HORA'},{x:M+150, label:'TELEFONE'},
+        {x:M+176, label:'AGENDADO EM'},{x:M+206, label:'STATUS'},{x:M+222, label:'MOTIVO'},
       ]
       doc.setFillColor(27,47,126); doc.rect(M, y, W-M*2, 8, 'F')
       doc.setTextColor(255,255,255); doc.setFontSize(7.5); doc.setFont('helvetica','bold')
@@ -516,21 +490,19 @@ export default function Admin() {
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </div>
             <h3 style={{fontSize:'18px', fontWeight:'700', color:'#111', textAlign:'center', margin:'0 0 8px'}}>Cancelar agendamento?</h3>
-            <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0 0 4px', lineHeight:'1.6'}}>Voce esta prestes a cancelar o agendamento de</p>
-            <p style={{fontSize:'15px', fontWeight:'700', color:AZUL, textAlign:'center', margin:'0 0 4px'}}>{popup.nome}</p>
+            <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0 0 4px'}}>{popup.nome}</p>
             <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0 0 1.25rem'}}>{new Date(popup.data+'T12:00:00').toLocaleDateString('pt-BR')} as {popup.horario?.slice(0,5)}</p>
             <div style={{marginBottom:'12px'}}>
-              <label style={{fontSize:'12px', fontWeight:'700', color:erroMotivo?VERMELHO:'#6b7280', display:'block', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em'}}>Motivo do cancelamento *</label>
+              <label style={{fontSize:'12px', fontWeight:'700', color:erroMotivo?VERMELHO:'#6b7280', display:'block', marginBottom:'6px', textTransform:'uppercase'}}>Motivo *</label>
               <select value={motivoCancelamento} onChange={e => {setMotivoCancelamento(e.target.value); setErroMotivo(false)}}
                 style={{width:'100%', padding:'10px 12px', border:erroMotivo?'2px solid '+VERMELHO:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none', background:'#fff', cursor:'pointer'}}>
                 {MOTIVOS.map(m => <option key={m} value={m === 'Selecione o motivo' ? '' : m}>{m}</option>)}
               </select>
-              {erroMotivo && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Selecione o motivo do cancelamento</p>}
+              {erroMotivo && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Selecione o motivo</p>}
             </div>
             <div style={{marginBottom:'1.25rem'}}>
-              <label style={{fontSize:'12px', fontWeight:'700', color:'#6b7280', display:'block', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em'}}>Observacao (opcional)</label>
-              <textarea value={obsCancelamento} onChange={e => setObsCancelamento(e.target.value)}
-                placeholder="Detalhe o motivo se necessario..."
+              <label style={{fontSize:'12px', fontWeight:'700', color:'#6b7280', display:'block', marginBottom:'6px', textTransform:'uppercase'}}>Observacao (opcional)</label>
+              <textarea value={obsCancelamento} onChange={e => setObsCancelamento(e.target.value)} placeholder="Detalhe o motivo..."
                 style={{width:'100%', padding:'10px 12px', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none', resize:'none', height:'72px', boxSizing:'border-box', fontFamily:'inherit'}}/>
             </div>
             <div style={{background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'8px', padding:'10px', marginBottom:'1.25rem', fontSize:'12px', color:'#dc2626', textAlign:'center', fontWeight:'600'}}>Esta acao nao podera ser desfeita facilmente</div>
@@ -609,15 +581,13 @@ export default function Admin() {
                     onChange={e => setCpfsSelecionados(e.target.checked ? cpfsFiltrados.map(c => c.cpf) : [])}
                     style={{width:'16px', height:'16px', cursor:'pointer', accentColor:AZUL}}/>
                   <span style={{fontSize:'12px', fontWeight:'600', color:'#374151'}}>Selecionar todos</span>
-                  {cpfsSelecionados.length > 0 && (
-                    <span style={{fontSize:'11px', padding:'2px 10px', borderRadius:'20px', background:AZUL, color:'#fff', fontWeight:'700'}}>{cpfsSelecionados.length} selecionado(s)</span>
-                  )}
+                  {cpfsSelecionados.length > 0 && <span style={{fontSize:'11px', padding:'2px 10px', borderRadius:'20px', background:AZUL, color:'#fff', fontWeight:'700'}}>{cpfsSelecionados.length} selecionado(s)</span>}
                 </div>
                 <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
                   {cpfsSelecionados.length > 0 && (
                     <>
                       <button onClick={() => setCpfsSelecionados([])} style={{padding:'6px 14px', background:'none', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'12px', color:'#6b7280', cursor:'pointer', fontWeight:'600'}}>Limpar selecao</button>
-                      <button onClick={removerCpfsSelecionados} style={{padding:'6px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'8px', fontSize:'12px', color:VERMELHO, cursor:'pointer', fontWeight:'700'}}>🗑 Remover selecionados ({cpfsSelecionados.length})</button>
+                      <button onClick={removerCpfsSelecionados} style={{padding:'6px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'8px', fontSize:'12px', color:VERMELHO, cursor:'pointer', fontWeight:'700'}}>🗑 Remover ({cpfsSelecionados.length})</button>
                     </>
                   )}
                   <button onClick={removerTodosCpfs} style={{padding:'6px 14px', background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'8px', fontSize:'12px', color:VERMELHO, cursor:'pointer', fontWeight:'700'}}>⚠ Remover todos</button>
@@ -644,7 +614,7 @@ export default function Admin() {
                 const selecionado = cpfsSelecionados.includes(c.cpf)
                 const datas = cpfDatas[c.cpf] || []
                 return (
-                  <div key={c.id} style={{background:selecionado?'#eff3ff':'#f8f9ff', borderRadius:'12px', border:selecionado?'1px solid #a5b4fc':'1px solid #e0e5f5', transition:'all 0.15s', overflow:'hidden'}}>
+                  <div key={c.id} style={{background:selecionado?'#eff3ff':'#f8f9ff', borderRadius:'12px', border:selecionado?'1px solid #a5b4fc':'1px solid #e0e5f5', overflow:'hidden'}}>
                     <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px'}}>
                       <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
                         <input type="checkbox" checked={selecionado}
@@ -672,34 +642,62 @@ export default function Admin() {
                       <div style={{padding:'10px 16px 14px', borderTop:'1px solid #e0e5f5', background:'#f0f7ff'}}>
                         <p style={{fontSize:'12px', fontWeight:'700', color:AZUL, margin:'0 0 8px'}}>✏ Editar nome</p>
                         <div style={{display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap'}}>
-                          <input value={nomeEditando} onChange={e => setNomeEditando(e.target.value)}
-                            placeholder="Nome do proprietario"
+                          <input value={nomeEditando} onChange={e => setNomeEditando(e.target.value)} placeholder="Nome do proprietario"
                             style={{flex:1, minWidth:'160px', padding:'8px 12px', border:'1px solid #bfdbfe', borderRadius:'8px', fontSize:'13px', outline:'none'}}/>
                           <button onClick={salvarEdicaoCpf} disabled={salvandoEdicao}
-                            style={{padding:'8px 16px', background:salvandoEdicao?'#9ca3af':VERDE, color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:salvandoEdicao?'not-allowed':'pointer', whiteSpace:'nowrap'}}>
+                            style={{padding:'8px 16px', background:salvandoEdicao?'#9ca3af':VERDE, color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:salvandoEdicao?'not-allowed':'pointer'}}>
                             {salvandoEdicao?'SALVANDO...':'✓ SALVAR'}
                           </button>
                           <button onClick={() => setEditandoCpf(null)}
-                            style={{padding:'8px 14px', background:'none', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'12px', color:'#6b7280', cursor:'pointer', fontWeight:'600'}}>
-                            CANCELAR
-                          </button>
+                            style={{padding:'8px 14px', background:'none', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'12px', color:'#6b7280', cursor:'pointer', fontWeight:'600'}}>CANCELAR</button>
                         </div>
                       </div>
                     )}
 
                     <div style={{padding:'0 16px 12px 16px', borderTop:'1px solid #e0e5f5'}}>
                       <p style={{fontSize:'11px', fontWeight:'700', color:'#6b7280', textTransform:'uppercase', letterSpacing:'0.05em', margin:'10px 0 8px'}}>
-                        📅 Datas liberadas {datas.length === 0 && <span style={{fontWeight:'400', color:'#9ca3af'}}>(nenhuma = todas as datas disponiveis)</span>}
+                        📅 Datas e horários liberados {datas.length === 0 && <span style={{fontWeight:'400', color:'#9ca3af'}}>(nenhuma = todas as datas disponíveis)</span>}
                       </p>
-                      <div style={{display:'flex', flexWrap:'wrap', gap:'6px', marginBottom:'10px'}}>
-                        {datas.map(d => (
-                          <div key={d} style={{display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'20px'}}>
-                            <span style={{fontSize:'12px', color:'#1d4ed8', fontWeight:'600'}}>{new Date(d+'T12:00:00').toLocaleDateString('pt-BR')}</span>
-                            <button onClick={() => removerDataCpf(c.cpf, d)} style={{background:'none', border:'none', cursor:'pointer', color:'#93c5fd', fontSize:'14px', padding:'0', lineHeight:'1', marginLeft:'2px'}}>×</button>
+
+                      <div style={{display:'flex', flexDirection:'column', gap:'8px', marginBottom:'10px'}}>
+                        {datas.map(entrada => (
+                          <div key={entrada.data} style={{background:'#fff', border:'1px solid #e0e5f5', borderRadius:'10px', padding:'10px 12px'}}>
+                            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px'}}>
+                              <span style={{fontSize:'13px', fontWeight:'700', color:AZUL}}>📅 {new Date(entrada.data+'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                              <button onClick={() => removerDataCpf(c.cpf, entrada.data)}
+                                style={{background:'none', border:'1px solid #fca5a5', borderRadius:'6px', fontSize:'11px', color:'#dc2626', cursor:'pointer', padding:'3px 10px', fontWeight:'600'}}>remover data</button>
+                            </div>
+                            <p style={{fontSize:'11px', fontWeight:'600', color:'#6b7280', textTransform:'uppercase', margin:'0 0 6px', letterSpacing:'0.05em'}}>Horários liberados</p>
+                            <div style={{display:'flex', flexWrap:'wrap', gap:'4px', marginBottom:'8px'}}>
+                              {(entrada.horarios||[]).map(h => (
+                                <div key={h} style={{display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'20px'}}>
+                                  <span style={{fontSize:'12px', color:'#16a34a', fontWeight:'600'}}>{h}</span>
+                                  <button onClick={() => removerHorarioCpf(c.cpf, entrada.data, h)}
+                                    style={{background:'none', border:'none', cursor:'pointer', color:'#86efac', fontSize:'14px', padding:'0', lineHeight:'1', marginLeft:'2px'}}>×</button>
+                                </div>
+                              ))}
+                              {(entrada.horarios||[]).length === 0 && <span style={{fontSize:'12px', color:'#9ca3af', fontStyle:'italic'}}>Nenhum horário restrito — todos disponíveis</span>}
+                            </div>
+                            <div style={{display:'flex', gap:'6px', alignItems:'center'}}>
+                              <select value={horarioSelecionado[c.cpf+'_'+entrada.data]||''}
+                                onChange={e => setHorarioSelecionado(prev => ({...prev, [c.cpf+'_'+entrada.data]: e.target.value}))}
+                                style={{padding:'6px 10px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none', background:'#fff'}}>
+                                <option value="">+ Adicionar horário</option>
+                                {HORARIOS_DISPONIVEIS.filter(h => !(entrada.horarios||[]).includes(h)).map(h => (
+                                  <option key={h} value={h}>{h}</option>
+                                ))}
+                              </select>
+                              <button onClick={() => adicionarHorarioCpf(c.cpf, entrada.data, horarioSelecionado[c.cpf+'_'+entrada.data])}
+                                disabled={!horarioSelecionado[c.cpf+'_'+entrada.data]}
+                                style={{padding:'6px 14px', background:!horarioSelecionado[c.cpf+'_'+entrada.data]?'#9ca3af':VERDE, color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:!horarioSelecionado[c.cpf+'_'+entrada.data]?'not-allowed':'pointer'}}>
+                                Adicionar
+                              </button>
+                            </div>
                           </div>
                         ))}
                         {datas.length === 0 && <span style={{fontSize:'12px', color:'#9ca3af', fontStyle:'italic'}}>Sem restricao de data — pode agendar qualquer dia disponivel</span>}
                       </div>
+
                       <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
                         <input type="date" value={novaDataCpf[c.cpf]||''} onChange={e => setNovaDataCpf(prev => ({...prev, [c.cpf]: e.target.value}))}
                           style={{padding:'6px 10px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none'}}/>
@@ -720,7 +718,7 @@ export default function Admin() {
           <div>
             <div style={{display:'flex', gap:'8px', marginBottom:'1.5rem', flexWrap:'wrap'}}>
               {[{id:'meses',label:'🗓 Bloquear Meses'},{id:'horarios',label:'🕐 Gerenciar Horarios'},{id:'dias',label:'📅 Periodos Especiais'}].map(s => (
-                <button key={s.id} onClick={() => setSubAbaConfig(s.id)} style={{padding:'10px 20px', borderRadius:'10px', border:subAbaConfig===s.id?'none':'1px solid #e5e7eb', background:subAbaConfig===s.id?AZUL:'#fff', color:subAbaConfig===s.id?'#fff':'#6b7280', fontSize:'13px', fontWeight:'700', cursor:'pointer', boxShadow:subAbaConfig===s.id?'0 4px 12px rgba(27,47,126,0.3)':'none', transition:'all 0.15s'}}>{s.label}</button>
+                <button key={s.id} onClick={() => setSubAbaConfig(s.id)} style={{padding:'10px 20px', borderRadius:'10px', border:subAbaConfig===s.id?'none':'1px solid #e5e7eb', background:subAbaConfig===s.id?AZUL:'#fff', color:subAbaConfig===s.id?'#fff':'#6b7280', fontSize:'13px', fontWeight:'700', cursor:'pointer', boxShadow:subAbaConfig===s.id?'0 4px 12px rgba(27,47,126,0.3)':'none'}}>{s.label}</button>
               ))}
             </div>
 
@@ -728,24 +726,15 @@ export default function Admin() {
               <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Bloquear / Liberar Meses</h2>
                 <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 16px'}}>Meses bloqueados nao permitem novos agendamentos. Clique para alternar.</p>
-                <div style={{display:'flex', gap:'16px', marginBottom:'20px', padding:'10px 14px', background:'#f8f9ff', borderRadius:'8px', border:'1px solid #e0e5f5', flexWrap:'wrap'}}>
-                  <div style={{display:'flex', alignItems:'center', gap:'6px'}}><div style={{width:'12px', height:'12px', borderRadius:'3px', background:'#f0fdf4', border:'2px solid #1D9E75'}}></div><span style={{fontSize:'12px', fontWeight:'600', color:'#374151'}}>Liberado</span></div>
-                  <div style={{display:'flex', alignItems:'center', gap:'6px'}}><div style={{width:'12px', height:'12px', borderRadius:'3px', background:'#fff5f5', border:'2px solid #dc2626'}}></div><span style={{fontSize:'12px', fontWeight:'600', color:'#374151'}}>Bloqueado</span></div>
-                </div>
                 <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'10px'}}>
                   {mesesGrid.map(({ key, nomeMes, anoMes, bloqueado }) => (
-                    <button key={key} onClick={() => toggleMes(key)} disabled={salvandoMes} style={{padding:'16px 12px', borderRadius:'12px', border:bloqueado?'2px solid #dc2626':'2px solid #1D9E75', background:bloqueado?'#fff5f5':'#f0fdf4', cursor:'pointer', transition:'all 0.2s', textAlign:'center', opacity:salvandoMes?0.7:1}}>
+                    <button key={key} onClick={() => toggleMes(key)} disabled={salvandoMes} style={{padding:'16px 12px', borderRadius:'12px', border:bloqueado?'2px solid #dc2626':'2px solid #1D9E75', background:bloqueado?'#fff5f5':'#f0fdf4', cursor:'pointer', textAlign:'center', opacity:salvandoMes?0.7:1}}>
                       <div style={{fontSize:'14px', fontWeight:'700', color:bloqueado?'#dc2626':'#15803d', marginBottom:'2px'}}>{nomeMes}</div>
                       <div style={{fontSize:'11px', color:bloqueado?'#dc2626':'#15803d', marginBottom:'8px', opacity:0.7}}>{anoMes}</div>
                       <div style={{display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'20px', background:bloqueado?'#dc2626':'#1D9E75', color:'#fff', fontSize:'10px', fontWeight:'700'}}>{bloqueado ? '🔒 BLOQUEADO' : '✓ LIBERADO'}</div>
                     </button>
                   ))}
                 </div>
-                {mesesBloqueados.length > 0 && (
-                  <div style={{marginTop:'16px', padding:'12px 16px', background:'#fff8e1', border:'1px solid #fde68a', borderRadius:'8px'}}>
-                    <p style={{fontSize:'12px', color:'#92400e', margin:0, fontWeight:'600'}}>⚠ {mesesBloqueados.length} mes(es) bloqueado(s).</p>
-                  </div>
-                )}
               </div>
             )}
 
@@ -759,7 +748,7 @@ export default function Admin() {
                 <div style={{display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:'10px'}}>
                   {horariosConfig.map(h => (
                     <button key={h.horario} onClick={() => toggleHorario(h.horario, h.ativo)} disabled={salvandoHorario}
-                      style={{padding:'16px 10px', borderRadius:'12px', border:h.ativo?'2px solid #1D9E75':'2px solid #e5e7eb', background:h.ativo?'#f0fdf4':'#f9fafb', cursor:'pointer', textAlign:'center', transition:'all 0.2s', opacity:salvandoHorario?0.7:1}}>
+                      style={{padding:'16px 10px', borderRadius:'12px', border:h.ativo?'2px solid #1D9E75':'2px solid #e5e7eb', background:h.ativo?'#f0fdf4':'#f9fafb', cursor:'pointer', textAlign:'center', opacity:salvandoHorario?0.7:1}}>
                       <div style={{fontSize:'20px', fontWeight:'800', color:h.ativo?VERDE:'#d1d5db', marginBottom:'6px'}}>{h.horario}</div>
                       <div style={{display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'20px', background:h.ativo?VERDE:'#e5e7eb', color:h.ativo?'#fff':'#9ca3af', fontSize:'10px', fontWeight:'700'}}>{h.ativo ? '✓ ATIVO' : '× INATIVO'}</div>
                     </button>
@@ -771,7 +760,7 @@ export default function Admin() {
             {subAbaConfig === 'dias' && (
               <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Periodos Especiais</h2>
-                <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 20px'}}>Libere ou bloqueie periodos especificos, independente da configuracao do mes.</p>
+                <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 20px'}}>Libere ou bloqueie periodos especificos.</p>
                 <div style={{background:'#f8f9ff', border:'1px solid #e0e5f5', borderRadius:'12px', padding:'1.25rem', marginBottom:'1.5rem'}}>
                   <p style={{fontSize:'13px', fontWeight:'700', color:AZUL, margin:'0 0 12px'}}>Adicionar novo periodo</p>
                   <div style={{display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'flex-end'}}>
@@ -785,13 +774,13 @@ export default function Admin() {
                     </div>
                     <div style={{flex:1, minWidth:'160px'}}>
                       <label style={{fontSize:'11px', fontWeight:'700', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Observacao (opcional)</label>
-                      <input value={obsEspecial} onChange={e => setObsEspecial(e.target.value)} placeholder="Ex: Feriado, recesso..." style={{width:'100%', padding:'8px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none', boxSizing:'border-box'}}/>
+                      <input value={obsEspecial} onChange={e => setObsEspecial(e.target.value)} placeholder="Ex: Feriado..." style={{width:'100%', padding:'8px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none', boxSizing:'border-box'}}/>
                     </div>
                     <div style={{display:'flex', gap:'8px'}}>
                       <button onClick={() => adicionarDiaEspecial('liberado')} disabled={!dataInicioEspecial||!dataFimEspecial||salvandoDia}
-                        style={{padding:'8px 16px', background:!dataInicioEspecial||!dataFimEspecial?'#9ca3af':VERDE, color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:!dataInicioEspecial||!dataFimEspecial?'not-allowed':'pointer', whiteSpace:'nowrap'}}>✓ LIBERAR</button>
+                        style={{padding:'8px 16px', background:!dataInicioEspecial||!dataFimEspecial?'#9ca3af':VERDE, color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:'pointer', whiteSpace:'nowrap'}}>✓ LIBERAR</button>
                       <button onClick={() => adicionarDiaEspecial('bloqueado')} disabled={!dataInicioEspecial||!dataFimEspecial||salvandoDia}
-                        style={{padding:'8px 16px', background:!dataInicioEspecial||!dataFimEspecial?'#9ca3af':VERMELHO, color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:!dataInicioEspecial||!dataFimEspecial?'not-allowed':'pointer', whiteSpace:'nowrap'}}>🔒 BLOQUEAR</button>
+                        style={{padding:'8px 16px', background:!dataInicioEspecial||!dataFimEspecial?'#9ca3af':VERMELHO, color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:'pointer', whiteSpace:'nowrap'}}>🔒 BLOQUEAR</button>
                     </div>
                   </div>
                 </div>
@@ -808,7 +797,7 @@ export default function Admin() {
                           <div style={{fontSize:'12px', color:'#6b7280'}}>{d.tipo==='liberado'?'Periodo liberado':'Periodo bloqueado'}{d.observacao && ' — ' + d.observacao}</div>
                         </div>
                       </div>
-                      <button onClick={() => removerDiaEspecial(d.id)} style={{padding:'6px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'8px', fontSize:'12px', color:VERMELHO, cursor:'pointer', fontWeight:'600', flexShrink:0}}>REMOVER</button>
+                      <button onClick={() => removerDiaEspecial(d.id)} style={{padding:'6px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'8px', fontSize:'12px', color:VERMELHO, cursor:'pointer', fontWeight:'600'}}>REMOVER</button>
                     </div>
                   ))}
                 </div>
@@ -823,7 +812,7 @@ export default function Admin() {
             <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 20px'}}>Os empreendimentos cadastrados aparecerao na lista suspensa para os clientes.</p>
             <div style={{display:'flex', gap:'10px', marginBottom:'12px'}}>
               <input value={novoEmp} onChange={e => setNovoEmp(e.target.value)} onKeyDown={e => e.key==='Enter' && adicionarEmpreendimento()} placeholder="Nome do novo empreendimento" style={{flex:1, padding:'10px 12px', border:'1px solid #dde1f0', borderRadius:'10px', fontSize:'14px', outline:'none'}}/>
-              <button onClick={adicionarEmpreendimento} disabled={salvandoEmp||!novoEmp.trim()} style={{padding:'10px 20px', background:salvandoEmp||!novoEmp.trim()?'#9ca3af':AZUL, color:'#fff', border:'none', borderRadius:'10px', fontSize:'13px', fontWeight:'700', cursor:salvandoEmp||!novoEmp.trim()?'not-allowed':'pointer', whiteSpace:'nowrap'}}>
+              <button onClick={adicionarEmpreendimento} disabled={salvandoEmp||!novoEmp.trim()} style={{padding:'10px 20px', background:salvandoEmp||!novoEmp.trim()?'#9ca3af':AZUL, color:'#fff', border:'none', borderRadius:'10px', fontSize:'13px', fontWeight:'700', cursor:'pointer', whiteSpace:'nowrap'}}>
                 {salvandoEmp?'SALVANDO...':'+ ADICIONAR'}
               </button>
             </div>
@@ -832,7 +821,7 @@ export default function Admin() {
               {empreendimentos.map(emp => (
                 <div key={emp} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'#f8f9ff', borderRadius:'10px', border:'1px solid #e0e5f5'}}>
                   <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                    <div style={{width:'8px', height:'8px', borderRadius:'50%', background:AZUL, flexShrink:0}}></div>
+                    <div style={{width:'8px', height:'8px', borderRadius:'50%', background:AZUL}}></div>
                     <span style={{fontSize:'14px', fontWeight:'600', color:AZUL}}>{emp}</span>
                   </div>
                   <button onClick={() => removerEmpreendimento(emp)} style={{padding:'5px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'6px', fontSize:'12px', color:'#dc2626', cursor:'pointer', fontWeight:'600'}}>REMOVER</button>
@@ -861,7 +850,7 @@ export default function Admin() {
               <div style={{display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'center', marginBottom:'10px'}}>
                 <div style={{display:'flex', gap:'4px', background:'#f4f6fb', borderRadius:'10px', padding:'4px'}}>
                   {['todos','confirmado','cancelado'].map(f => (
-                    <button key={f} onClick={() => setFiltro(f)} style={{padding:'6px 16px', borderRadius:'8px', border:'none', background:filtro===f?(f==='cancelado'?VERMELHO:f==='confirmado'?VERDE:AZUL):'transparent', color:filtro===f?'#fff':'#9ca3af', fontSize:'12px', fontWeight:'700', cursor:'pointer', textTransform:'uppercase', transition:'all 0.15s'}}>{f}</button>
+                    <button key={f} onClick={() => setFiltro(f)} style={{padding:'6px 16px', borderRadius:'8px', border:'none', background:filtro===f?(f==='cancelado'?VERMELHO:f==='confirmado'?VERDE:AZUL):'transparent', color:filtro===f?'#fff':'#9ca3af', fontSize:'12px', fontWeight:'700', cursor:'pointer', textTransform:'uppercase'}}>{f}</button>
                   ))}
                 </div>
                 <div style={{flex:1, position:'relative', minWidth:'180px'}}>
