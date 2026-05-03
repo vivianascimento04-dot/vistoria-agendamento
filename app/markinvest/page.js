@@ -26,6 +26,7 @@ export default function Home() {
   const [diasCheios, setDiasCheios] = useState([])
   const [mesesBloqueados, setMesesBloqueados] = useState([])
   const [diasEspeciais, setDiasEspeciais] = useState([])
+  const [datasLiberadasCpf, setDatasLiberadasCpf] = useState([])
   const [form, setForm] = useState({ nome:'', cpf:'', email:'', telefone:'', empreendimento:'', torre:'', apartamento:'', nomeAcompanhante:'', cpfAcompanhante:'' })
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
@@ -54,6 +55,12 @@ export default function Home() {
           if (!cpfAutorizado) {
             router.push('/markinvest/verificar')
             return
+          }
+          // Buscar datas liberadas para este CPF
+          const resDatas = await fetch('/api/cpf-datas?cpf=' + cpfAutorizado.replace(/\D/g,''))
+          const datas = await resDatas.json()
+          if (Array.isArray(datas) && datas.length > 0) {
+            setDatasLiberadasCpf(datas)
           }
         }
       } catch(e) {}
@@ -86,9 +93,12 @@ export default function Home() {
   function selecionarHorario(h) { setHorarioSel(h); setEtapa(2) }
 
   function isDiaBloqueado(ds) {
+    // Bloqueio por periodo especial
     for (const d of diasEspeciais) {
       if (ds >= d.data_inicio && ds <= d.data_fim && d.tipo === 'bloqueado') return true
     }
+    // Bloqueio por datas liberadas do CPF (se houver lista, so permite as datas da lista)
+    if (datasLiberadasCpf.length > 0 && !datasLiberadasCpf.includes(ds)) return true
     return false
   }
 
@@ -178,6 +188,16 @@ export default function Home() {
                     </div>
                   </div>
                 )}
+
+                {datasLiberadasCpf.length > 0 && (
+                  <div style={{background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'10px', padding:'10px 14px', marginBottom:'14px', display:'flex', alignItems:'center', gap:'10px'}}>
+                    <span style={{fontSize:'16px'}}>📅</span>
+                    <p style={{fontSize:'12px', color:'#1d4ed8', margin:0, fontWeight:'600'}}>
+                      Apenas as datas autorizadas estao disponiveis para voce.
+                    </p>
+                  </div>
+                )}
+
                 <div style={{display:'flex', gap:'8px', marginBottom:'14px', justifyContent:'center', flexWrap:'wrap'}}>
                   {[{bg:'linear-gradient(135deg,#1B2F7E,#2a45b0)', label:'Selecionado'},{bg:'#fee2e2', border:'1.5px solid #fca5a5', label:'Lotado'},{bg:'#f0f7ff', border:'1px solid #bfdbfe', label:'Disponivel'},{bg:'#f9fafb', label:'Indisponivel'}].map(l => (
                     <div key={l.label} style={{display:'flex', alignItems:'center', gap:'4px'}}>
@@ -203,8 +223,9 @@ export default function Home() {
                     const isSel = dataSel===ds
                     const isToday = d===hoje.getDate()&&mes===hoje.getMonth()&&ano===hoje.getFullYear()
                     const isCheio = diasCheios.includes(ds)
-                    const bloqueadoEspecial = isDiaBloqueado(ds)
-                    if (isPast||isWeekend||mesBloqueado||bloqueadoEspecial) return (
+                    const bloqueado = isDiaBloqueado(ds)
+
+                    if (isPast||isWeekend||mesBloqueado||bloqueado) return (
                       <div key={d} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#d1d5db', borderRadius:'8px', background:'#f9fafb', fontWeight:'500'}}>{d}</div>
                     )
                     if (isCheio&&!isSel) return (
