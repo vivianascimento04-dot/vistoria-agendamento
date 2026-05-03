@@ -56,7 +56,6 @@ export default function Home() {
             router.push('/markinvest/verificar')
             return
           }
-          // Buscar datas liberadas para este CPF
           const resDatas = await fetch('/api/cpf-datas?cpf=' + cpfAutorizado.replace(/\D/g,''))
           const datas = await resDatas.json()
           if (Array.isArray(datas) && datas.length > 0) {
@@ -86,19 +85,26 @@ export default function Home() {
     try {
       const res = await fetch('/api/horarios?data=' + ds)
       const data = await res.json()
-      setHorarios(Array.isArray(data) ? data : [])
+      let horas = Array.isArray(data) ? data : []
+      // Filtrar por horarios autorizados do CPF para esta data
+      const entradaCpf = datasLiberadasCpf.find(d => d.data === ds)
+      if (entradaCpf && entradaCpf.horarios && entradaCpf.horarios.length > 0) {
+        horas = horas.map(h => ({
+          ...h,
+          disponivel: entradaCpf.horarios.includes(h.horario) ? h.disponivel : false
+        }))
+      }
+      setHorarios(horas)
     } catch(e) { setHorarios([]) }
   }
 
   function selecionarHorario(h) { setHorarioSel(h); setEtapa(2) }
 
   function isDiaBloqueado(ds) {
-    // Bloqueio por periodo especial
     for (const d of diasEspeciais) {
       if (ds >= d.data_inicio && ds <= d.data_fim && d.tipo === 'bloqueado') return true
     }
-    // Bloqueio por datas liberadas do CPF (se houver lista, so permite as datas da lista)
-    if (datasLiberadasCpf.length > 0 && !datasLiberadasCpf.includes(ds)) return true
+    if (datasLiberadasCpf.length > 0 && !datasLiberadasCpf.find(d => d.data === ds)) return true
     return false
   }
 
@@ -188,16 +194,12 @@ export default function Home() {
                     </div>
                   </div>
                 )}
-
                 {datasLiberadasCpf.length > 0 && (
                   <div style={{background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'10px', padding:'10px 14px', marginBottom:'14px', display:'flex', alignItems:'center', gap:'10px'}}>
                     <span style={{fontSize:'16px'}}>📅</span>
-                    <p style={{fontSize:'12px', color:'#1d4ed8', margin:0, fontWeight:'600'}}>
-                      Apenas as datas autorizadas estao disponiveis para voce.
-                    </p>
+                    <p style={{fontSize:'12px', color:'#1d4ed8', margin:0, fontWeight:'600'}}>Apenas as datas autorizadas estao disponiveis para voce.</p>
                   </div>
                 )}
-
                 <div style={{display:'flex', gap:'8px', marginBottom:'14px', justifyContent:'center', flexWrap:'wrap'}}>
                   {[{bg:'linear-gradient(135deg,#1B2F7E,#2a45b0)', label:'Selecionado'},{bg:'#fee2e2', border:'1.5px solid #fca5a5', label:'Lotado'},{bg:'#f0f7ff', border:'1px solid #bfdbfe', label:'Disponivel'},{bg:'#f9fafb', label:'Indisponivel'}].map(l => (
                     <div key={l.label} style={{display:'flex', alignItems:'center', gap:'4px'}}>
@@ -224,7 +226,6 @@ export default function Home() {
                     const isToday = d===hoje.getDate()&&mes===hoje.getMonth()&&ano===hoje.getFullYear()
                     const isCheio = diasCheios.includes(ds)
                     const bloqueado = isDiaBloqueado(ds)
-
                     if (isPast||isWeekend||mesBloqueado||bloqueado) return (
                       <div key={d} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', color:'#d1d5db', borderRadius:'8px', background:'#f9fafb', fontWeight:'500'}}>{d}</div>
                     )
@@ -232,15 +233,15 @@ export default function Home() {
                       <div key={d} title="Dia lotado" style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'11px', color:'#dc2626', borderRadius:'8px', background:'#fee2e2', border:'1.5px solid #fca5a5', cursor:'not-allowed', fontWeight:'700'}}>{d}<div style={{fontSize:'7px', fontWeight:'700', marginTop:'1px'}}>LOTADO</div></div>
                     )
                     if (isSel) return (
-                      <div key={d} onClick={() => setDataSel(null)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'800', borderRadius:'8px', cursor:'pointer', background:'linear-gradient(135deg, #1B2F7E, #2a45b0)', color:'#fff', boxShadow:'0 4px 12px rgba(27,47,126,0.4)', transition:'all 0.15s'}}>{d}</div>
+                      <div key={d} onClick={() => setDataSel(null)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'800', borderRadius:'8px', cursor:'pointer', background:'linear-gradient(135deg, #1B2F7E, #2a45b0)', color:'#fff', boxShadow:'0 4px 12px rgba(27,47,126,0.4)'}}>{d}</div>
                     )
                     if (isToday&&!isCheio) return (
-                      <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700', borderRadius:'8px', cursor:'pointer', background:'#eff6ff', color:AZUL, border:'2px solid '+AZUL, transition:'all 0.15s'}}>
+                      <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700', borderRadius:'8px', cursor:'pointer', background:'#eff6ff', color:AZUL, border:'2px solid '+AZUL}}>
                         {d}<div style={{width:'4px', height:'4px', borderRadius:'50%', background:AZUL, marginTop:'1px'}}></div>
                       </div>
                     )
                     return (
-                      <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'600', borderRadius:'8px', cursor:'pointer', background:'#f0f7ff', color:'#1d4ed8', border:'1px solid #bfdbfe', transition:'all 0.15s'}}>{d}</div>
+                      <div key={d} onClick={() => selecionarData(ds)} style={{aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'600', borderRadius:'8px', cursor:'pointer', background:'#f0f7ff', color:'#1d4ed8', border:'1px solid #bfdbfe'}}>{d}</div>
                     )
                   })}
                 </div>
@@ -258,9 +259,15 @@ export default function Home() {
                 <p style={{fontSize:'12px', color:'#6b7280', margin:'0 0 1rem', textTransform:'capitalize'}}>{dataFormatada}</p>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px'}}>
                   {horarios.map(h => (
-                    <div key={h.horario} onClick={() => h.disponivel && selecionarHorario(h.horario)} style={{padding:isMobile?'12px 6px':'14px', textAlign:'center', borderRadius:'10px', fontSize:isMobile?'14px':'15px', fontWeight:'700', border:horarioSel===h.horario?'2px solid '+VERMELHO:'1px solid #dde1f0', cursor:h.disponivel?'pointer':'not-allowed', background:horarioSel===h.horario?VERMELHO:!h.disponivel?'#f9fafb':'#f0f7ff', color:horarioSel===h.horario?'#fff':!h.disponivel?'#d1d5db':'#1d4ed8', textDecoration:!h.disponivel?'line-through':'none', transition:'all 0.15s'}}>
+                    <div key={h.horario} onClick={() => h.disponivel && selecionarHorario(h.horario)}
+                      style={{padding:isMobile?'12px 6px':'14px', textAlign:'center', borderRadius:'10px', fontSize:isMobile?'14px':'15px', fontWeight:'700',
+                        border:horarioSel===h.horario?'2px solid '+VERMELHO:'1px solid #dde1f0',
+                        cursor:h.disponivel?'pointer':'not-allowed',
+                        background:horarioSel===h.horario?VERMELHO:!h.disponivel?'#f9fafb':'#f0f7ff',
+                        color:horarioSel===h.horario?'#fff':!h.disponivel?'#d1d5db':'#1d4ed8',
+                        textDecoration:!h.disponivel?'line-through':'none'}}>
                       {h.horario}
-                      {!h.disponivel && <div style={{fontSize:'9px', fontWeight:'400', marginTop:'2px'}}>Ocupado</div>}
+                      {!h.disponivel && <div style={{fontSize:'9px', fontWeight:'400', marginTop:'2px'}}>Indisponivel</div>}
                     </div>
                   ))}
                 </div>
@@ -280,7 +287,6 @@ export default function Home() {
                 <div style={{fontSize:'12px', color:'#5a6fa8'}}>as {horarioSel} &middot; <span onClick={() => {setEtapa(1);setHorarioSel(null)}} style={{cursor:'pointer', textDecoration:'underline', fontWeight:'600'}}>Alterar</span></div>
               </div>
             </div>
-
             <p style={{fontSize:'11px', fontWeight:'700', color:AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem', display:'flex', alignItems:'center', gap:'6px'}}>
               <span style={{width:'4px', height:'16px', background:AZUL, borderRadius:'2px', display:'inline-block'}}></span>
               DADOS PESSOAIS
@@ -309,7 +315,6 @@ export default function Home() {
                 {tentouEnviar&&!form.telefone && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
               </div>
             </div>
-
             <p style={{fontSize:'11px', fontWeight:'700', color:AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem', display:'flex', alignItems:'center', gap:'6px'}}>
               <span style={{width:'4px', height:'16px', background:AZUL, borderRadius:'2px', display:'inline-block'}}></span>
               DADOS DO IMOVEL
@@ -334,7 +339,6 @@ export default function Home() {
                 {tentouEnviar&&!form.apartamento && <p style={{color:VERMELHO, fontSize:'11px', margin:'4px 0 0', fontWeight:'600'}}>Campo obrigatorio</p>}
               </div>
             </div>
-
             <div style={{background:'#f8f9ff', border:'1px solid #e0e5f5', borderRadius:'12px', padding:'1rem', marginBottom:'1.25rem'}}>
               <p style={{fontSize:'11px', fontWeight:'700', color:AZUL, textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 0.75rem', display:'flex', alignItems:'center', gap:'6px'}}>
                 <span style={{width:'4px', height:'16px', background:'#6366f1', borderRadius:'2px', display:'inline-block'}}></span>
@@ -353,7 +357,6 @@ export default function Home() {
                 </div>
               </div>
             </div>
-
             {erro && (
               <div style={{background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'8px', padding:'10px 14px', marginBottom:'12px'}}>
                 <p style={{color:VERMELHO, fontSize:'13px', fontWeight:'600', margin:0}}>&#9888; {erro}</p>
