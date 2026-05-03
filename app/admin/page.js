@@ -9,6 +9,7 @@ const AZUL = '#1B2F7E'
 const VERDE = '#1D9E75'
 const VERMELHO = '#dc2626'
 const HORARIOS_DISPONIVEIS = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30']
+
 const MOTIVOS = [
   'Selecione o motivo',
   'Cliente solicitou cancelamento',
@@ -164,19 +165,21 @@ export default function Admin() {
     } catch(e) {}
   }
 
-  async function adicionarHorarioCpf(cpf, data, horario) {
-    if (!horario) return
+  async function adicionarHorarioCpf(cpf, data, horarioInicio, horarioFim) {
+    if (!horarioInicio) return
     const entrada = cpfDatas[cpf]?.find(d => d.data === data)
     const horariosAtuais = entrada?.horarios || []
-    if (horariosAtuais.includes(horario)) return
-    const novosHorarios = [...horariosAtuais, horario].sort()
+    const idxInicio = HORARIOS_DISPONIVEIS.indexOf(horarioInicio)
+    const idxFim = horarioFim ? HORARIOS_DISPONIVEIS.indexOf(horarioFim) : idxInicio
+    const intervalo = HORARIOS_DISPONIVEIS.slice(idxInicio, idxFim + 1)
+    const novosHorarios = [...new Set([...horariosAtuais, ...intervalo])].sort()
     try {
       await fetch('/api/cpf-datas', {
         method: 'PATCH',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ cpf, data, horarios: novosHorarios })
       })
-      setHorarioSelecionado(prev => ({...prev, [cpf+'_'+data]: ''}))
+      setHorarioSelecionado(prev => ({...prev, [cpf+'_'+data]: '', [cpf+'_'+data+'_fim']: ''}))
       buscarCpfsAutorizados()
     } catch(e) {}
   }
@@ -628,8 +631,8 @@ export default function Admin() {
                         </div>
                       </div>
                       <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                        <span style={{fontSize:'10px', padding:'3px 10px', borderRadius:'20px', background: datas.length > 0 ? '#dbeafe' : '#dcfce7', color: datas.length > 0 ? '#1d4ed8' : '#16a34a', fontWeight:'700'}}>
-                          {datas.length > 0 ? datas.length + ' DATA(S)' : 'TODAS AS DATAS'}
+                        <span style={{fontSize:'10px', padding:'3px 10px', borderRadius:'20px', background:datas.length>0?'#dbeafe':'#dcfce7', color:datas.length>0?'#1d4ed8':'#16a34a', fontWeight:'700'}}>
+                          {datas.length>0?datas.length+' DATA(S)':'TODAS AS DATAS'}
                         </span>
                         <button onClick={() => { setEditandoCpf(editandoCpf===c.cpf?null:c.cpf); setNomeEditando(c.nome||'') }}
                           style={{padding:'5px 14px', background:'none', border:'1px solid #bfdbfe', borderRadius:'6px', fontSize:'12px', color:'#1d4ed8', cursor:'pointer', fontWeight:'600'}}>✏ EDITAR</button>
@@ -644,7 +647,7 @@ export default function Admin() {
                           <input value={nomeEditando} onChange={e => setNomeEditando(e.target.value)} placeholder="Nome do proprietario"
                             style={{flex:1, minWidth:'160px', padding:'8px 12px', border:'1px solid #bfdbfe', borderRadius:'8px', fontSize:'13px', outline:'none'}}/>
                           <button onClick={salvarEdicaoCpf} disabled={salvandoEdicao}
-                            style={{padding:'8px 16px', background:salvandoEdicao?'#9ca3af':VERDE, color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:salvandoEdicao?'not-allowed':'pointer'}}>
+                            style={{padding:'8px 16px', background:salvandoEdicao?'#9ca3af':VERDE, color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:'pointer'}}>
                             {salvandoEdicao?'SALVANDO...':'✓ SALVAR'}
                           </button>
                           <button onClick={() => setEditandoCpf(null)}
@@ -655,7 +658,7 @@ export default function Admin() {
 
                     <div style={{padding:'0 16px 12px 16px', borderTop:'1px solid #e0e5f5'}}>
                       <p style={{fontSize:'11px', fontWeight:'700', color:'#6b7280', textTransform:'uppercase', letterSpacing:'0.05em', margin:'10px 0 8px'}}>
-                        📅 Datas e horários liberados {datas.length === 0 && <span style={{fontWeight:'400', color:'#9ca3af'}}>(nenhuma = todas as datas disponíveis)</span>}
+                        📅 Datas e horarios liberados {datas.length===0 && <span style={{fontWeight:'400', color:'#9ca3af'}}>(nenhuma = todas as datas disponiveis)</span>}
                       </p>
 
                       <div style={{display:'flex', flexDirection:'column', gap:'8px', marginBottom:'10px'}}>
@@ -666,7 +669,7 @@ export default function Admin() {
                               <button onClick={() => removerDataCpf(c.cpf, entrada.data)}
                                 style={{background:'none', border:'1px solid #fca5a5', borderRadius:'6px', fontSize:'11px', color:'#dc2626', cursor:'pointer', padding:'3px 10px', fontWeight:'600'}}>remover data</button>
                             </div>
-                            <p style={{fontSize:'11px', fontWeight:'600', color:'#6b7280', textTransform:'uppercase', margin:'0 0 6px', letterSpacing:'0.05em'}}>Horários liberados</p>
+                            <p style={{fontSize:'11px', fontWeight:'600', color:'#6b7280', textTransform:'uppercase', margin:'0 0 6px', letterSpacing:'0.05em'}}>Horarios liberados</p>
                             <div style={{display:'flex', flexWrap:'wrap', gap:'4px', marginBottom:'8px'}}>
                               {(entrada.horarios||[]).map(h => (
                                 <div key={h} style={{display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'20px'}}>
@@ -675,26 +678,36 @@ export default function Admin() {
                                     style={{background:'none', border:'none', cursor:'pointer', color:'#86efac', fontSize:'14px', padding:'0', lineHeight:'1', marginLeft:'2px'}}>×</button>
                                 </div>
                               ))}
-                              {(entrada.horarios||[]).length === 0 && <span style={{fontSize:'12px', color:'#9ca3af', fontStyle:'italic'}}>Nenhum horário restrito — todos disponíveis</span>}
+                              {(entrada.horarios||[]).length===0 && <span style={{fontSize:'12px', color:'#9ca3af', fontStyle:'italic'}}>Nenhum horario restrito — todos disponiveis</span>}
                             </div>
-                            <div style={{display:'flex', gap:'6px', alignItems:'center'}}>
-                              <select value={horarioSelecionado[c.cpf+'_'+entrada.data]||''}
-                                onChange={e => setHorarioSelecionado(prev => ({...prev, [c.cpf+'_'+entrada.data]: e.target.value}))}
-                                style={{padding:'6px 10px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none', background:'#fff'}}>
-                                <option value="">+ Adicionar horário</option>
-                                {HORARIOS_DISPONIVEIS.filter(h => !(entrada.horarios||[]).includes(h)).map(h => (
-                                  <option key={h} value={h}>{h}</option>
-                                ))}
-                              </select>
-                              <button onClick={() => adicionarHorarioCpf(c.cpf, entrada.data, horarioSelecionado[c.cpf+'_'+entrada.data])}
+                            <div style={{display:'flex', gap:'6px', alignItems:'center', flexWrap:'wrap'}}>
+                              <div style={{display:'flex', alignItems:'center', gap:'4px'}}>
+                                <label style={{fontSize:'11px', color:'#6b7280', fontWeight:'600'}}>De:</label>
+                                <select value={horarioSelecionado[c.cpf+'_'+entrada.data]||''}
+                                  onChange={e => setHorarioSelecionado(prev => ({...prev, [c.cpf+'_'+entrada.data]: e.target.value}))}
+                                  style={{padding:'6px 10px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none', background:'#fff'}}>
+                                  <option value="">--:--</option>
+                                  {HORARIOS_DISPONIVEIS.map(h => <option key={h} value={h}>{h}</option>)}
+                                </select>
+                              </div>
+                              <div style={{display:'flex', alignItems:'center', gap:'4px'}}>
+                                <label style={{fontSize:'11px', color:'#6b7280', fontWeight:'600'}}>Ate:</label>
+                                <select value={horarioSelecionado[c.cpf+'_'+entrada.data+'_fim']||''}
+                                  onChange={e => setHorarioSelecionado(prev => ({...prev, [c.cpf+'_'+entrada.data+'_fim']: e.target.value}))}
+                                  style={{padding:'6px 10px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none', background:'#fff'}}>
+                                  <option value="">--:--</option>
+                                  {HORARIOS_DISPONIVEIS.map(h => <option key={h} value={h}>{h}</option>)}
+                                </select>
+                              </div>
+                              <button onClick={() => adicionarHorarioCpf(c.cpf, entrada.data, horarioSelecionado[c.cpf+'_'+entrada.data], horarioSelecionado[c.cpf+'_'+entrada.data+'_fim'])}
                                 disabled={!horarioSelecionado[c.cpf+'_'+entrada.data]}
                                 style={{padding:'6px 14px', background:!horarioSelecionado[c.cpf+'_'+entrada.data]?'#9ca3af':VERDE, color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:!horarioSelecionado[c.cpf+'_'+entrada.data]?'not-allowed':'pointer'}}>
-                                Adicionar
+                                + Adicionar
                               </button>
                             </div>
                           </div>
                         ))}
-                        {datas.length === 0 && <span style={{fontSize:'12px', color:'#9ca3af', fontStyle:'italic'}}>Sem restricao de data — pode agendar qualquer dia disponivel</span>}
+                        {datas.length===0 && <span style={{fontSize:'12px', color:'#9ca3af', fontStyle:'italic'}}>Sem restricao de data — pode agendar qualquer dia disponivel</span>}
                       </div>
 
                       <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
@@ -730,7 +743,7 @@ export default function Admin() {
                     <button key={key} onClick={() => toggleMes(key)} disabled={salvandoMes} style={{padding:'16px 12px', borderRadius:'12px', border:bloqueado?'2px solid #dc2626':'2px solid #1D9E75', background:bloqueado?'#fff5f5':'#f0fdf4', cursor:'pointer', textAlign:'center', opacity:salvandoMes?0.7:1}}>
                       <div style={{fontSize:'14px', fontWeight:'700', color:bloqueado?'#dc2626':'#15803d', marginBottom:'2px'}}>{nomeMes}</div>
                       <div style={{fontSize:'11px', color:bloqueado?'#dc2626':'#15803d', marginBottom:'8px', opacity:0.7}}>{anoMes}</div>
-                      <div style={{display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'20px', background:bloqueado?'#dc2626':'#1D9E75', color:'#fff', fontSize:'10px', fontWeight:'700'}}>{bloqueado ? '🔒 BLOQUEADO' : '✓ LIBERADO'}</div>
+                      <div style={{display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'20px', background:bloqueado?'#dc2626':'#1D9E75', color:'#fff', fontSize:'10px', fontWeight:'700'}}>{bloqueado?'🔒 BLOQUEADO':'✓ LIBERADO'}</div>
                     </button>
                   ))}
                 </div>
@@ -749,7 +762,7 @@ export default function Admin() {
                     <button key={h.horario} onClick={() => toggleHorario(h.horario, h.ativo)} disabled={salvandoHorario}
                       style={{padding:'16px 10px', borderRadius:'12px', border:h.ativo?'2px solid #1D9E75':'2px solid #e5e7eb', background:h.ativo?'#f0fdf4':'#f9fafb', cursor:'pointer', textAlign:'center', opacity:salvandoHorario?0.7:1}}>
                       <div style={{fontSize:'20px', fontWeight:'800', color:h.ativo?VERDE:'#d1d5db', marginBottom:'6px'}}>{h.horario}</div>
-                      <div style={{display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'20px', background:h.ativo?VERDE:'#e5e7eb', color:h.ativo?'#fff':'#9ca3af', fontSize:'10px', fontWeight:'700'}}>{h.ativo ? '✓ ATIVO' : '× INATIVO'}</div>
+                      <div style={{display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'20px', background:h.ativo?VERDE:'#e5e7eb', color:h.ativo?'#fff':'#9ca3af', fontSize:'10px', fontWeight:'700'}}>{h.ativo?'✓ ATIVO':'× INATIVO'}</div>
                     </button>
                   ))}
                 </div>
@@ -784,7 +797,7 @@ export default function Admin() {
                   </div>
                 </div>
                 <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
-                  {diasEspeciais.length === 0 && <p style={{color:'#9ca3af', fontSize:'13px', textAlign:'center', padding:'2rem'}}>Nenhum periodo especial cadastrado.</p>}
+                  {diasEspeciais.length===0 && <p style={{color:'#9ca3af', fontSize:'13px', textAlign:'center', padding:'2rem'}}>Nenhum periodo especial cadastrado.</p>}
                   {diasEspeciais.map((d) => (
                     <div key={d.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', background:d.tipo==='liberado'?'#f0fdf4':'#fff5f5', borderRadius:'10px', border:d.tipo==='liberado'?'1px solid #86efac':'1px solid #fca5a5'}}>
                       <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
@@ -793,7 +806,7 @@ export default function Admin() {
                           <div style={{fontSize:'14px', fontWeight:'700', color:d.tipo==='liberado'?VERDE:VERMELHO}}>
                             {new Date(d.data_inicio+'T12:00:00').toLocaleDateString('pt-BR')} ate {new Date(d.data_fim+'T12:00:00').toLocaleDateString('pt-BR')}
                           </div>
-                          <div style={{fontSize:'12px', color:'#6b7280'}}>{d.tipo==='liberado'?'Periodo liberado':'Periodo bloqueado'}{d.observacao && ' — ' + d.observacao}</div>
+                          <div style={{fontSize:'12px', color:'#6b7280'}}>{d.tipo==='liberado'?'Periodo liberado':'Periodo bloqueado'}{d.observacao && ' — '+d.observacao}</div>
                         </div>
                       </div>
                       <button onClick={() => removerDiaEspecial(d.id)} style={{padding:'6px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'8px', fontSize:'12px', color:VERMELHO, cursor:'pointer', fontWeight:'600'}}>REMOVER</button>
@@ -826,7 +839,7 @@ export default function Admin() {
                   <button onClick={() => removerEmpreendimento(emp)} style={{padding:'5px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'6px', fontSize:'12px', color:'#dc2626', cursor:'pointer', fontWeight:'600'}}>REMOVER</button>
                 </div>
               ))}
-              {empreendimentos.length === 0 && <p style={{color:'#9ca3af', fontSize:'13px', textAlign:'center', padding:'2rem'}}>Nenhum empreendimento cadastrado.</p>}
+              {empreendimentos.length===0 && <p style={{color:'#9ca3af', fontSize:'13px', textAlign:'center', padding:'2rem'}}>Nenhum empreendimento cadastrado.</p>}
             </div>
           </div>
         )}
@@ -879,7 +892,7 @@ export default function Admin() {
               </div>
             </div>
 
-            {paginados.length === 0 ? (
+            {paginados.length===0 ? (
               <div style={{textAlign:'center', padding:'3rem', color:'#9ca3af', fontSize:'14px', background:'#fff', borderRadius:'16px'}}>Nenhum agendamento encontrado</div>
             ) : (
               <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
@@ -941,7 +954,7 @@ export default function Admin() {
               </div>
             )}
 
-            {totalPaginas > 1 && (
+            {totalPaginas>1 && (
               <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', marginTop:'1.5rem', flexWrap:'wrap'}}>
                 <button onClick={() => setPagina(p=>Math.max(1,p-1))} disabled={pagina===1} style={{padding:'6px 14px', background:pagina===1?'#f3f4f6':'#fff', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:pagina===1?'not-allowed':'pointer', color:pagina===1?'#9ca3af':'#374151'}}>&#8249; Anterior</button>
                 {Array.from({length:totalPaginas},(_,i)=>i+1).map(p => (
