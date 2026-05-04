@@ -30,6 +30,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('todos')
   const [busca, setBusca] = useState('')
+  const [filtroEmp, setFiltroEmp] = useState('')
   const [popup, setPopup] = useState(null)
   const [motivoCancelamento, setMotivoCancelamento] = useState('')
   const [obsCancelamento, setObsCancelamento] = useState('')
@@ -79,7 +80,7 @@ export default function Admin() {
       buscarCpfsAutorizados()
     }
   }, [status])
-  useEffect(() => { setPagina(1) }, [filtro, busca, ordem, dataInicio, dataFim])
+  useEffect(() => { setPagina(1) }, [filtro, busca, ordem, dataInicio, dataFim, filtroEmp])
 
   async function buscarAgendamentos() {
     try {
@@ -144,11 +145,7 @@ export default function Admin() {
     const data = novaDataCpf[cpf]
     if (!data) return
     try {
-      await fetch('/api/cpf-datas', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ cpf, data })
-      })
+      await fetch('/api/cpf-datas', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ cpf, data }) })
       setNovaDataCpf(prev => ({...prev, [cpf]: ''}))
       buscarCpfsAutorizados()
     } catch(e) {}
@@ -156,11 +153,7 @@ export default function Admin() {
 
   async function removerDataCpf(cpf, data) {
     try {
-      await fetch('/api/cpf-datas', {
-        method: 'DELETE',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ cpf, data })
-      })
+      await fetch('/api/cpf-datas', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ cpf, data }) })
       buscarCpfsAutorizados()
     } catch(e) {}
   }
@@ -174,11 +167,7 @@ export default function Admin() {
     const intervalo = HORARIOS_DISPONIVEIS.slice(idxInicio, idxFim + 1)
     const novosHorarios = [...new Set([...horariosAtuais, ...intervalo])].sort()
     try {
-      await fetch('/api/cpf-datas', {
-        method: 'PATCH',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ cpf, data, horarios: novosHorarios })
-      })
+      await fetch('/api/cpf-datas', { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ cpf, data, horarios: novosHorarios }) })
       setHorarioSelecionado(prev => ({...prev, [cpf+'_'+data]: '', [cpf+'_'+data+'_fim']: ''}))
       buscarCpfsAutorizados()
     } catch(e) {}
@@ -189,11 +178,7 @@ export default function Admin() {
     const horariosAtuais = entrada?.horarios || []
     const novosHorarios = horariosAtuais.filter(h => h !== horario)
     try {
-      await fetch('/api/cpf-datas', {
-        method: 'PATCH',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ cpf, data, horarios: novosHorarios })
-      })
+      await fetch('/api/cpf-datas', { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ cpf, data, horarios: novosHorarios }) })
       buscarCpfsAutorizados()
     } catch(e) {}
   }
@@ -202,11 +187,7 @@ export default function Admin() {
     if (!editandoCpf) return
     setSalvandoEdicao(true)
     try {
-      await fetch('/api/cpfs-autorizados', {
-        method: 'PATCH',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ cpf: editandoCpf, nome: nomeEditando })
-      })
+      await fetch('/api/cpfs-autorizados', { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ cpf: editandoCpf, nome: nomeEditando }) })
       setEditandoCpf(null); setNomeEditando('')
       buscarCpfsAutorizados()
     } catch(e) {}
@@ -217,11 +198,7 @@ export default function Admin() {
     if (!novoCpf.trim()) return
     setSalvandoCpf(true); setErroCpf('')
     try {
-      const res = await fetch('/api/cpfs-autorizados', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ cpf: novoCpf, nome: nomeNovoCpf })
-      })
+      const res = await fetch('/api/cpfs-autorizados', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ cpf: novoCpf, nome: nomeNovoCpf }) })
       if (res.ok) { setNovoCpf(''); setNomeNovoCpf(''); buscarCpfsAutorizados() }
       else { const d = await res.json(); setErroCpf(d.error || 'Erro ao salvar.') }
     } catch(e) { setErroCpf('Erro de conexao.') }
@@ -239,7 +216,7 @@ export default function Admin() {
 
   async function removerCpfsSelecionados() {
     if (!cpfsSelecionados.length) return
-    if (!confirm('Remover ' + cpfsSelecionados.length + ' CPF(s) selecionado(s)?')) return
+    if (!confirm('Remover ' + cpfsSelecionados.length + ' CPF(s)?')) return
     try {
       await fetch('/api/cpfs-autorizados', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ cpfs: cpfsSelecionados }) })
       for (const cpf of cpfsSelecionados) {
@@ -250,7 +227,7 @@ export default function Admin() {
   }
 
   async function removerTodosCpfs() {
-    if (!confirm('Remover TODOS os CPFs autorizados? Esta acao nao pode ser desfeita.')) return
+    if (!confirm('Remover TODOS os CPFs? Esta acao nao pode ser desfeita.')) return
     try {
       await fetch('/api/cpfs-autorizados', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ todos: true }) })
       setCpfsSelecionados([]); buscarCpfsAutorizados()
@@ -376,6 +353,7 @@ export default function Admin() {
       doc.setFillColor(240,243,250); doc.rect(M, y-4, W-M*2, 10, 'F')
       doc.setTextColor(60,60,100); doc.setFontSize(7.5); doc.setFont('helvetica','italic')
       let ftxt = 'Filtros: Status = ' + (filtro==='todos'?'Todos':filtro)
+      if (filtroEmp) ftxt += ' | Empreendimento: ' + filtroEmp
       if (dataInicio) ftxt += ' | De: ' + new Date(dataInicio+'T12:00:00').toLocaleDateString('pt-BR')
       if (dataFim) ftxt += ' | Ate: ' + new Date(dataFim+'T12:00:00').toLocaleDateString('pt-BR')
       ftxt += ' | Total: ' + filtrados.length + ' registro(s)'
@@ -443,6 +421,7 @@ export default function Admin() {
 
   const filtrados = agendamentos
     .filter(a => filtro==='todos' || a.status===filtro)
+    .filter(a => !filtroEmp || a.apartamento?.toLowerCase().includes(filtroEmp.toLowerCase()))
     .filter(a => {
       if (!busca) return true
       const b = busca.toLowerCase()
@@ -551,7 +530,6 @@ export default function Admin() {
               Somente CPFs cadastrados aqui conseguem acessar a agenda. URL de acesso:
               <span style={{display:'block', marginTop:'4px', fontWeight:'600', color:AZUL, fontSize:'12px'}}>https://vistoria-agendamento.vercel.app/markinvest/verificar</span>
             </p>
-
             <div style={{background:'#f8f9ff', border:'1px solid #e0e5f5', borderRadius:'12px', padding:'1.25rem', marginBottom:'1.5rem'}}>
               <p style={{fontSize:'13px', fontWeight:'700', color:AZUL, margin:'0 0 12px'}}>Adicionar CPF autorizado</p>
               <div style={{display:'flex', gap:'10px', flexWrap:'wrap'}}>
@@ -567,7 +545,7 @@ export default function Admin() {
                 </div>
                 <div style={{display:'flex', alignItems:'flex-end'}}>
                   <button onClick={adicionarCpf} disabled={salvandoCpf||!novoCpf.trim()}
-                    style={{padding:'9px 20px', background:salvandoCpf||!novoCpf.trim()?'#9ca3af':AZUL, color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'700', cursor:salvandoCpf||!novoCpf.trim()?'not-allowed':'pointer', whiteSpace:'nowrap'}}>
+                    style={{padding:'9px 20px', background:salvandoCpf||!novoCpf.trim()?'#9ca3af':AZUL, color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'700', cursor:'pointer', whiteSpace:'nowrap'}}>
                     {salvandoCpf?'SALVANDO...':'+ ADICIONAR'}
                   </button>
                 </div>
@@ -588,7 +566,7 @@ export default function Admin() {
                 <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
                   {cpfsSelecionados.length > 0 && (
                     <>
-                      <button onClick={() => setCpfsSelecionados([])} style={{padding:'6px 14px', background:'none', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'12px', color:'#6b7280', cursor:'pointer', fontWeight:'600'}}>Limpar selecao</button>
+                      <button onClick={() => setCpfsSelecionados([])} style={{padding:'6px 14px', background:'none', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'12px', color:'#6b7280', cursor:'pointer', fontWeight:'600'}}>Limpar</button>
                       <button onClick={removerCpfsSelecionados} style={{padding:'6px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'8px', fontSize:'12px', color:VERMELHO, cursor:'pointer', fontWeight:'700'}}>🗑 Remover ({cpfsSelecionados.length})</button>
                     </>
                   )}
@@ -660,7 +638,6 @@ export default function Admin() {
                       <p style={{fontSize:'11px', fontWeight:'700', color:'#6b7280', textTransform:'uppercase', letterSpacing:'0.05em', margin:'10px 0 8px'}}>
                         📅 Datas e horarios liberados {datas.length===0 && <span style={{fontWeight:'400', color:'#9ca3af'}}>(nenhuma = todas as datas disponiveis)</span>}
                       </p>
-
                       <div style={{display:'flex', flexDirection:'column', gap:'8px', marginBottom:'10px'}}>
                         {datas.map(entrada => (
                           <div key={entrada.data} style={{background:'#fff', border:'1px solid #e0e5f5', borderRadius:'10px', padding:'10px 12px'}}>
@@ -678,7 +655,7 @@ export default function Admin() {
                                     style={{background:'none', border:'none', cursor:'pointer', color:'#86efac', fontSize:'14px', padding:'0', lineHeight:'1', marginLeft:'2px'}}>×</button>
                                 </div>
                               ))}
-                              {(entrada.horarios||[]).length===0 && <span style={{fontSize:'12px', color:'#9ca3af', fontStyle:'italic'}}>Nenhum horario restrito — todos disponiveis</span>}
+                              {(entrada.horarios||[]).length===0 && <span style={{fontSize:'12px', color:'#9ca3af', fontStyle:'italic'}}>Todos os horarios disponiveis</span>}
                             </div>
                             <div style={{display:'flex', gap:'6px', alignItems:'center', flexWrap:'wrap'}}>
                               <div style={{display:'flex', alignItems:'center', gap:'4px'}}>
@@ -709,7 +686,6 @@ export default function Admin() {
                         ))}
                         {datas.length===0 && <span style={{fontSize:'12px', color:'#9ca3af', fontStyle:'italic'}}>Sem restricao de data — pode agendar qualquer dia disponivel</span>}
                       </div>
-
                       <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
                         <input type="date" value={novaDataCpf[c.cpf]||''} onChange={e => setNovaDataCpf(prev => ({...prev, [c.cpf]: e.target.value}))}
                           style={{padding:'6px 10px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none'}}/>
@@ -733,7 +709,6 @@ export default function Admin() {
                 <button key={s.id} onClick={() => setSubAbaConfig(s.id)} style={{padding:'10px 20px', borderRadius:'10px', border:subAbaConfig===s.id?'none':'1px solid #e5e7eb', background:subAbaConfig===s.id?AZUL:'#fff', color:subAbaConfig===s.id?'#fff':'#6b7280', fontSize:'13px', fontWeight:'700', cursor:'pointer', boxShadow:subAbaConfig===s.id?'0 4px 12px rgba(27,47,126,0.3)':'none'}}>{s.label}</button>
               ))}
             </div>
-
             {subAbaConfig === 'meses' && (
               <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Bloquear / Liberar Meses</h2>
@@ -749,7 +724,6 @@ export default function Admin() {
                 </div>
               </div>
             )}
-
             {subAbaConfig === 'horarios' && (
               <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Gerenciar Horarios</h2>
@@ -768,7 +742,6 @@ export default function Admin() {
                 </div>
               </div>
             )}
-
             {subAbaConfig === 'dias' && (
               <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Periodos Especiais</h2>
@@ -867,8 +840,12 @@ export default function Admin() {
                 </div>
                 <div style={{flex:1, position:'relative', minWidth:'180px'}}>
                   <span style={{position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)', fontSize:'13px'}}>🔍</span>
-                  <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar nome, email, CPF, apartamento..." style={{width:'100%', padding:'8px 12px 8px 34px', border:'1px solid #e5e7eb', borderRadius:'10px', fontSize:'13px', outline:'none', background:'#f9fafb', boxSizing:'border-box'}}/>
+                  <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar nome, email, CPF..." style={{width:'100%', padding:'8px 12px 8px 34px', border:'1px solid #e5e7eb', borderRadius:'10px', fontSize:'13px', outline:'none', background:'#f9fafb', boxSizing:'border-box'}}/>
                 </div>
+                <select value={filtroEmp} onChange={e => setFiltroEmp(e.target.value)} style={{padding:'8px 12px', border:'1px solid #e5e7eb', borderRadius:'10px', fontSize:'13px', outline:'none', background:'#f9fafb', cursor:'pointer'}}>
+                  <option value="">Todos os empreendimentos</option>
+                  {empreendimentos.map(emp => <option key={emp} value={emp}>{emp}</option>)}
+                </select>
                 <select value={ordem} onChange={e => setOrdem(e.target.value)} style={{padding:'8px 12px', border:'1px solid #e5e7eb', borderRadius:'10px', fontSize:'13px', outline:'none', background:'#f9fafb', cursor:'pointer'}}>
                   <option value="mais-antigo">Mais antigo primeiro</option>
                   <option value="mais-novo">Mais novo primeiro</option>
@@ -884,7 +861,7 @@ export default function Admin() {
                   <label style={{fontSize:'12px', color:'#6b7280'}}>Ate:</label>
                   <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} style={{padding:'6px 10px', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', outline:'none'}}/>
                 </div>
-                {(dataInicio||dataFim) && <button onClick={() => {setDataInicio('');setDataFim('')}} style={{padding:'6px 12px', background:'#f3f4f6', border:'none', borderRadius:'8px', fontSize:'12px', cursor:'pointer', color:'#6b7280', fontWeight:'600'}}>Limpar</button>}
+                {(dataInicio||dataFim||filtroEmp) && <button onClick={() => {setDataInicio('');setDataFim('');setFiltroEmp('')}} style={{padding:'6px 12px', background:'#f3f4f6', border:'none', borderRadius:'8px', fontSize:'12px', cursor:'pointer', color:'#6b7280', fontWeight:'600'}}>Limpar</button>}
               </div>
               <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
                 <button onClick={exportarCSV} style={{padding:'8px 18px', background:AZUL, color:'#fff', border:'none', borderRadius:'10px', fontSize:'12px', fontWeight:'700', cursor:'pointer'}}>⬇ EXPORTAR CSV</button>
