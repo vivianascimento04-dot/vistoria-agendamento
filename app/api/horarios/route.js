@@ -22,14 +22,10 @@ async function getHorariosAtivos() {
 
 async function getDiasEspeciais() {
   try {
-    const { data, error } = await supabase
-      .from('dias_especiais')
-      .select('*')
+    const { data, error } = await supabase.from('dias_especiais').select('*')
     if (error) throw error
     return data || []
-  } catch(e) {
-    return []
-  }
+  } catch(e) { return [] }
 }
 
 function isDiaBloqueadoPorEspecial(ds, diasEspeciais) {
@@ -47,6 +43,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url)
     const data = searchParams.get('data')
     const mes = searchParams.get('mes')
+    const empreendimento = searchParams.get('empreendimento') || null
 
     const [HORARIOS, diasEspeciais] = await Promise.all([
       getHorariosAtivos(),
@@ -59,13 +56,18 @@ export async function GET(request) {
       const ultimoDia = new Date(ano, m, 0).getDate()
       const fim = mes + '-' + String(ultimoDia).padStart(2, '0')
 
-      const { data: agendados, error } = await supabase
+      let query = supabase
         .from('agendamentos')
         .select('data, horario')
         .gte('data', inicio)
         .lte('data', fim)
         .eq('status', 'confirmado')
 
+      if (empreendimento) {
+        query = query.ilike('apartamento', empreendimento + '%')
+      }
+
+      const { data: agendados, error } = await query
       if (error) throw error
 
       const porDia = {}
@@ -80,10 +82,7 @@ export async function GET(request) {
       for (let dia = 1; dia <= ultimoDia; dia++) {
         const ds = mes + '-' + String(dia).padStart(2, '0')
         const especial = isDiaBloqueadoPorEspecial(ds, diasEspeciais)
-        if (especial === true) {
-          diasCheios.push(ds)
-          continue
-        }
+        if (especial === true) { diasCheios.push(ds); continue }
         if (especial === false) continue
         const ocupados = porDia[ds] || new Set()
         if (ocupados.size >= HORARIOS.length) diasCheios.push(ds)
@@ -94,17 +93,21 @@ export async function GET(request) {
 
     if (data) {
       const especial = isDiaBloqueadoPorEspecial(data, diasEspeciais)
-
       if (especial === true) {
         return NextResponse.json(HORARIOS.map(h => ({ horario: h, disponivel: false })))
       }
 
-      const { data: agendados, error } = await supabase
+      let query = supabase
         .from('agendamentos')
         .select('horario')
         .eq('data', data)
         .eq('status', 'confirmado')
 
+      if (empreendimento) {
+        query = query.ilike('apartamento', empreendimento + '%')
+      }
+
+      const { data: agendados, error } = await query
       if (error) throw error
 
       const ocupados = agendados?.map(a => a.horario.slice(0, 5)) || []
@@ -117,7 +120,7 @@ export async function GET(request) {
     }
 
     return NextResponse.json(HORARIOS.map(h => ({ horario: h, disponivel: true })))
-  } catch (e) {
+  } catch(e) {
     console.error('Erro horarios:', e.message)
     return NextResponse.json({ diasCheios: [] })
   }
