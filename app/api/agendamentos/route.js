@@ -40,15 +40,14 @@ export async function POST(request) {
     )
   }
 
-  const empreendimento = apartamento.split(' - ')[0]
   const { data: horarioOcupado } = await supabase
-    .from('agendamentos')
-    .select('id')
-    .eq('data', data)
-    .eq('horario', horario)
-    .eq('status', 'confirmado')
-    .ilike('apartamento', empreendimento + '%')
-    .maybeSingle()
+  .from('agendamentos')
+  .select('id')
+  .eq('data', data)
+  .eq('horario', horario)
+  .eq('status', 'confirmado')
+  .eq('apartamento', apartamento)
+  .maybeSingle()
 
   if (horarioOcupado) {
     return NextResponse.json({ error: 'Horario ja ocupado' }, { status: 409 })
