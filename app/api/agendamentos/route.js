@@ -40,7 +40,6 @@ export async function POST(request) {
     )
   }
 
-  // Verificar conflito por empreendimento
   const empreendimento = apartamento.split(' - ')[0]
   const { data: horarioOcupado } = await supabase
     .from('agendamentos')
@@ -62,6 +61,11 @@ export async function POST(request) {
     .single()
 
   if (error) {
+    // ✅ trata race condition (dois usuários ao mesmo tempo)
+    if (error.code === '23505') {
+      return NextResponse.json({ error: 'Horario ja ocupado. Por favor, escolha outro horario.' }, { status: 409 })
+    }
+    console.error('Erro Supabase:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
