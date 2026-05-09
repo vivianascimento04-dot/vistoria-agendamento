@@ -25,7 +25,6 @@ export async function POST(request) {
 
   const cpfLimpo = cpf.replace(/\D/g, '')
 
-  // Verificar se CPF ja tem agendamento confirmado
   const { data: todosAgends } = await supabase
     .from('agendamentos')
     .select('id, cpf')
@@ -42,7 +41,6 @@ export async function POST(request) {
     )
   }
 
-  // Verificar conflito por empreendimento
   const empreendimento = apartamento.split(' - ')[0]
   const { data: horarioOcupado } = await supabase
     .from('agendamentos')
@@ -71,7 +69,6 @@ export async function POST(request) {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   })
   const dataCapitalizada = dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1)
-  const emailsEquipe = [process.env.EMAIL_EQUIPE].filter(Boolean).join(',')
 
   try {
     await transporter.sendMail({
@@ -134,8 +131,7 @@ export async function POST(request) {
 
     await transporter.sendMail({
       from: '"Markinvest" <' + process.env.EMAIL_USER + '>',
-      to: emailsEquipe,
-      bcc: 'relacionamento@markinvest.com.br',
+      to: 'relacionamento@markinvest.com.br',
       subject: 'Nova Vistoria - ' + apartamento + ' | ' + dataCapitalizada,
       html: `<!DOCTYPE html>
 <html>
