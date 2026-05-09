@@ -4,7 +4,7 @@ import nodemailer from 'nodemailer'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
 const transporter = nodemailer.createTransport({
@@ -24,6 +24,8 @@ export async function POST(request) {
   }
 
   const cpfLimpo = cpf.replace(/\D/g, '')
+
+  // Verificar se CPF ja tem agendamento confirmado
   const { data: todosAgends } = await supabase
     .from('agendamentos')
     .select('id, cpf')
@@ -35,19 +37,21 @@ export async function POST(request) {
 
   if (cpfJaAgendado) {
     return NextResponse.json(
-      { error: 'Seu horario ja esta confirmado. Por favor, entre em contato com o Relacionamento.' },
+      { error: 'Seu horario ja esta confirmado. Entre em contato com o Relacionamento.' },
       { status: 409 }
     )
   }
 
+  // Verificar conflito por empreendimento
+  const empreendimento = apartamento.split(' - ')[0]
   const { data: horarioOcupado } = await supabase
-  .from('agendamentos')
-  .select('id')
-  .eq('data', data)
-  .eq('horario', horario)
-  .eq('status', 'confirmado')
-  .eq('apartamento', apartamento)
-  .maybeSingle()
+    .from('agendamentos')
+    .select('id')
+    .eq('data', data)
+    .eq('horario', horario)
+    .eq('status', 'confirmado')
+    .ilike('apartamento', empreendimento + '%')
+    .maybeSingle()
 
   if (horarioOcupado) {
     return NextResponse.json({ error: 'Horario ja ocupado' }, { status: 409 })
@@ -60,11 +64,6 @@ export async function POST(request) {
     .single()
 
   if (error) {
-    // ✅ trata race condition (dois usuários ao mesmo tempo)
-    if (error.code === '23505') {
-      return NextResponse.json({ error: 'Horario ja ocupado. Por favor, escolha outro horario.' }, { status: 409 })
-    }
-    console.error('Erro Supabase:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
