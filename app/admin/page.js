@@ -55,6 +55,10 @@ export default function Admin() {
   const [dataFimEspecial, setDataFimEspecial] = useState('')
   const [obsEspecial, setObsEspecial] = useState('')
   const [salvandoDia, setSalvandoDia] = useState(false)
+  const [horariosBloqueadosData, setHorariosBloqueadosData] = useState([])
+  const [novaDataBloqueio, setNovaDataBloqueio] = useState('')
+  const [novoUltimoHorario, setNovoUltimoHorario] = useState('')
+  const [salvandoBloqueio, setSalvandoBloqueio] = useState(false)
   const [cpfsAutorizados, setCpfsAutorizados] = useState([])
   const [novoCpf, setNovoCpf] = useState('')
   const [nomeNovoCpf, setNomeNovoCpf] = useState('')
@@ -77,6 +81,7 @@ export default function Admin() {
       buscarMesesBloqueados()
       buscarHorariosConfig()
       buscarDiasEspeciais()
+      buscarHorariosBloqueadosData()
       buscarCpfsAutorizados()
     }
   }, [status])
@@ -120,6 +125,40 @@ export default function Admin() {
       const res = await fetch('/api/dias-especiais')
       const data = await res.json()
       setDiasEspeciais(Array.isArray(data) ? data : [])
+    } catch(e) {}
+  }
+
+  async function buscarHorariosBloqueadosData() {
+    try {
+      const res = await fetch('/api/horarios-bloqueados-data')
+      const data = await res.json()
+      setHorariosBloqueadosData(Array.isArray(data) ? data : [])
+    } catch(e) {}
+  }
+
+  async function salvarBloqueioData() {
+    if (!novaDataBloqueio || !novoUltimoHorario) return
+    setSalvandoBloqueio(true)
+    try {
+      await fetch('/api/horarios-bloqueados-data', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ data: novaDataBloqueio, ultimo_horario: novoUltimoHorario })
+      })
+      setNovaDataBloqueio(''); setNovoUltimoHorario('')
+      buscarHorariosBloqueadosData()
+    } catch(e) {}
+    setSalvandoBloqueio(false)
+  }
+
+  async function removerBloqueioData(id) {
+    try {
+      await fetch('/api/horarios-bloqueados-data', {
+        method: 'DELETE',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ id })
+      })
+      buscarHorariosBloqueadosData()
     } catch(e) {}
   }
 
@@ -617,7 +656,6 @@ export default function Admin() {
                         <button onClick={() => removerCpf(c.cpf)} style={{padding:'5px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'6px', fontSize:'12px', color:'#dc2626', cursor:'pointer', fontWeight:'600'}}>REMOVER</button>
                       </div>
                     </div>
-
                     {editandoCpf === c.cpf && (
                       <div style={{padding:'10px 16px 14px', borderTop:'1px solid #e0e5f5', background:'#f0f7ff'}}>
                         <p style={{fontSize:'12px', fontWeight:'700', color:AZUL, margin:'0 0 8px'}}>✏ Editar nome</p>
@@ -633,7 +671,6 @@ export default function Admin() {
                         </div>
                       </div>
                     )}
-
                     <div style={{padding:'0 16px 12px 16px', borderTop:'1px solid #e0e5f5'}}>
                       <p style={{fontSize:'11px', fontWeight:'700', color:'#6b7280', textTransform:'uppercase', letterSpacing:'0.05em', margin:'10px 0 8px'}}>
                         📅 Datas e horarios liberados {datas.length===0 && <span style={{fontWeight:'400', color:'#9ca3af'}}>(nenhuma = todas as datas disponiveis)</span>}
@@ -705,10 +742,11 @@ export default function Admin() {
         {abaAtiva === 'configuracoes' && (
           <div>
             <div style={{display:'flex', gap:'8px', marginBottom:'1.5rem', flexWrap:'wrap'}}>
-              {[{id:'meses',label:'🗓 Bloquear Meses'},{id:'horarios',label:'🕐 Gerenciar Horarios'},{id:'dias',label:'📅 Periodos Especiais'}].map(s => (
+              {[{id:'meses',label:'🗓 Bloquear Meses'},{id:'horarios',label:'🕐 Gerenciar Horarios'},{id:'dias',label:'📅 Periodos Especiais'},{id:'bloqueios',label:'🔒 Horarios por Data'}].map(s => (
                 <button key={s.id} onClick={() => setSubAbaConfig(s.id)} style={{padding:'10px 20px', borderRadius:'10px', border:subAbaConfig===s.id?'none':'1px solid #e5e7eb', background:subAbaConfig===s.id?AZUL:'#fff', color:subAbaConfig===s.id?'#fff':'#6b7280', fontSize:'13px', fontWeight:'700', cursor:'pointer', boxShadow:subAbaConfig===s.id?'0 4px 12px rgba(27,47,126,0.3)':'none'}}>{s.label}</button>
               ))}
             </div>
+
             {subAbaConfig === 'meses' && (
               <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Bloquear / Liberar Meses</h2>
@@ -724,6 +762,7 @@ export default function Admin() {
                 </div>
               </div>
             )}
+
             {subAbaConfig === 'horarios' && (
               <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Gerenciar Horarios</h2>
@@ -742,6 +781,7 @@ export default function Admin() {
                 </div>
               </div>
             )}
+
             {subAbaConfig === 'dias' && (
               <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Periodos Especiais</h2>
@@ -785,6 +825,60 @@ export default function Admin() {
                       <button onClick={() => removerDiaEspecial(d.id)} style={{padding:'6px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'8px', fontSize:'12px', color:VERMELHO, cursor:'pointer', fontWeight:'600'}}>REMOVER</button>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {subAbaConfig === 'bloqueios' && (
+              <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
+                <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Horarios por Data</h2>
+                <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 20px'}}>Defina o ultimo horario disponivel em uma data especifica. Horarios apos esse serao bloqueados automaticamente.</p>
+                <div style={{background:'#f8f9ff', border:'1px solid #e0e5f5', borderRadius:'12px', padding:'1.25rem', marginBottom:'1.5rem'}}>
+                  <p style={{fontSize:'13px', fontWeight:'700', color:AZUL, margin:'0 0 12px'}}>Configurar data</p>
+                  <div style={{display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'flex-end'}}>
+                    <div>
+                      <label style={{fontSize:'11px', fontWeight:'700', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Data</label>
+                      <input type="date" value={novaDataBloqueio} onChange={e => setNovaDataBloqueio(e.target.value)}
+                        style={{padding:'8px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none'}}/>
+                    </div>
+                    <div>
+                      <label style={{fontSize:'11px', fontWeight:'700', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Ultimo horario disponivel</label>
+                      <select value={novoUltimoHorario} onChange={e => setNovoUltimoHorario(e.target.value)}
+                        style={{padding:'8px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none', background:'#fff', cursor:'pointer'}}>
+                        <option value="">Selecione...</option>
+                        {HORARIOS_DISPONIVEIS.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                    </div>
+                    <button onClick={salvarBloqueioData} disabled={!novaDataBloqueio||!novoUltimoHorario||salvandoBloqueio}
+                      style={{padding:'8px 20px', background:!novaDataBloqueio||!novoUltimoHorario?'#9ca3af':AZUL, color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'700', cursor:!novaDataBloqueio||!novoUltimoHorario?'not-allowed':'pointer', whiteSpace:'nowrap'}}>
+                      {salvandoBloqueio?'SALVANDO...':'APLICAR'}
+                    </button>
+                  </div>
+                </div>
+                <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
+                  {horariosBloqueadosData.length === 0 && <p style={{color:'#9ca3af', fontSize:'13px', textAlign:'center', padding:'2rem'}}>Nenhuma restricao de horario por data cadastrada.</p>}
+                  {horariosBloqueadosData.map(b => {
+                    const idx = HORARIOS_DISPONIVEIS.indexOf(b.ultimo_horario)
+                    const bloqueados = idx >= 0 ? HORARIOS_DISPONIVEIS.slice(idx + 1) : []
+                    return (
+                      <div key={b.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', background:'#fffbeb', borderRadius:'10px', border:'1px solid #fde68a'}}>
+                        <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+                          <div style={{width:'36px', height:'36px', borderRadius:'10px', background:'#f59e0b', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', color:'#fff', flexShrink:0}}>🕐</div>
+                          <div>
+                            <div style={{fontSize:'14px', fontWeight:'700', color:'#92400e'}}>
+                              {new Date(b.data+'T12:00:00').toLocaleDateString('pt-BR')}
+                            </div>
+                            <div style={{fontSize:'12px', color:'#6b7280'}}>
+                              Disponivel ate {b.ultimo_horario}
+                              {bloqueados.length > 0 && ' · Bloqueados: ' + bloqueados.join(', ')}
+                            </div>
+                          </div>
+                        </div>
+                        <button onClick={() => removerBloqueioData(b.id)}
+                          style={{padding:'6px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'8px', fontSize:'12px', color:VERMELHO, cursor:'pointer', fontWeight:'600', flexShrink:0}}>REMOVER</button>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}

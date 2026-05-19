@@ -28,6 +28,14 @@ async function getDiasEspeciais() {
   } catch(e) { return [] }
 }
 
+async function getHorariosBloqueadosPorData() {
+  try {
+    const { data, error } = await supabase.from('horarios_bloqueados_data').select('*')
+    if (error) throw error
+    return data || []
+  } catch(e) { return [] }
+}
+
 function isDiaBloqueadoPorEspecial(ds, diasEspeciais) {
   for (const d of diasEspeciais) {
     if (ds >= d.data_inicio && ds <= d.data_fim) {
@@ -38,6 +46,11 @@ function isDiaBloqueadoPorEspecial(ds, diasEspeciais) {
   return null
 }
 
+function getUltimoHorarioPermitido(ds, horariosBloqueadosData) {
+  const entrada = horariosBloqueadosData.find(h => h.data === ds)
+  return entrada ? entrada.ultimo_horario : null
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -45,9 +58,10 @@ export async function GET(request) {
     const mes = searchParams.get('mes')
     const empreendimento = searchParams.get('empreendimento') || null
 
-    const [HORARIOS, diasEspeciais] = await Promise.all([
+    const [HORARIOS, diasEspeciais, horariosBloqueadosData] = await Promise.all([
       getHorariosAtivos(),
-      getDiasEspeciais()
+      getDiasEspeciais(),
+      getHorariosBloqueadosPorData()
     ])
 
     if (mes) {
@@ -84,8 +98,17 @@ export async function GET(request) {
         const especial = isDiaBloqueadoPorEspecial(ds, diasEspeciais)
         if (especial === true) { diasCheios.push(ds); continue }
         if (especial === false) continue
+
+        // Filtrar horarios disponiveis considerando bloqueio por data
+        const ultimoPermitido = getUltimoHorarioPermitido(ds, horariosBloqueadosData)
+        const horariosValidos = ultimoPermitido
+          ? HORARIOS.filter(h => h <= ultimoPermitido)
+          : HORARIOS
+
         const ocupados = porDia[ds] || new Set()
-        if (ocupados.size >= HORARIOS.length) diasCheios.push(ds)
+        if (horariosValidos.length === 0 || ocupados.size >= horariosValidos.length) {
+          diasCheios.push(ds)
+        }
       }
 
       return NextResponse.json({ diasCheios })
@@ -111,9 +134,15 @@ export async function GET(request) {
       if (error) throw error
 
       const ocupados = agendados?.map(a => a.horario.slice(0, 5)) || []
+
+      // Aplicar bloqueio por ultimo horario permitido
+      const ultimoPermitido = getUltimoHorarioPermitido(data, horariosBloqueadosData)
+
       const disponiveis = HORARIOS.map(h => ({
         horario: h,
-        disponivel: !ocupados.includes(h)
+        disponivel: ultimoPermitido
+          ? h <= ultimoPermitido && !ocupados.includes(h)
+          : !ocupados.includes(h)
       }))
 
       return NextResponse.json(disponiveis)
