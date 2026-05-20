@@ -955,7 +955,7 @@ export default function Admin() {
               {empreendimentos.map(emp => (
                 <div key={emp} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'#f8f9ff', borderRadius:'10px', border:'1px solid #e0e5f5'}}>
                   <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                    <div style={{width:'8px', height:'8px', borderRadius:'50%', background:AZUL}}></div>
+                    <span style={{fontSize:'18px'}}>🏢</span>
                     <span style={{fontSize:'14px', fontWeight:'600', color:AZUL}}>{emp}</span>
                   </div>
                   <button onClick={() => removerEmpreendimento(emp)} style={{padding:'5px 14px', background:'none', border:'1px solid #fca5a5', borderRadius:'6px', fontSize:'12px', color:'#dc2626', cursor:'pointer', fontWeight:'600'}}>REMOVER</button>
