@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 const POR_PAGINA = 10
+const POR_PAGINA_CPF = 5
 const MESES_NOMES = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const AZUL = '#1B2F7E'
 const VERDE = '#1D9E75'
@@ -36,6 +37,7 @@ export default function Admin() {
   const [obsCancelamento, setObsCancelamento] = useState('')
   const [erroMotivo, setErroMotivo] = useState(false)
   const [pagina, setPagina] = useState(1)
+  const [paginaCpf, setPaginaCpf] = useState(1)
   const [ordem, setOrdem] = useState('mais-antigo')
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
@@ -87,6 +89,7 @@ export default function Admin() {
     }
   }, [status])
   useEffect(() => { setPagina(1) }, [filtro, busca, ordem, dataInicio, dataFim, filtroEmp])
+  useEffect(() => { setPaginaCpf(1) }, [buscaCpf])
 
   async function buscarAgendamentos() {
     try {
@@ -494,6 +497,8 @@ export default function Admin() {
   const cpfsFiltrados = cpfsAutorizados.filter(c =>
     !buscaCpf || c.cpf?.includes(buscaCpf.replace(/\D/g,'')) || c.nome?.toLowerCase().includes(buscaCpf.toLowerCase())
   )
+  const totalPaginasCpf = Math.ceil(cpfsFiltrados.length / POR_PAGINA_CPF)
+  const cpfsPaginados = cpfsFiltrados.slice((paginaCpf-1)*POR_PAGINA_CPF, paginaCpf*POR_PAGINA_CPF)
 
   if (status==='loading'||loading) return (
     <main style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f0f3fa'}}>
@@ -625,12 +630,12 @@ export default function Admin() {
             </div>
 
             <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
-              {cpfsFiltrados.length === 0 && (
+              {cpfsPaginados.length === 0 && (
                 <p style={{color:'#9ca3af', fontSize:'13px', textAlign:'center', padding:'2rem'}}>
                   {cpfsAutorizados.length === 0 ? 'Nenhum CPF cadastrado.' : 'Nenhum resultado encontrado.'}
                 </p>
               )}
-              {cpfsFiltrados.map(c => {
+              {cpfsPaginados.map(c => {
                 const selecionado = cpfsSelecionados.includes(c.cpf)
                 const datas = cpfDatas[c.cpf] || []
                 return (
@@ -737,6 +742,21 @@ export default function Admin() {
                 )
               })}
             </div>
+
+            {totalPaginasCpf > 1 && (
+              <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', marginTop:'1.5rem', flexWrap:'wrap'}}>
+                <button onClick={() => setPaginaCpf(p=>Math.max(1,p-1))} disabled={paginaCpf===1}
+                  style={{padding:'6px 14px', background:paginaCpf===1?'#f3f4f6':'#fff', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:paginaCpf===1?'not-allowed':'pointer', color:paginaCpf===1?'#9ca3af':'#374151'}}>&#8249; Anterior</button>
+                {Array.from({length:totalPaginasCpf},(_,i)=>i+1).map(p => (
+                  <button key={p} onClick={() => setPaginaCpf(p)} style={{width:'36px', height:'36px', borderRadius:'8px', border:paginaCpf===p?'none':'1px solid #e5e7eb', background:paginaCpf===p?AZUL:'#fff', color:paginaCpf===p?'#fff':'#374151', fontSize:'13px', fontWeight:'700', cursor:'pointer'}}>{p}</button>
+                ))}
+                <button onClick={() => setPaginaCpf(p=>Math.min(totalPaginasCpf,p+1))} disabled={paginaCpf===totalPaginasCpf}
+                  style={{padding:'6px 14px', background:paginaCpf===totalPaginasCpf?'#f3f4f6':'#fff', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:paginaCpf===totalPaginasCpf?'not-allowed':'pointer', color:paginaCpf===totalPaginasCpf?'#9ca3af':'#374151'}}>Proximo &#8250;</button>
+              </div>
+            )}
+            <p style={{textAlign:'center', fontSize:'12px', color:'#9ca3af', marginTop:'8px'}}>
+              {cpfsFiltrados.length===0?'Nenhum CPF':((paginaCpf-1)*POR_PAGINA_CPF+1)+' - '+Math.min(paginaCpf*POR_PAGINA_CPF,cpfsFiltrados.length)+' de '+cpfsFiltrados.length+' CPFs'}
+            </p>
           </div>
         )}
 
@@ -833,7 +853,7 @@ export default function Admin() {
             {subAbaConfig === 'bloqueios' && (
               <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Horarios por Data e Empreendimento</h2>
-                <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 20px'}}>Defina o ultimo horario disponivel por data e empreendimento. Use "Todos" para aplicar a todos os empreendimentos.</p>
+                <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 20px'}}>Defina o ultimo horario disponivel por data e empreendimento. Use "Todos" para aplicar a todos.</p>
                 <div style={{background:'#f8f9ff', border:'1px solid #e0e5f5', borderRadius:'12px', padding:'1.25rem', marginBottom:'1.5rem'}}>
                   <p style={{fontSize:'13px', fontWeight:'700', color:AZUL, margin:'0 0 12px'}}>Configurar bloqueio</p>
                   <div style={{display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'flex-end'}}>
@@ -865,7 +885,7 @@ export default function Admin() {
                   </div>
                 </div>
                 <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
-                  {horariosBloqueadosData.length === 0 && <p style={{color:'#9ca3af', fontSize:'13px', textAlign:'center', padding:'2rem'}}>Nenhuma restricao de horario por data cadastrada.</p>}
+                  {horariosBloqueadosData.length===0 && <p style={{color:'#9ca3af', fontSize:'13px', textAlign:'center', padding:'2rem'}}>Nenhuma restricao cadastrada.</p>}
                   {horariosBloqueadosData.map(b => {
                     const idx = HORARIOS_DISPONIVEIS.indexOf(b.ultimo_horario)
                     const bloqueados = idx >= 0 ? HORARIOS_DISPONIVEIS.slice(idx + 1) : []
@@ -876,19 +896,13 @@ export default function Admin() {
                           <div style={{width:'36px', height:'36px', borderRadius:'10px', background:isTodos?VERMELHO:'#f59e0b', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', color:'#fff', flexShrink:0}}>{isTodos?'🔒':'🕐'}</div>
                           <div>
                             <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'3px', flexWrap:'wrap'}}>
-                              <span style={{fontSize:'14px', fontWeight:'700', color:'#92400e'}}>
-                                {new Date(b.data+'T12:00:00').toLocaleDateString('pt-BR')}
-                              </span>
-                              <span style={{fontSize:'11px', padding:'2px 8px', borderRadius:'20px', fontWeight:'700',
-                                background:isTodos?'#fee2e2':'#dbeafe',
-                                color:isTodos?VERMELHO:'#1d4ed8',
-                                border:'1px solid '+(isTodos?'#fca5a5':'#93c5fd')}}>
-                                {isTodos ? 'Todos' : b.empreendimento}
+                              <span style={{fontSize:'14px', fontWeight:'700', color:'#92400e'}}>{new Date(b.data+'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                              <span style={{fontSize:'11px', padding:'2px 8px', borderRadius:'20px', fontWeight:'700', background:isTodos?'#fee2e2':'#dbeafe', color:isTodos?VERMELHO:'#1d4ed8', border:'1px solid '+(isTodos?'#fca5a5':'#93c5fd')}}>
+                                {isTodos?'Todos':b.empreendimento}
                               </span>
                             </div>
                             <div style={{fontSize:'12px', color:'#6b7280'}}>
-                              Disponivel ate {b.ultimo_horario}
-                              {bloqueados.length > 0 && ' · Bloqueados: ' + bloqueados.join(', ')}
+                              Disponivel ate {b.ultimo_horario}{bloqueados.length > 0 && ' · Bloqueados: '+bloqueados.join(', ')}
                             </div>
                           </div>
                         </div>
@@ -1052,7 +1066,6 @@ export default function Admin() {
                 <button onClick={() => setPagina(p=>Math.min(totalPaginas,p+1))} disabled={pagina===totalPaginas} style={{padding:'6px 14px', background:pagina===totalPaginas?'#f3f4f6':'#fff', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:pagina===totalPaginas?'not-allowed':'pointer', color:pagina===totalPaginas?'#9ca3af':'#374151'}}>Proximo &#8250;</button>
               </div>
             )}
-
             <p style={{textAlign:'center', fontSize:'12px', color:'#9ca3af', marginTop:'1rem'}}>
               Mostrando {filtrados.length===0?0:((pagina-1)*POR_PAGINA)+1} - {Math.min(pagina*POR_PAGINA,filtrados.length)} de {filtrados.length} agendamentos
             </p>
