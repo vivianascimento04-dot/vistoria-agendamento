@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 const POR_PAGINA = 10
-const POR_PAGINA_CPF = 5
+const POR_PAGINA_CPF = 10
 const MESES_NOMES = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const AZUL = '#1B2F7E'
 const VERDE = '#1D9E75'
@@ -749,9 +749,25 @@ export default function Admin() {
               <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', marginTop:'1.5rem', flexWrap:'wrap'}}>
                 <button onClick={() => setPaginaCpf(p=>Math.max(1,p-1))} disabled={paginaCpf===1}
                   style={{padding:'6px 14px', background:paginaCpf===1?'#f3f4f6':'#fff', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:paginaCpf===1?'not-allowed':'pointer', color:paginaCpf===1?'#9ca3af':'#374151'}}>&#8249; Anterior</button>
-                {Array.from({length:totalPaginasCpf},(_,i)=>i+1).map(p => (
-                  <button key={p} onClick={() => setPaginaCpf(p)} style={{width:'36px', height:'36px', borderRadius:'8px', border:paginaCpf===p?'none':'1px solid #e5e7eb', background:paginaCpf===p?AZUL:'#fff', color:paginaCpf===p?'#fff':'#374151', fontSize:'13px', fontWeight:'700', cursor:'pointer'}}>{p}</button>
-                ))}
+                {(() => {
+                  const paginas = []
+                  for (let p = 1; p <= totalPaginasCpf; p++) {
+                    if (p === 1 || p === totalPaginasCpf || (p >= paginaCpf - 2 && p <= paginaCpf + 2)) {
+                      paginas.push(p)
+                    }
+                  }
+                  const resultado = []
+                  let anterior = 0
+                  for (const p of paginas) {
+                    if (p - anterior > 1) resultado.push('...')
+                    resultado.push(p)
+                    anterior = p
+                  }
+                  return resultado.map((p, i) => p === '...'
+                    ? <span key={'e'+i} style={{padding:'0 4px', color:'#9ca3af', fontSize:'13px'}}>...</span>
+                    : <button key={p} onClick={() => setPaginaCpf(p)} style={{width:'36px', height:'36px', borderRadius:'8px', border:paginaCpf===p?'none':'1px solid #e5e7eb', background:paginaCpf===p?AZUL:'#fff', color:paginaCpf===p?'#fff':'#374151', fontSize:'13px', fontWeight:'700', cursor:'pointer'}}>{p}</button>
+                  )
+                })()}
                 <button onClick={() => setPaginaCpf(p=>Math.min(totalPaginasCpf,p+1))} disabled={paginaCpf===totalPaginasCpf}
                   style={{padding:'6px 14px', background:paginaCpf===totalPaginasCpf?'#f3f4f6':'#fff', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:paginaCpf===totalPaginasCpf?'not-allowed':'pointer', color:paginaCpf===totalPaginasCpf?'#9ca3af':'#374151'}}>Proximo &#8250;</button>
               </div>
