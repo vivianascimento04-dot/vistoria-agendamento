@@ -496,9 +496,14 @@ export default function Admin() {
   }
 
   const horariosAtivos = horariosConfig.filter(h => h.ativo).length
-  const cpfsFiltrados = cpfsAutorizados.filter(c =>
-    !buscaCpf || c.cpf?.includes(buscaCpf.replace(/\D/g,'')) || c.nome?.toLowerCase().includes(buscaCpf.toLowerCase())
-  )
+ const cpfsFiltrados = cpfsAutorizados.filter(c => {
+    if (!buscaCpf) return true
+    const buscaLower = buscaCpf.toLowerCase()
+    const buscaDigitos = buscaCpf.replace(/\D/g,'')
+    const matchNome = c.nome?.toLowerCase().includes(buscaLower)
+    const matchCpf = buscaDigitos.length > 0 && c.cpf?.includes(buscaDigitos)
+    return matchNome || matchCpf
+  })
   const totalPaginasCpf = Math.ceil(cpfsFiltrados.length / POR_PAGINA_CPF)
   const cpfsPaginados = cpfsFiltrados.slice((paginaCpf-1)*POR_PAGINA_CPF, paginaCpf*POR_PAGINA_CPF)
 
