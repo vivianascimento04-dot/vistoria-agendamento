@@ -58,6 +58,7 @@ export default function Admin() {
   const [horariosBloqueadosData, setHorariosBloqueadosData] = useState([])
   const [novaDataBloqueio, setNovaDataBloqueio] = useState('')
   const [novoUltimoHorario, setNovoUltimoHorario] = useState('')
+  const [novoEmpBloqueio, setNovoEmpBloqueio] = useState('todos')
   const [salvandoBloqueio, setSalvandoBloqueio] = useState(false)
   const [cpfsAutorizados, setCpfsAutorizados] = useState([])
   const [novoCpf, setNovoCpf] = useState('')
@@ -143,9 +144,9 @@ export default function Admin() {
       await fetch('/api/horarios-bloqueados-data', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ data: novaDataBloqueio, ultimo_horario: novoUltimoHorario })
+        body: JSON.stringify({ data: novaDataBloqueio, ultimo_horario: novoUltimoHorario, empreendimento: novoEmpBloqueio || 'todos' })
       })
-      setNovaDataBloqueio(''); setNovoUltimoHorario('')
+      setNovaDataBloqueio(''); setNovoUltimoHorario(''); setNovoEmpBloqueio('todos')
       buscarHorariosBloqueadosData()
     } catch(e) {}
     setSalvandoBloqueio(false)
@@ -831,11 +832,19 @@ export default function Admin() {
 
             {subAbaConfig === 'bloqueios' && (
               <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
-                <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Horarios por Data</h2>
-                <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 20px'}}>Defina o ultimo horario disponivel em uma data especifica. Horarios apos esse serao bloqueados automaticamente.</p>
+                <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Horarios por Data e Empreendimento</h2>
+                <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 20px'}}>Defina o ultimo horario disponivel por data e empreendimento. Use "Todos" para aplicar a todos os empreendimentos.</p>
                 <div style={{background:'#f8f9ff', border:'1px solid #e0e5f5', borderRadius:'12px', padding:'1.25rem', marginBottom:'1.5rem'}}>
-                  <p style={{fontSize:'13px', fontWeight:'700', color:AZUL, margin:'0 0 12px'}}>Configurar data</p>
+                  <p style={{fontSize:'13px', fontWeight:'700', color:AZUL, margin:'0 0 12px'}}>Configurar bloqueio</p>
                   <div style={{display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'flex-end'}}>
+                    <div>
+                      <label style={{fontSize:'11px', fontWeight:'700', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Empreendimento</label>
+                      <select value={novoEmpBloqueio} onChange={e => setNovoEmpBloqueio(e.target.value)}
+                        style={{padding:'8px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none', background:'#fff', cursor:'pointer'}}>
+                        <option value="todos">Todos</option>
+                        {empreendimentos.map(emp => <option key={emp} value={emp}>{emp}</option>)}
+                      </select>
+                    </div>
                     <div>
                       <label style={{fontSize:'11px', fontWeight:'700', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Data</label>
                       <input type="date" value={novaDataBloqueio} onChange={e => setNovaDataBloqueio(e.target.value)}
@@ -860,13 +869,22 @@ export default function Admin() {
                   {horariosBloqueadosData.map(b => {
                     const idx = HORARIOS_DISPONIVEIS.indexOf(b.ultimo_horario)
                     const bloqueados = idx >= 0 ? HORARIOS_DISPONIVEIS.slice(idx + 1) : []
+                    const isTodos = !b.empreendimento || b.empreendimento === 'todos'
                     return (
                       <div key={b.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', background:'#fffbeb', borderRadius:'10px', border:'1px solid #fde68a'}}>
                         <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-                          <div style={{width:'36px', height:'36px', borderRadius:'10px', background:'#f59e0b', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', color:'#fff', flexShrink:0}}>🕐</div>
+                          <div style={{width:'36px', height:'36px', borderRadius:'10px', background:isTodos?VERMELHO:'#f59e0b', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', color:'#fff', flexShrink:0}}>{isTodos?'🔒':'🕐'}</div>
                           <div>
-                            <div style={{fontSize:'14px', fontWeight:'700', color:'#92400e'}}>
-                              {new Date(b.data+'T12:00:00').toLocaleDateString('pt-BR')}
+                            <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'3px', flexWrap:'wrap'}}>
+                              <span style={{fontSize:'14px', fontWeight:'700', color:'#92400e'}}>
+                                {new Date(b.data+'T12:00:00').toLocaleDateString('pt-BR')}
+                              </span>
+                              <span style={{fontSize:'11px', padding:'2px 8px', borderRadius:'20px', fontWeight:'700',
+                                background:isTodos?'#fee2e2':'#dbeafe',
+                                color:isTodos?VERMELHO:'#1d4ed8',
+                                border:'1px solid '+(isTodos?'#fca5a5':'#93c5fd')}}>
+                                {isTodos ? 'Todos' : b.empreendimento}
+                              </span>
                             </div>
                             <div style={{fontSize:'12px', color:'#6b7280'}}>
                               Disponivel ate {b.ultimo_horario}
