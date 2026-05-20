@@ -46,9 +46,20 @@ function isDiaBloqueadoPorEspecial(ds, diasEspeciais) {
   return null
 }
 
-function getUltimoHorarioPermitido(ds, horariosBloqueadosData) {
-  const entrada = horariosBloqueadosData.find(h => h.data === ds)
-  return entrada ? entrada.ultimo_horario : null
+function getUltimoHorarioPermitido(ds, empreendimento, horariosBloqueadosData) {
+  // Buscar bloqueio especifico do empreendimento
+  const especifico = horariosBloqueadosData.find(
+    h => h.data === ds && h.empreendimento === empreendimento
+  )
+  if (especifico) return especifico.ultimo_horario
+
+  // Buscar bloqueio para todos
+  const todos = horariosBloqueadosData.find(
+    h => h.data === ds && h.empreendimento === 'todos'
+  )
+  if (todos) return todos.ultimo_horario
+
+  return null
 }
 
 export async function GET(request) {
@@ -99,8 +110,7 @@ export async function GET(request) {
         if (especial === true) { diasCheios.push(ds); continue }
         if (especial === false) continue
 
-        // Filtrar horarios disponiveis considerando bloqueio por data
-        const ultimoPermitido = getUltimoHorarioPermitido(ds, horariosBloqueadosData)
+        const ultimoPermitido = getUltimoHorarioPermitido(ds, empreendimento, horariosBloqueadosData)
         const horariosValidos = ultimoPermitido
           ? HORARIOS.filter(h => h <= ultimoPermitido)
           : HORARIOS
@@ -134,9 +144,7 @@ export async function GET(request) {
       if (error) throw error
 
       const ocupados = agendados?.map(a => a.horario.slice(0, 5)) || []
-
-      // Aplicar bloqueio por ultimo horario permitido
-      const ultimoPermitido = getUltimoHorarioPermitido(data, horariosBloqueadosData)
+      const ultimoPermitido = getUltimoHorarioPermitido(data, empreendimento, horariosBloqueadosData)
 
       const disponiveis = HORARIOS.map(h => ({
         horario: h,

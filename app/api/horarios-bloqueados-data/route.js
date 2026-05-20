@@ -21,11 +21,12 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    const { data, ultimo_horario } = await request.json()
+    const { data, ultimo_horario, empreendimento } = await request.json()
     if (!data || !ultimo_horario) return NextResponse.json({ error: 'Data e horario obrigatorios' }, { status: 400 })
+    const emp = empreendimento || 'todos'
     const { error } = await supabase
       .from('horarios_bloqueados_data')
-      .upsert([{ data, ultimo_horario }], { onConflict: 'data' })
+      .upsert([{ data, ultimo_horario, empreendimento: emp }], { onConflict: 'data,empreendimento' })
     if (error) throw error
     return NextResponse.json({ success: true })
   } catch(e) {
