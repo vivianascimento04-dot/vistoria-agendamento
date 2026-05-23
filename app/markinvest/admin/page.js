@@ -130,12 +130,12 @@ export default function Admin() {
       buscarRevistorias(); buscarAgendamentos()
     } catch(e) {}
   }
-  async function salvarEdicaoRevistoria(grupo) {
-    if (!editRevData||!editRevHorario) return
+  async function salvarEdicaoRevistoria(ids, novaData, novoHorario) {
+    if (!novaData||!novoHorario) return
     setSalvandoEditRev(true)
     try {
-      for (const u of grupo.unidades) {
-        await fetch('/api/agendamentos/'+u.id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:editRevData, horario:editRevHorario}) })
+      for (const id of ids) {
+        await fetch('/api/agendamentos/'+id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:novaData, horario:novoHorario}) })
       }
       setEditandoRevGrupo(null); setEditRevData(''); setEditRevHorario('')
       buscarRevistorias(); buscarAgendamentos()
@@ -297,20 +297,9 @@ export default function Admin() {
 
   if(status==='loading'||loading)return(<main style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#f0f3fa'}}><p style={{color:'#6b7280'}}>Carregando...</p></main>)
 
-  const BotaoEditar = ({g}) => {
-    const chave = g.emp+'||'+g.data+'||'+g.horario
-    const editando = editandoRevGrupo === chave
-    return (
-      <button onClick={()=>{setEditandoRevGrupo(editando?null:chave);setEditRevData(g.data);setEditRevHorario((g.horario||'').slice(0,5))}}
-        style={{padding:'5px 12px',background:editando?'#fee2e2':'#f0f7ff',border:'1px solid '+(editando?'#fca5a5':'#bfdbfe'),borderRadius:'8px',fontSize:'11px',color:editando?VERMELHO:AZUL,cursor:'pointer',fontWeight:'700',flexShrink:0}}>
-        {editando?'✕ FECHAR':'✏ EDITAR'}
-      </button>
-    )
-  }
-
-  const PainelEdicao = ({g}) => {
-    const chave = g.emp+'||'+g.data+'||'+g.horario
-    if(editandoRevGrupo!==chave) return null
+  // Renderiza painel de edicao inline
+  function renderPainelEdicao(chave, ids) {
+    if (editandoRevGrupo !== chave) return null
     return (
       <div style={{padding:'12px 16px',background:'#f0f7ff',borderBottom:'1px solid #bfdbfe',display:'flex',gap:'10px',alignItems:'flex-end',flexWrap:'wrap'}}>
         <div>
@@ -324,12 +313,22 @@ export default function Admin() {
             {HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}
           </select>
         </div>
-        <button onClick={()=>salvarEdicaoRevistoria(g)} disabled={!editRevData||!editRevHorario||salvandoEditRev}
+        <button onClick={()=>salvarEdicaoRevistoria(ids, editRevData, editRevHorario)} disabled={!editRevData||!editRevHorario||salvandoEditRev}
           style={{padding:'8px 18px',background:!editRevData||!editRevHorario?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:!editRevData||!editRevHorario?'not-allowed':'pointer'}}>
           {salvandoEditRev?'SALVANDO...':'✓ SALVAR'}
         </button>
         <button onClick={()=>setEditandoRevGrupo(null)} style={{padding:'8px 14px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>CANCELAR</button>
       </div>
+    )
+  }
+
+  function renderBotaoEditar(chave, data, horario) {
+    const editando = editandoRevGrupo === chave
+    return (
+      <button onClick={()=>{if(editando){setEditandoRevGrupo(null)}else{setEditandoRevGrupo(chave);setEditRevData(data);setEditRevHorario((horario||'').slice(0,5))}}}
+        style={{padding:'5px 12px',background:editando?'#fee2e2':'#f0f7ff',border:'1px solid '+(editando?'#fca5a5':'#bfdbfe'),borderRadius:'8px',fontSize:'11px',color:editando?VERMELHO:AZUL,cursor:'pointer',fontWeight:'700',flexShrink:0,whiteSpace:'nowrap'}}>
+        {editando?'✕ FECHAR':'✏ EDITAR'}
+      </button>
     )
   }
 
@@ -497,14 +496,16 @@ export default function Admin() {
                           <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:'12px'}}>
                             {revDiaSelecionado.map((g,gi)=>{
                               const corEmp=empCoresMap[g.emp]||AZUL
+                              const chave=g.emp+'||'+g.data+'||'+g.horario
+                              const ids=g.unidades.map(u=>u.id)
                               return (
                                 <div key={gi}>
                                   <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'6px',flexWrap:'wrap'}}>
                                     <span style={{fontSize:'13px',fontWeight:'700',color:corEmp,background:corEmp+'20',padding:'3px 12px',borderRadius:'20px',border:'1px solid '+corEmp+'40'}}>{(g.horario||'').slice(0,5)}</span>
                                     <span style={{fontSize:'12px',color:'#6b7280'}}>{g.emp} · {g.unidades.length} unidade(s)</span>
-                                    <BotaoEditar g={g}/>
+                                    {renderBotaoEditar(chave, g.data, g.horario)}
                                   </div>
-                                  <PainelEdicao g={g}/>
+                                  {renderPainelEdicao(chave, ids)}
                                   <div style={{paddingLeft:'8px',borderLeft:'3px solid '+corEmp,display:'flex',flexDirection:'column',gap:'4px'}}>
                                     {g.unidades.map((u,ui)=>(
                                       <div key={ui} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 12px',background:ui%2===0?'#f8f9ff':'#fff',borderRadius:'8px',border:'1px solid #eef0f8'}}>
@@ -533,6 +534,8 @@ export default function Admin() {
                     <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
                       {revGruposPaginados.map((g,gi)=>{
                         const corEmp=empCoresMap[g.emp]||AZUL
+                        const chave=g.emp+'||'+g.data+'||'+g.horario
+                        const ids=g.unidades.map(u=>u.id)
                         return (
                           <div key={gi} style={{border:'1px solid #e0e5f5',borderRadius:'14px',overflow:'hidden',boxShadow:'0 2px 8px rgba(27,47,126,0.05)'}}>
                             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',background:'linear-gradient(135deg,#eff3ff,#e8edff)',borderBottom:'1px solid #e0e5f5'}}>
@@ -545,10 +548,10 @@ export default function Admin() {
                               </div>
                               <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
                                 <span style={{fontSize:'12px',padding:'4px 12px',borderRadius:'20px',background:corEmp,color:'#fff',fontWeight:'700'}}>{g.unidades.length} unidade(s)</span>
-                                <BotaoEditar g={g}/>
+                                {renderBotaoEditar(chave, g.data, g.horario)}
                               </div>
                             </div>
-                            <PainelEdicao g={g}/>
+                            {renderPainelEdicao(chave, ids)}
                             <div style={{padding:'10px 16px',display:'flex',flexDirection:'column',gap:'6px'}}>
                               {g.unidades.map((u,ui)=>(
                                 <div key={ui} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',background:ui%2===0?'#f8f9ff':'#fff',borderRadius:'10px',border:'1px solid #eef0f8'}}>
