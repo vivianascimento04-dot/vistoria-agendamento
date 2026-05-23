@@ -73,7 +73,7 @@ export default function Admin() {
   const [revEmp, setRevEmp] = useState('')
   const [revData, setRevData] = useState('')
   const [revHorario, setRevHorario] = useState('')
-  const [revUnidades, setRevUnidades] = useState([{unidade:'', nome:''}])
+  const [revUnidades, setRevUnidades] = useState([{unidade:'',nome:''}])
   const [salvandoRev, setSalvandoRev] = useState(false)
   const [erroRev, setErroRev] = useState('')
   const [revistorias, setRevistorias] = useState([])
@@ -83,6 +83,10 @@ export default function Admin() {
   const [diaSelecionado, setDiaSelecionado] = useState(null)
   const [anoRev, setAnoRev] = useState(new Date().getFullYear())
   const [mesRev, setMesRev] = useState(new Date().getMonth())
+  const [editandoRevGrupo, setEditandoRevGrupo] = useState(null)
+  const [editRevData, setEditRevData] = useState('')
+  const [editRevHorario, setEditRevHorario] = useState('')
+  const [salvandoEditRev, setSalvandoEditRev] = useState(false)
 
   useEffect(() => { if (status === 'unauthenticated') router.push('/admin/login') }, [status])
   useEffect(() => {
@@ -99,24 +103,19 @@ export default function Admin() {
     try { const res = await fetch('/api/agendamentos'); const data = await res.json(); setAgendamentos(Array.isArray(data)?data:[]) } catch(e) { setAgendamentos([]) }
     setLoading(false)
   }
-
   async function buscarRevistorias() {
-    try {
-      const res = await fetch('/api/agendamentos'); const data = await res.json()
-      setRevistorias((Array.isArray(data)?data:[]).filter(a => a.tipo==='revistoria'))
-    } catch(e) { setRevistorias([]) }
+    try { const res = await fetch('/api/agendamentos'); const data = await res.json(); setRevistorias((Array.isArray(data)?data:[]).filter(a=>a.tipo==='revistoria')) } catch(e) { setRevistorias([]) }
   }
-
   async function salvarRevistoria() {
     if (!revEmp||!revData||!revHorario) { setErroRev('Preencha empreendimento, data e horario.'); return }
-    const unidadesValidas = revUnidades.filter(u => u.unidade.trim()&&u.nome.trim())
+    const unidadesValidas = revUnidades.filter(u=>u.unidade.trim()&&u.nome.trim())
     if (unidadesValidas.length===0) { setErroRev('Adicione pelo menos uma unidade com nome.'); return }
     setSalvandoRev(true); setErroRev('')
     try {
       for (const u of unidadesValidas) {
         await fetch('/api/agendamentos', { method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ nome:u.nome, cpf:'000.000.000-00', email:'revistoria@markinvest.com.br', telefone:'(00) 00000-0000',
-            apartamento: revEmp+' - '+u.unidade, data:revData, horario:revHorario,
+            apartamento:revEmp+' - '+u.unidade, data:revData, horario:revHorario,
             nome_acompanhante:'-', cpf_acompanhante:'000.000.000-00', tipo:'revistoria' }) })
       }
       setRevEmp(''); setRevData(''); setRevHorario(''); setRevUnidades([{unidade:'',nome:''}])
@@ -124,64 +123,54 @@ export default function Admin() {
     } catch(e) { setErroRev('Erro ao salvar. Tente novamente.') }
     setSalvandoRev(false)
   }
-
   async function removerRevistoria(id) {
     if (!confirm('Remover esta revistoria?')) return
     try {
-      await fetch('/api/agendamentos/'+id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'cancelado', motivo_cancelamento:'Removido pelo admin'}) })
+      await fetch('/api/agendamentos/'+id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'cancelado',motivo_cancelamento:'Removido pelo admin'}) })
       buscarRevistorias(); buscarAgendamentos()
     } catch(e) {}
   }
-
-  function adicionarLinhaUnidade() { setRevUnidades(prev => [...prev, {unidade:'',nome:''}]) }
-  function removerLinhaUnidade(i) { setRevUnidades(prev => prev.filter((_,idx) => idx!==i)) }
-  function atualizarUnidade(i, campo, valor) { setRevUnidades(prev => prev.map((u,idx) => idx===i?{...u,[campo]:valor}:u)) }
+  async function salvarEdicaoRevistoria(grupo) {
+    if (!editRevData||!editRevHorario) return
+    setSalvandoEditRev(true)
+    try {
+      for (const u of grupo.unidades) {
+        await fetch('/api/agendamentos/'+u.id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:editRevData, horario:editRevHorario}) })
+      }
+      setEditandoRevGrupo(null); setEditRevData(''); setEditRevHorario('')
+      buscarRevistorias(); buscarAgendamentos()
+    } catch(e) {}
+    setSalvandoEditRev(false)
+  }
+  function adicionarLinhaUnidade() { setRevUnidades(prev=>[...prev,{unidade:'',nome:''}]) }
+  function removerLinhaUnidade(i) { setRevUnidades(prev=>prev.filter((_,idx)=>idx!==i)) }
+  function atualizarUnidade(i,campo,valor) { setRevUnidades(prev=>prev.map((u,idx)=>idx===i?{...u,[campo]:valor}:u)) }
 
   function exportarCSVRevistorias() {
-    const cab = ['Nome','Unidade','Empreendimento','Data','Horario','Status','Criado Em']
-    const linhas = revFiltradas.map(r => {
-      const partes = (r.apartamento||'').split(' - ')
-      const emp = partes[0]||''
-      const unidade = partes.slice(1).join(' - ')||''
-      return [r.nome, unidade, emp, new Date(r.data+'T12:00:00').toLocaleDateString('pt-BR'), (r.horario||'').slice(0,5), r.status, r.criado_em?new Date(r.criado_em).toLocaleString('pt-BR'):'']
-    })
-    const csv = [cab,...linhas].map(l=>l.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n')
-    const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'})
-    const url = URL.createObjectURL(blob); const link = document.createElement('a')
-    link.href = url; link.download = 'revistorias-'+new Date().toISOString().split('T')[0]+'.csv'; link.click(); URL.revokeObjectURL(url)
+    const cab=['Nome','Unidade','Empreendimento','Data','Horario','Status','Criado Em']
+    const linhas=revFiltradas.map(r=>{const partes=(r.apartamento||'').split(' - ');return[r.nome,partes.slice(1).join(' - ')||'',partes[0]||'',new Date(r.data+'T12:00:00').toLocaleDateString('pt-BR'),(r.horario||'').slice(0,5),r.status,r.criado_em?new Date(r.criado_em).toLocaleString('pt-BR'):'']})
+    const csv=[cab,...linhas].map(l=>l.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n')
+    const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const link=document.createElement('a'); link.href=url; link.download='revistorias-'+new Date().toISOString().split('T')[0]+'.csv'; link.click(); URL.revokeObjectURL(url)
   }
-
   async function gerarPDFRevistorias() {
     setGerandoPDFRev(true)
     try {
-      const script = document.createElement('script'); script.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; document.head.appendChild(script)
+      const script=document.createElement('script'); script.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; document.head.appendChild(script)
       await new Promise((res,rej)=>{script.onload=res;script.onerror=rej})
-      const {jsPDF} = window.jspdf
-      const doc = new jsPDF({orientation:'landscape',unit:'mm',format:'a4'})
-      const W=297, M=12; let y=0
-      doc.setFillColor(27,47,126); doc.rect(0,0,W,32,'F')
-      doc.setTextColor(255,255,255); doc.setFontSize(20); doc.setFont('helvetica','bold'); doc.text('MARKINVEST',W/2,13,{align:'center'})
-      doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.text('Relatorio de Revistorias',W/2,21,{align:'center'})
-      doc.setFontSize(7.5); doc.text('Gerado em: '+new Date().toLocaleString('pt-BR'),W/2,28,{align:'center'}); y=38
-      doc.setFillColor(240,243,250); doc.rect(M,y-4,W-M*2,10,'F')
-      doc.setTextColor(60,60,100); doc.setFontSize(7.5); doc.setFont('helvetica','italic')
-      let ftxt = 'Total: '+revFiltradas.length+' revistoria(s)'
-      if (filtroRevEmp) ftxt += ' | Empreendimento: '+filtroRevEmp
-      doc.text(ftxt,M+3,y+2); y+=12
-      const cols = [{x:M,label:'NOME'},{x:M+50,label:'UNIDADE'},{x:M+100,label:'EMPREENDIMENTO'},{x:M+160,label:'DATA'},{x:M+185,label:'HORA'},{x:M+200,label:'STATUS'},{x:M+220,label:'CRIADO EM'}]
-      doc.setFillColor(27,47,126); doc.rect(M,y,W-M*2,8,'F')
-      doc.setTextColor(255,255,255); doc.setFontSize(7.5); doc.setFont('helvetica','bold')
-      cols.forEach(c=>doc.text(c.label,c.x+1,y+5.5)); y+=9; doc.setFont('helvetica','normal')
+      const {jsPDF}=window.jspdf; const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'}); const W=297,M=12; let y=0
+      doc.setFillColor(27,47,126); doc.rect(0,0,W,32,'F'); doc.setTextColor(255,255,255); doc.setFontSize(20); doc.setFont('helvetica','bold'); doc.text('MARKINVEST',W/2,13,{align:'center'}); doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.text('Relatorio de Revistorias',W/2,21,{align:'center'}); doc.setFontSize(7.5); doc.text('Gerado em: '+new Date().toLocaleString('pt-BR'),W/2,28,{align:'center'}); y=38
+      doc.setFillColor(240,243,250); doc.rect(M,y-4,W-M*2,10,'F'); doc.setTextColor(60,60,100); doc.setFontSize(7.5); doc.setFont('helvetica','italic')
+      let ftxt='Total: '+revFiltradas.length+' revistoria(s)'; if(filtroRevEmp) ftxt+=' | Empreendimento: '+filtroRevEmp; doc.text(ftxt,M+3,y+2); y+=12
+      const cols=[{x:M,label:'NOME'},{x:M+50,label:'UNIDADE'},{x:M+100,label:'EMPREENDIMENTO'},{x:M+160,label:'DATA'},{x:M+185,label:'HORA'},{x:M+200,label:'STATUS'},{x:M+220,label:'CRIADO EM'}]
+      doc.setFillColor(27,47,126); doc.rect(M,y,W-M*2,8,'F'); doc.setTextColor(255,255,255); doc.setFontSize(7.5); doc.setFont('helvetica','bold'); cols.forEach(c=>doc.text(c.label,c.x+1,y+5.5)); y+=9; doc.setFont('helvetica','normal')
       revFiltradas.forEach((r,idx)=>{
         if(y>185){doc.addPage();y=15;doc.setFillColor(27,47,126);doc.rect(M,y,W-M*2,8,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7.5);cols.forEach(c=>doc.text(c.label,c.x+1,y+5.5));y+=9;doc.setFont('helvetica','normal')}
         const rowH=8; if(idx%2===0){doc.setFillColor(247,249,255);doc.rect(M,y,W-M*2,rowH,'F')}
         doc.setDrawColor(220,225,240); doc.line(M,y+rowH,W-M,y+rowH); doc.setFontSize(7.5)
-        const partes=(r.apartamento||'').split(' - '); const emp=partes[0]||''; const unidade=partes.slice(1).join(' - ')||r.apartamento||''
+        const partes=(r.apartamento||'').split(' - '); const emp=partes[0]||''; const unidade=partes.slice(1).join(' - ')||''
         doc.setTextColor(30,30,30); doc.setFont('helvetica','bold'); doc.text((r.nome||'').slice(0,22),cols[0].x+1,y+5.5)
-        doc.setFont('helvetica','normal'); doc.setTextColor(60,60,60); doc.text(unidade.slice(0,24),cols[1].x+1,y+5.5)
-        doc.setTextColor(27,47,126); doc.text(emp.slice(0,24),cols[2].x+1,y+5.5)
-        doc.setTextColor(27,47,126); doc.setFont('helvetica','bold'); doc.text(new Date(r.data+'T12:00:00').toLocaleDateString('pt-BR'),cols[3].x+1,y+5.5)
-        doc.text((r.horario||'').slice(0,5),cols[4].x+1,y+5.5)
+        doc.setFont('helvetica','normal'); doc.setTextColor(60,60,60); doc.text(unidade.slice(0,24),cols[1].x+1,y+5.5); doc.setTextColor(27,47,126); doc.text(emp.slice(0,24),cols[2].x+1,y+5.5)
+        doc.setFont('helvetica','bold'); doc.text(new Date(r.data+'T12:00:00').toLocaleDateString('pt-BR'),cols[3].x+1,y+5.5); doc.text((r.horario||'').slice(0,5),cols[4].x+1,y+5.5)
         const cancelado=r.status==='cancelado'
         if(cancelado){doc.setFillColor(254,226,226);doc.rect(cols[5].x,y+1.5,18,5.5,'F');doc.setTextColor(180,30,30)}else{doc.setFillColor(220,252,231);doc.rect(cols[5].x,y+1.5,18,5.5,'F');doc.setTextColor(22,101,52)}
         doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.text(cancelado?'CANCEL.':'CONF.',cols[5].x+1,y+5.5)
@@ -189,195 +178,168 @@ export default function Admin() {
         if(criadoEm){doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(100,100,100);doc.text(criadoEm.toLocaleDateString('pt-BR')+' '+criadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),cols[6].x+1,y+5.5)}
         y+=rowH
       })
-      const total=doc.getNumberOfPages()
-      for(let i=1;i<=total;i++){doc.setPage(i);doc.setFillColor(27,47,126);doc.rect(0,200,W,7,'F');doc.setTextColor(255,255,255);doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.text('Markinvest - Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo',W/2,204.5,{align:'center'});doc.text('Pagina '+i+' de '+total,W-M,204.5,{align:'right'})}
+      const total=doc.getNumberOfPages(); for(let i=1;i<=total;i++){doc.setPage(i);doc.setFillColor(27,47,126);doc.rect(0,200,W,7,'F');doc.setTextColor(255,255,255);doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.text('Markinvest - Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo',W/2,204.5,{align:'center'});doc.text('Pagina '+i+' de '+total,W-M,204.5,{align:'right'})}
       doc.save('revistorias-'+new Date().toISOString().split('T')[0]+'.pdf')
     } catch(e) { console.error(e); alert('Erro ao gerar PDF.') }
     setGerandoPDFRev(false)
   }
 
-  async function buscarEmpreendimentos() {
-    try { const res = await fetch('/api/empreendimentos'); const data = await res.json(); setEmpreendimentos(Array.isArray(data)?data:[]) } catch(e) {}
-  }
-  async function buscarMesesBloqueados() {
-    try { const res = await fetch('/api/meses-bloqueados'); const data = await res.json(); setMesesBloqueados(Array.isArray(data)?data:[]) } catch(e) {}
-  }
-  async function buscarHorariosConfig() {
-    try { const res = await fetch('/api/horarios-config'); const data = await res.json(); setHorariosConfig(Array.isArray(data)?data:[]) } catch(e) {}
-  }
-  async function buscarDiasEspeciais() {
-    try { const res = await fetch('/api/dias-especiais'); const data = await res.json(); setDiasEspeciais(Array.isArray(data)?data:[]) } catch(e) {}
-  }
-  async function buscarHorariosBloqueadosData() {
-    try { const res = await fetch('/api/horarios-bloqueados-data'); const data = await res.json(); setHorariosBloqueadosData(Array.isArray(data)?data:[]) } catch(e) {}
-  }
+  async function buscarEmpreendimentos() { try{const res=await fetch('/api/empreendimentos');const data=await res.json();setEmpreendimentos(Array.isArray(data)?data:[])}catch(e){} }
+  async function buscarMesesBloqueados() { try{const res=await fetch('/api/meses-bloqueados');const data=await res.json();setMesesBloqueados(Array.isArray(data)?data:[])}catch(e){} }
+  async function buscarHorariosConfig() { try{const res=await fetch('/api/horarios-config');const data=await res.json();setHorariosConfig(Array.isArray(data)?data:[])}catch(e){} }
+  async function buscarDiasEspeciais() { try{const res=await fetch('/api/dias-especiais');const data=await res.json();setDiasEspeciais(Array.isArray(data)?data:[])}catch(e){} }
+  async function buscarHorariosBloqueadosData() { try{const res=await fetch('/api/horarios-bloqueados-data');const data=await res.json();setHorariosBloqueadosData(Array.isArray(data)?data:[])}catch(e){} }
   async function salvarBloqueioData() {
-    if (!novaDataBloqueio||!novoUltimoHorario) return; setSalvandoBloqueio(true)
-    try { await fetch('/api/horarios-bloqueados-data', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:novaDataBloqueio,ultimo_horario:novoUltimoHorario,empreendimento:novoEmpBloqueio||'todos'}) }); setNovaDataBloqueio(''); setNovoUltimoHorario(''); setNovoEmpBloqueio('todos'); buscarHorariosBloqueadosData() } catch(e) {}
+    if(!novaDataBloqueio||!novoUltimoHorario)return; setSalvandoBloqueio(true)
+    try{await fetch('/api/horarios-bloqueados-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:novaDataBloqueio,ultimo_horario:novoUltimoHorario,empreendimento:novoEmpBloqueio||'todos'})});setNovaDataBloqueio('');setNovoUltimoHorario('');setNovoEmpBloqueio('todos');buscarHorariosBloqueadosData()}catch(e){}
     setSalvandoBloqueio(false)
   }
-  async function removerBloqueioData(id) {
-    try { await fetch('/api/horarios-bloqueados-data', { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id}) }); buscarHorariosBloqueadosData() } catch(e) {}
-  }
+  async function removerBloqueioData(id) { try{await fetch('/api/horarios-bloqueados-data',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});buscarHorariosBloqueadosData()}catch(e){} }
   async function buscarCpfsAutorizados() {
-    try {
-      const res = await fetch('/api/cpfs-autorizados'); const data = await res.json(); setCpfsAutorizados(Array.isArray(data)?data:[])
-      const resDatas = await fetch('/api/cpf-datas'); const datas = await resDatas.json()
-      const porCpf = {}
-      if (Array.isArray(datas)) datas.forEach(d => { if (!porCpf[d.cpf]) porCpf[d.cpf]=[]; porCpf[d.cpf].push({data:d.data, horarios:d.horarios||[]}) })
+    try{
+      const res=await fetch('/api/cpfs-autorizados');const data=await res.json();setCpfsAutorizados(Array.isArray(data)?data:[])
+      const resDatas=await fetch('/api/cpf-datas');const datas=await resDatas.json()
+      const porCpf={}; if(Array.isArray(datas))datas.forEach(d=>{if(!porCpf[d.cpf])porCpf[d.cpf]=[];porCpf[d.cpf].push({data:d.data,horarios:d.horarios||[]})})
       setCpfDatas(porCpf)
-    } catch(e) {}
+    }catch(e){}
   }
-  async function adicionarDataCpf(cpf) {
-    const data = novaDataCpf[cpf]; if (!data) return
-    try { await fetch('/api/cpf-datas', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpf,data}) }); setNovaDataCpf(prev=>({...prev,[cpf]:''})); buscarCpfsAutorizados() } catch(e) {}
+  async function adicionarDataCpf(cpf){const data=novaDataCpf[cpf];if(!data)return;try{await fetch('/api/cpf-datas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf,data})});setNovaDataCpf(prev=>({...prev,[cpf]:''}));buscarCpfsAutorizados()}catch(e){}}
+  async function removerDataCpf(cpf,data){try{await fetch('/api/cpf-datas',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf,data})});buscarCpfsAutorizados()}catch(e){}}
+  async function adicionarHorarioCpf(cpf,data,horarioInicio,horarioFim){
+    if(!horarioInicio)return
+    const entrada=cpfDatas[cpf]?.find(d=>d.data===data);const idxI=HORARIOS_DISPONIVEIS.indexOf(horarioInicio);const idxF=horarioFim?HORARIOS_DISPONIVEIS.indexOf(horarioFim):idxI
+    const novosHorarios=[...new Set([...(entrada?.horarios||[]),...HORARIOS_DISPONIVEIS.slice(idxI,idxF+1)])].sort()
+    try{await fetch('/api/cpf-datas',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf,data,horarios:novosHorarios})});setHorarioSelecionado(prev=>({...prev,[cpf+'_'+data]:'',[cpf+'_'+data+'_fim']:''}));buscarCpfsAutorizados()}catch(e){}
   }
-  async function removerDataCpf(cpf, data) {
-    try { await fetch('/api/cpf-datas', { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpf,data}) }); buscarCpfsAutorizados() } catch(e) {}
-  }
-  async function adicionarHorarioCpf(cpf, data, horarioInicio, horarioFim) {
-    if (!horarioInicio) return
-    const entrada = cpfDatas[cpf]?.find(d=>d.data===data); const horariosAtuais = entrada?.horarios||[]
-    const idxInicio = HORARIOS_DISPONIVEIS.indexOf(horarioInicio); const idxFim = horarioFim?HORARIOS_DISPONIVEIS.indexOf(horarioFim):idxInicio
-    const novosHorarios = [...new Set([...horariosAtuais,...HORARIOS_DISPONIVEIS.slice(idxInicio,idxFim+1)])].sort()
-    try { await fetch('/api/cpf-datas', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpf,data,horarios:novosHorarios}) }); setHorarioSelecionado(prev=>({...prev,[cpf+'_'+data]:'',[cpf+'_'+data+'_fim']:''})); buscarCpfsAutorizados() } catch(e) {}
-  }
-  async function removerHorarioCpf(cpf, data, horario) {
-    const entrada = cpfDatas[cpf]?.find(d=>d.data===data)
-    try { await fetch('/api/cpf-datas', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpf,data,horarios:(entrada?.horarios||[]).filter(h=>h!==horario)}) }); buscarCpfsAutorizados() } catch(e) {}
-  }
-  async function salvarEdicaoCpf() {
-    if (!editandoCpf) return; setSalvandoEdicao(true)
-    try { await fetch('/api/cpfs-autorizados', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpf:editandoCpf,nome:nomeEditando}) }); setEditandoCpf(null); setNomeEditando(''); buscarCpfsAutorizados() } catch(e) {}
-    setSalvandoEdicao(false)
-  }
-  async function adicionarCpf() {
-    if (!novoCpf.trim()) return; setSalvandoCpf(true); setErroCpf('')
-    try {
-      const res = await fetch('/api/cpfs-autorizados', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpf:novoCpf,nome:nomeNovoCpf}) })
-      if (res.ok) { setNovoCpf(''); setNomeNovoCpf(''); buscarCpfsAutorizados() } else { const d=await res.json(); setErroCpf(d.error||'Erro ao salvar.') }
-    } catch(e) { setErroCpf('Erro de conexao.') }
+  async function removerHorarioCpf(cpf,data,horario){const entrada=cpfDatas[cpf]?.find(d=>d.data===data);try{await fetch('/api/cpf-datas',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf,data,horarios:(entrada?.horarios||[]).filter(h=>h!==horario)})});buscarCpfsAutorizados()}catch(e){}}
+  async function salvarEdicaoCpf(){if(!editandoCpf)return;setSalvandoEdicao(true);try{await fetch('/api/cpfs-autorizados',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:editandoCpf,nome:nomeEditando})});setEditandoCpf(null);setNomeEditando('');buscarCpfsAutorizados()}catch(e){};setSalvandoEdicao(false)}
+  async function adicionarCpf(){
+    if(!novoCpf.trim())return;setSalvandoCpf(true);setErroCpf('')
+    try{const res=await fetch('/api/cpfs-autorizados',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:novoCpf,nome:nomeNovoCpf})});if(res.ok){setNovoCpf('');setNomeNovoCpf('');buscarCpfsAutorizados()}else{const d=await res.json();setErroCpf(d.error||'Erro ao salvar.')}}catch(e){setErroCpf('Erro de conexao.')}
     setSalvandoCpf(false)
   }
-  async function removerCpf(cpf) {
-    if (!confirm('Remover CPF '+cpf+'?')) return
-    try { await fetch('/api/cpfs-autorizados', { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpf}) }); await fetch('/api/cpf-datas', { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpf,todos_cpf:true}) }); buscarCpfsAutorizados() } catch(e) {}
+  async function removerCpf(cpf){if(!confirm('Remover CPF '+cpf+'?'))return;try{await fetch('/api/cpfs-autorizados',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf})});await fetch('/api/cpf-datas',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf,todos_cpf:true})});buscarCpfsAutorizados()}catch(e){}}
+  async function removerCpfsSelecionados(){
+    if(!cpfsSelecionados.length)return;if(!confirm('Remover '+cpfsSelecionados.length+' CPF(s)?'))return
+    try{await fetch('/api/cpfs-autorizados',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpfs:cpfsSelecionados})});for(const cpf of cpfsSelecionados)await fetch('/api/cpf-datas',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf,todos_cpf:true})});setCpfsSelecionados([]);buscarCpfsAutorizados()}catch(e){}
   }
-  async function removerCpfsSelecionados() {
-    if (!cpfsSelecionados.length) return; if (!confirm('Remover '+cpfsSelecionados.length+' CPF(s)?')) return
-    try {
-      await fetch('/api/cpfs-autorizados', { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpfs:cpfsSelecionados}) })
-      for (const cpf of cpfsSelecionados) await fetch('/api/cpf-datas', { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpf,todos_cpf:true}) })
-      setCpfsSelecionados([]); buscarCpfsAutorizados()
-    } catch(e) {}
-  }
-  async function removerTodosCpfs() {
-    if (!confirm('Remover TODOS os CPFs?')) return
-    try { await fetch('/api/cpfs-autorizados', { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({todos:true}) }); setCpfsSelecionados([]); buscarCpfsAutorizados() } catch(e) {}
-  }
-  async function toggleMes(anoMes) {
-    setSalvandoMes(true)
-    try { const bloqueado=mesesBloqueados.includes(anoMes); await fetch('/api/meses-bloqueados', { method:bloqueado?'DELETE':'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ano_mes:anoMes}) }); buscarMesesBloqueados() } catch(e) {}
-    setSalvandoMes(false)
-  }
-  async function toggleHorario(horario, ativo) {
-    setSalvandoHorario(true)
-    try { await fetch('/api/horarios-config', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({horario,ativo:!ativo}) }); buscarHorariosConfig() } catch(e) {}
-    setSalvandoHorario(false)
-  }
-  async function adicionarDiaEspecial(tipo) {
-    if (!dataInicioEspecial||!dataFimEspecial) return; setSalvandoDia(true)
-    try { await fetch('/api/dias-especiais', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data_inicio:dataInicioEspecial,data_fim:dataFimEspecial,tipo,observacao:obsEspecial}) }); setDataInicioEspecial(''); setDataFimEspecial(''); setObsEspecial(''); buscarDiasEspeciais() } catch(e) {}
+  async function removerTodosCpfs(){if(!confirm('Remover TODOS os CPFs?'))return;try{await fetch('/api/cpfs-autorizados',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({todos:true})});setCpfsSelecionados([]);buscarCpfsAutorizados()}catch(e){}}
+  async function toggleMes(anoMes){setSalvandoMes(true);try{const bloqueado=mesesBloqueados.includes(anoMes);await fetch('/api/meses-bloqueados',{method:bloqueado?'DELETE':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ano_mes:anoMes})});buscarMesesBloqueados()}catch(e){};setSalvandoMes(false)}
+  async function toggleHorario(horario,ativo){setSalvandoHorario(true);try{await fetch('/api/horarios-config',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({horario,ativo:!ativo})});buscarHorariosConfig()}catch(e){};setSalvandoHorario(false)}
+  async function adicionarDiaEspecial(tipo){
+    if(!dataInicioEspecial||!dataFimEspecial)return;setSalvandoDia(true)
+    try{await fetch('/api/dias-especiais',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data_inicio:dataInicioEspecial,data_fim:dataFimEspecial,tipo,observacao:obsEspecial})});setDataInicioEspecial('');setDataFimEspecial('');setObsEspecial('');buscarDiasEspeciais()}catch(e){}
     setSalvandoDia(false)
   }
-  async function removerDiaEspecial(id) {
-    try { await fetch('/api/dias-especiais', { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id}) }); buscarDiasEspeciais() } catch(e) {}
-  }
-  async function adicionarEmpreendimento() {
-    if (!novoEmp.trim()) return; setSalvandoEmp(true); setErroEmp('')
-    try {
-      const res = await fetch('/api/empreendimentos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nome:novoEmp.trim()}) })
-      if (res.ok) { setNovoEmp(''); buscarEmpreendimentos() } else { const d=await res.json(); setErroEmp(d.error||'Erro ao salvar.') }
-    } catch(e) { setErroEmp('Erro de conexao.') }
+  async function removerDiaEspecial(id){try{await fetch('/api/dias-especiais',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});buscarDiasEspeciais()}catch(e){}}
+  async function adicionarEmpreendimento(){
+    if(!novoEmp.trim())return;setSalvandoEmp(true);setErroEmp('')
+    try{const res=await fetch('/api/empreendimentos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome:novoEmp.trim()})});if(res.ok){setNovoEmp('');buscarEmpreendimentos()}else{const d=await res.json();setErroEmp(d.error||'Erro ao salvar.')}}catch(e){setErroEmp('Erro de conexao.')}
     setSalvandoEmp(false)
   }
-  async function removerEmpreendimento(nome) {
-    if (!confirm('Remover "'+nome+'"?')) return
-    try { await fetch('/api/empreendimentos', { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nome}) }); buscarEmpreendimentos() } catch(e) {}
-  }
-  function confirmarCancelamento(a) { setPopup(a); setMotivoCancelamento(''); setObsCancelamento(''); setErroMotivo(false) }
-  async function executarCancelamento() {
-    if (!popup) return; if (!motivoCancelamento||motivoCancelamento==='Selecione o motivo') { setErroMotivo(true); return }
-    try { const res=await fetch('/api/agendamentos/'+popup.id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'cancelado',motivo_cancelamento:motivoCancelamento,obs_cancelamento:obsCancelamento}) }); if(res.ok) buscarAgendamentos(); else alert('Erro ao cancelar.') } catch(e) { alert('Erro de conexao.') }
+  async function removerEmpreendimento(nome){if(!confirm('Remover "'+nome+'"?'))return;try{await fetch('/api/empreendimentos',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome})});buscarEmpreendimentos()}catch(e){}}
+  function confirmarCancelamento(a){setPopup(a);setMotivoCancelamento('');setObsCancelamento('');setErroMotivo(false)}
+  async function executarCancelamento(){
+    if(!popup)return;if(!motivoCancelamento||motivoCancelamento==='Selecione o motivo'){setErroMotivo(true);return}
+    try{const res=await fetch('/api/agendamentos/'+popup.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'cancelado',motivo_cancelamento:motivoCancelamento,obs_cancelamento:obsCancelamento})});if(res.ok)buscarAgendamentos();else alert('Erro ao cancelar.')}catch(e){alert('Erro de conexao.')}
     setPopup(null)
   }
-  async function atualizarStatus(id, novoStatus) {
-    try { const res=await fetch('/api/agendamentos/'+id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:novoStatus}) }); if(res.ok) buscarAgendamentos(); else alert('Erro ao atualizar.') } catch(e) { alert('Erro de conexao.') }
-  }
-  function exportarCSV() {
+  async function atualizarStatus(id,novoStatus){try{const res=await fetch('/api/agendamentos/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:novoStatus})});if(res.ok)buscarAgendamentos();else alert('Erro ao atualizar.')}catch(e){alert('Erro de conexao.')}}
+  function exportarCSV(){
     const cab=['Nome','CPF','Email','Telefone','Apartamento','Data Vistoria','Horario','Status','Motivo Cancelamento','Obs Cancelamento','Criado Em','Acompanhante','CPF Acompanhante']
     const linhas=filtrados.map(a=>[a.nome,a.cpf||'',a.email,a.telefone,a.apartamento,new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'),a.horario?.slice(0,5),a.status,a.motivo_cancelamento||'',a.obs_cancelamento||'',a.criado_em?new Date(a.criado_em).toLocaleString('pt-BR'):'',a.nome_acompanhante||'',a.cpf_acompanhante||''])
     const csv=[cab,...linhas].map(l=>l.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n')
-    const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const link=document.createElement('a'); link.href=url; link.download='relatorio-'+new Date().toISOString().split('T')[0]+'.csv'; link.click(); URL.revokeObjectURL(url)
+    const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='relatorio-'+new Date().toISOString().split('T')[0]+'.csv';link.click();URL.revokeObjectURL(url)
   }
-  async function gerarPDF() {
+  async function gerarPDF(){
     setGerandoPDF(true)
-    try {
-      const script=document.createElement('script'); script.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; document.head.appendChild(script)
+    try{
+      const script=document.createElement('script');script.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';document.head.appendChild(script)
       await new Promise((res,rej)=>{script.onload=res;script.onerror=rej})
-      const {jsPDF}=window.jspdf; const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'}); const W=297,M=12; let y=0
-      doc.setFillColor(27,47,126); doc.rect(0,0,W,32,'F'); doc.setTextColor(255,255,255); doc.setFontSize(20); doc.setFont('helvetica','bold'); doc.text('MARKINVEST',W/2,13,{align:'center'}); doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.text('Relatorio de Agendamentos de Vistoria',W/2,21,{align:'center'}); doc.setFontSize(7.5); doc.text('Gerado em: '+new Date().toLocaleString('pt-BR'),W/2,28,{align:'center'}); y=38
-      doc.setFillColor(240,243,250); doc.rect(M,y-4,W-M*2,10,'F'); doc.setTextColor(60,60,100); doc.setFontSize(7.5); doc.setFont('helvetica','italic')
-      let ftxt='Filtros: Status = '+(filtro==='todos'?'Todos':filtro); if(filtroEmp) ftxt+=' | Empreendimento: '+filtroEmp; if(dataInicio) ftxt+=' | De: '+new Date(dataInicio+'T12:00:00').toLocaleDateString('pt-BR'); if(dataFim) ftxt+=' | Ate: '+new Date(dataFim+'T12:00:00').toLocaleDateString('pt-BR'); ftxt+=' | Total: '+filtrados.length+' registro(s)'; doc.text(ftxt,M+3,y+2); y+=12
+      const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});const W=297,M=12;let y=0
+      doc.setFillColor(27,47,126);doc.rect(0,0,W,32,'F');doc.setTextColor(255,255,255);doc.setFontSize(20);doc.setFont('helvetica','bold');doc.text('MARKINVEST',W/2,13,{align:'center'});doc.setFontSize(9);doc.setFont('helvetica','normal');doc.text('Relatorio de Agendamentos de Vistoria',W/2,21,{align:'center'});doc.setFontSize(7.5);doc.text('Gerado em: '+new Date().toLocaleString('pt-BR'),W/2,28,{align:'center'});y=38
+      doc.setFillColor(240,243,250);doc.rect(M,y-4,W-M*2,10,'F');doc.setTextColor(60,60,100);doc.setFontSize(7.5);doc.setFont('helvetica','italic')
+      let ftxt='Filtros: Status = '+(filtro==='todos'?'Todos':filtro);if(filtroEmp)ftxt+=' | Empreendimento: '+filtroEmp;if(dataInicio)ftxt+=' | De: '+new Date(dataInicio+'T12:00:00').toLocaleDateString('pt-BR');if(dataFim)ftxt+=' | Ate: '+new Date(dataFim+'T12:00:00').toLocaleDateString('pt-BR');ftxt+=' | Total: '+filtrados.length+' registro(s)';doc.text(ftxt,M+3,y+2);y+=12
       const cols=[{x:M,label:'NOME'},{x:M+34,label:'EMPREENDIMENTO'},{x:M+62,label:'UNIDADE'},{x:M+118,label:'DATA'},{x:M+138,label:'HORA'},{x:M+150,label:'TELEFONE'},{x:M+176,label:'AGENDADO EM'},{x:M+206,label:'STATUS'},{x:M+222,label:'MOTIVO'}]
-      doc.setFillColor(27,47,126); doc.rect(M,y,W-M*2,8,'F'); doc.setTextColor(255,255,255); doc.setFontSize(7.5); doc.setFont('helvetica','bold'); cols.forEach(c=>doc.text(c.label,c.x+1,y+5.5)); y+=9; doc.setFont('helvetica','normal')
+      doc.setFillColor(27,47,126);doc.rect(M,y,W-M*2,8,'F');doc.setTextColor(255,255,255);doc.setFontSize(7.5);doc.setFont('helvetica','bold');cols.forEach(c=>doc.text(c.label,c.x+1,y+5.5));y+=9;doc.setFont('helvetica','normal')
       filtrados.forEach((a,idx)=>{
         if(y>185){doc.addPage();y=15;doc.setFillColor(27,47,126);doc.rect(M,y,W-M*2,8,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7.5);cols.forEach(c=>doc.text(c.label,c.x+1,y+5.5));y+=9;doc.setFont('helvetica','normal')}
-        const rowH=8; if(idx%2===0){doc.setFillColor(247,249,255);doc.rect(M,y,W-M*2,rowH,'F')}; doc.setDrawColor(220,225,240); doc.line(M,y+rowH,W-M,y+rowH); doc.setFontSize(7.5); doc.setTextColor(30,30,30); doc.setFont('helvetica','bold'); doc.text((a.nome||'').slice(0,17),cols[0].x+1,y+5.5)
-        const aptoStr=a.apartamento||''; const partes=aptoStr.split(' - '); doc.setFont('helvetica','normal'); doc.setTextColor(27,47,126); doc.text((partes[0]||'').slice(0,15),cols[1].x+1,y+5.5); doc.setTextColor(60,60,60); doc.text((partes.slice(1).join(' - ')||aptoStr).slice(0,42),cols[2].x+1,y+5.5); doc.setTextColor(27,47,126); doc.setFont('helvetica','bold'); doc.text(new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'),cols[3].x+1,y+5.5); doc.text((a.horario||'').slice(0,5),cols[4].x+1,y+5.5); doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80); doc.text((a.telefone||'').slice(0,14),cols[5].x+1,y+5.5)
-        const criadoEm=a.criado_em?new Date(a.criado_em):null; doc.setTextColor(100,100,100); doc.text(criadoEm?criadoEm.toLocaleDateString('pt-BR')+' '+criadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'-',cols[6].x+1,y+5.5)
-        const cancelado=a.status==='cancelado'; if(cancelado){doc.setFillColor(254,226,226);doc.rect(cols[7].x,y+1.5,15,5.5,'F');doc.setTextColor(180,30,30)}else{doc.setFillColor(220,252,231);doc.rect(cols[7].x,y+1.5,15,5.5,'F');doc.setTextColor(22,101,52)}
-        doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.text(cancelado?'CANCEL.':'CONF.',cols[7].x+1,y+5.5)
-        if(cancelado&&a.motivo_cancelamento){doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(180,30,30);doc.text((a.motivo_cancelamento||'').slice(0,22),cols[8].x+1,y+5.5)}
-        y+=rowH
+        const rowH=8;if(idx%2===0){doc.setFillColor(247,249,255);doc.rect(M,y,W-M*2,rowH,'F')};doc.setDrawColor(220,225,240);doc.line(M,y+rowH,W-M,y+rowH);doc.setFontSize(7.5);doc.setTextColor(30,30,30);doc.setFont('helvetica','bold');doc.text((a.nome||'').slice(0,17),cols[0].x+1,y+5.5)
+        const partes=a.apartamento?.split(' - ')||[];doc.setFont('helvetica','normal');doc.setTextColor(27,47,126);doc.text((partes[0]||'').slice(0,15),cols[1].x+1,y+5.5);doc.setTextColor(60,60,60);doc.text((partes.slice(1).join(' - ')||a.apartamento||'').slice(0,42),cols[2].x+1,y+5.5);doc.setTextColor(27,47,126);doc.setFont('helvetica','bold');doc.text(new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'),cols[3].x+1,y+5.5);doc.text((a.horario||'').slice(0,5),cols[4].x+1,y+5.5);doc.setFont('helvetica','normal');doc.setTextColor(80,80,80);doc.text((a.telefone||'').slice(0,14),cols[5].x+1,y+5.5)
+        const criadoEm=a.criado_em?new Date(a.criado_em):null;doc.setTextColor(100,100,100);doc.text(criadoEm?criadoEm.toLocaleDateString('pt-BR')+' '+criadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'-',cols[6].x+1,y+5.5)
+        const cancelado=a.status==='cancelado';if(cancelado){doc.setFillColor(254,226,226);doc.rect(cols[7].x,y+1.5,15,5.5,'F');doc.setTextColor(180,30,30)}else{doc.setFillColor(220,252,231);doc.rect(cols[7].x,y+1.5,15,5.5,'F');doc.setTextColor(22,101,52)};doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.text(cancelado?'CANCEL.':'CONF.',cols[7].x+1,y+5.5)
+        if(cancelado&&a.motivo_cancelamento){doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(180,30,30);doc.text((a.motivo_cancelamento||'').slice(0,22),cols[8].x+1,y+5.5)};y+=rowH
       })
-      const total=doc.getNumberOfPages(); for(let i=1;i<=total;i++){doc.setPage(i);doc.setFillColor(27,47,126);doc.rect(0,200,W,7,'F');doc.setTextColor(255,255,255);doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.text('Markinvest - Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo',W/2,204.5,{align:'center'});doc.text('Pagina '+i+' de '+total,W-M,204.5,{align:'right'})}
+      const total=doc.getNumberOfPages();for(let i=1;i<=total;i++){doc.setPage(i);doc.setFillColor(27,47,126);doc.rect(0,200,W,7,'F');doc.setTextColor(255,255,255);doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.text('Markinvest - Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo',W/2,204.5,{align:'center'});doc.text('Pagina '+i+' de '+total,W-M,204.5,{align:'right'})}
       doc.save('relatorio-vistorias-'+new Date().toISOString().split('T')[0]+'.pdf')
-    } catch(e) { console.error(e); alert('Erro ao gerar PDF.') }
+    }catch(e){console.error(e);alert('Erro ao gerar PDF.')}
     setGerandoPDF(false)
   }
 
-  const filtrados = agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>filtro==='todos'||a.status===filtro).filter(a=>!filtroEmp||a.apartamento?.toLowerCase().includes(filtroEmp.toLowerCase())).filter(a=>{if(!busca)return true;const b=busca.toLowerCase();return a.nome?.toLowerCase().includes(b)||a.email?.toLowerCase().includes(b)||a.apartamento?.toLowerCase().includes(b)||a.telefone?.includes(b)||a.cpf?.includes(b)}).filter(a=>{if(dataInicio&&a.data<dataInicio)return false;if(dataFim&&a.data>dataFim)return false;return true}).sort((a,b)=>{const da=new Date(a.criado_em||0),db=new Date(b.criado_em||0);return ordem==='mais-antigo'?da-db:db-da})
-  const totalPaginas=Math.ceil(filtrados.length/POR_PAGINA); const paginados=filtrados.slice((pagina-1)*POR_PAGINA,pagina*POR_PAGINA)
+  const filtrados=agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>filtro==='todos'||a.status===filtro).filter(a=>!filtroEmp||a.apartamento?.toLowerCase().includes(filtroEmp.toLowerCase())).filter(a=>{if(!busca)return true;const b=busca.toLowerCase();return a.nome?.toLowerCase().includes(b)||a.email?.toLowerCase().includes(b)||a.apartamento?.toLowerCase().includes(b)||a.telefone?.includes(b)||a.cpf?.includes(b)}).filter(a=>{if(dataInicio&&a.data<dataInicio)return false;if(dataFim&&a.data>dataFim)return false;return true}).sort((a,b)=>{const da=new Date(a.criado_em||0),db=new Date(b.criado_em||0);return ordem==='mais-antigo'?da-db:db-da})
+  const totalPaginas=Math.ceil(filtrados.length/POR_PAGINA);const paginados=filtrados.slice((pagina-1)*POR_PAGINA,pagina*POR_PAGINA)
   const totalConf=agendamentos.filter(a=>a.status==='confirmado'&&a.tipo!=='revistoria').length
   const totalCanc=agendamentos.filter(a=>a.status==='cancelado'&&a.tipo!=='revistoria').length
-  const hoje=new Date(); const mesesGrid=[]
+  const hoje=new Date();const mesesGrid=[]
   for(let i=0;i<12;i++){const d=new Date(hoje.getFullYear(),hoje.getMonth()+i,1);const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');mesesGrid.push({key,nomeMes:MESES_NOMES[d.getMonth()],anoMes:d.getFullYear(),bloqueado:mesesBloqueados.includes(key)})}
   const horariosAtivos=horariosConfig.filter(h=>h.ativo).length
   const cpfsFiltrados=cpfsAutorizados.filter(c=>{if(!buscaCpf)return true;const bL=buscaCpf.toLowerCase();const bD=buscaCpf.replace(/\D/g,'');return c.nome?.toLowerCase().includes(bL)||(bD.length>0&&c.cpf?.includes(bD))})
-  const totalPaginasCpf=Math.ceil(cpfsFiltrados.length/POR_PAGINA_CPF); const cpfsPaginados=cpfsFiltrados.slice((paginaCpf-1)*POR_PAGINA_CPF,paginaCpf*POR_PAGINA_CPF)
-
+  const totalPaginasCpf=Math.ceil(cpfsFiltrados.length/POR_PAGINA_CPF);const cpfsPaginados=cpfsFiltrados.slice((paginaCpf-1)*POR_PAGINA_CPF,paginaCpf*POR_PAGINA_CPF)
   const revFiltradas=revistorias.filter(a=>a.status==='confirmado'&&(!filtroRevEmp||a.apartamento?.toLowerCase().includes(filtroRevEmp.toLowerCase())))
   const revAgrupadas={}
-  for(const r of revFiltradas){const emp=(r.apartamento||'').split(' - ')[0];const chave=emp+'||'+r.data+'||'+r.horario;if(!revAgrupadas[chave])revAgrupadas[chave]={emp,data:r.data,horario:r.horario,unidades:[]};const unidade=(r.apartamento||'').split(' - ').slice(1).join(' - ');revAgrupadas[chave].unidades.push({id:r.id,unidade,nome:r.nome})}
+  for(const r of revFiltradas){const emp=(r.apartamento||'').split(' - ')[0];const chave=emp+'||'+r.data+'||'+r.horario;if(!revAgrupadas[chave])revAgrupadas[chave]={emp,data:r.data,horario:r.horario,unidades:[]};revAgrupadas[chave].unidades.push({id:r.id,unidade:(r.apartamento||'').split(' - ').slice(1).join(' - '),nome:r.nome})}
   const revGrupos=Object.values(revAgrupadas).sort((a,b)=>a.data<b.data?-1:a.data>b.data?1:a.horario<b.horario?-1:1)
-  const totalPaginasRev=Math.ceil(revGrupos.length/POR_PAGINA_REAG); const revGruposPaginados=revGrupos.slice((paginaRev-1)*POR_PAGINA_REAG,paginaRev*POR_PAGINA_REAG)
-  const primeiroDiaRev=new Date(anoRev,mesRev,1).getDay(); const diasNoMesRev=new Date(anoRev,mesRev+1,0).getDate()
+  const totalPaginasRev=Math.ceil(revGrupos.length/POR_PAGINA_REAG);const revGruposPaginados=revGrupos.slice((paginaRev-1)*POR_PAGINA_REAG,paginaRev*POR_PAGINA_REAG)
+  const primeiroDiaRev=new Date(anoRev,mesRev,1).getDay();const diasNoMesRev=new Date(anoRev,mesRev+1,0).getDate()
   const diasComRev=new Set(revFiltradas.map(r=>r.data))
   const revDiaSelecionado=diaSelecionado?revGrupos.filter(g=>g.data===diaSelecionado):[]
-  const empCoresMap={}; empreendimentos.forEach((emp,i)=>{empCoresMap[emp]=EMP_CORES[i%EMP_CORES.length]})
+  const empCoresMap={};empreendimentos.forEach((emp,i)=>{empCoresMap[emp]=EMP_CORES[i%EMP_CORES.length]})
 
-  if(status==='loading'||loading) return (<main style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#f0f3fa'}}><p style={{color:'#6b7280'}}>Carregando...</p></main>)
+  if(status==='loading'||loading)return(<main style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#f0f3fa'}}><p style={{color:'#6b7280'}}>Carregando...</p></main>)
+
+  const BotaoEditar = ({g}) => {
+    const chave = g.emp+'||'+g.data+'||'+g.horario
+    const editando = editandoRevGrupo === chave
+    return (
+      <button onClick={()=>{setEditandoRevGrupo(editando?null:chave);setEditRevData(g.data);setEditRevHorario((g.horario||'').slice(0,5))}}
+        style={{padding:'5px 12px',background:editando?'#fee2e2':'#f0f7ff',border:'1px solid '+(editando?'#fca5a5':'#bfdbfe'),borderRadius:'8px',fontSize:'11px',color:editando?VERMELHO:AZUL,cursor:'pointer',fontWeight:'700',flexShrink:0}}>
+        {editando?'✕ FECHAR':'✏ EDITAR'}
+      </button>
+    )
+  }
+
+  const PainelEdicao = ({g}) => {
+    const chave = g.emp+'||'+g.data+'||'+g.horario
+    if(editandoRevGrupo!==chave) return null
+    return (
+      <div style={{padding:'12px 16px',background:'#f0f7ff',borderBottom:'1px solid #bfdbfe',display:'flex',gap:'10px',alignItems:'flex-end',flexWrap:'wrap'}}>
+        <div>
+          <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Nova data</label>
+          <input type="date" value={editRevData} onChange={e=>setEditRevData(e.target.value)} style={{padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
+        </div>
+        <div>
+          <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Novo horario</label>
+          <select value={editRevHorario} onChange={e=>setEditRevHorario(e.target.value)} style={{padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
+            <option value="">Selecione...</option>
+            {HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}
+          </select>
+        </div>
+        <button onClick={()=>salvarEdicaoRevistoria(g)} disabled={!editRevData||!editRevHorario||salvandoEditRev}
+          style={{padding:'8px 18px',background:!editRevData||!editRevHorario?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:!editRevData||!editRevHorario?'not-allowed':'pointer'}}>
+          {salvandoEditRev?'SALVANDO...':'✓ SALVAR'}
+        </button>
+        <button onClick={()=>setEditandoRevGrupo(null)} style={{padding:'8px 14px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>CANCELAR</button>
+      </div>
+    )
+  }
 
   return (
     <main style={{minHeight:'100vh',background:'#f0f3fa',fontFamily:"'Segoe UI',sans-serif"}}>
 
-      {popup && (
+      {popup&&(
         <div onClick={()=>setPopup(null)} style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.6)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}}>
           <div onClick={e=>e.stopPropagation()} style={{background:'#fff',borderRadius:'16px',padding:'2rem',maxWidth:'420px',width:'100%',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
-            <div style={{width:'56px',height:'56px',background:'#fee2e2',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1rem'}}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </div>
+            <div style={{width:'56px',height:'56px',background:'#fee2e2',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1rem'}}><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></div>
             <h3 style={{fontSize:'18px',fontWeight:'700',color:'#111',textAlign:'center',margin:'0 0 8px'}}>Cancelar agendamento?</h3>
             <p style={{fontSize:'13px',color:'#6b7280',textAlign:'center',margin:'0 0 4px'}}>{popup.nome}</p>
             <p style={{fontSize:'13px',color:'#6b7280',textAlign:'center',margin:'0 0 1.25rem'}}>{new Date(popup.data+'T12:00:00').toLocaleDateString('pt-BR')} as {popup.horario?.slice(0,5)}</p>
@@ -435,8 +397,7 @@ export default function Admin() {
                 <div>
                   <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento *</label>
                   <select value={revEmp} onChange={e=>setRevEmp(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer',minWidth:'180px'}}>
-                    <option value="">Selecione...</option>
-                    {empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
+                    <option value="">Selecione...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
                   </select>
                 </div>
                 <div>
@@ -446,8 +407,7 @@ export default function Admin() {
                 <div>
                   <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Horario *</label>
                   <select value={revHorario} onChange={e=>setRevHorario(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
-                    <option value="">Selecione...</option>
-                    {HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}
+                    <option value="">Selecione...</option>{HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}
                   </select>
                 </div>
               </div>
@@ -483,8 +443,7 @@ export default function Admin() {
                 </div>
                 <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
                   <select value={filtroRevEmp} onChange={e=>{setFiltroRevEmp(e.target.value);setPaginaRev(1)}} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}>
-                    <option value="">Todos os empreendimentos</option>
-                    {empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
+                    <option value="">Todos os empreendimentos</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
                   </select>
                   <button onClick={exportarCSVRevistorias} style={{padding:'8px 14px',background:AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>⬇ CSV</button>
                   <button onClick={gerarPDFRevistorias} disabled={gerandoPDFRev} style={{padding:'8px 14px',background:gerandoPDFRev?'#9ca3af':'#C0392B',color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:gerandoPDFRev?'not-allowed':'pointer'}}>📄 {gerandoPDFRev?'GERANDO...':'PDF'}</button>
@@ -500,10 +459,7 @@ export default function Admin() {
                   <div style={{border:'1px solid #e0e5f5',borderRadius:'14px',overflow:'hidden'}}>
                     <div style={{background:'linear-gradient(135deg,#1B2F7E,#2a45b0)',padding:'14px 16px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                       <button onClick={()=>{if(mesRev===0){setMesRev(11);setAnoRev(a=>a-1)}else setMesRev(m=>m-1);setDiaSelecionado(null)}} style={{background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',width:'28px',height:'28px',cursor:'pointer',fontSize:'16px',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
-                      <div style={{textAlign:'center'}}>
-                        <div style={{color:'#fff',fontSize:'15px',fontWeight:'700',textTransform:'uppercase'}}>{MESES_NOMES[mesRev]}</div>
-                        <div style={{color:'rgba(255,255,255,0.65)',fontSize:'12px'}}>{anoRev}</div>
-                      </div>
+                      <div style={{textAlign:'center'}}><div style={{color:'#fff',fontSize:'15px',fontWeight:'700',textTransform:'uppercase'}}>{MESES_NOMES[mesRev]}</div><div style={{color:'rgba(255,255,255,0.65)',fontSize:'12px'}}>{anoRev}</div></div>
                       <button onClick={()=>{if(mesRev===11){setMesRev(0);setAnoRev(a=>a+1)}else setMesRev(m=>m+1);setDiaSelecionado(null)}} style={{background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',width:'28px',height:'28px',cursor:'pointer',fontSize:'16px',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
                     </div>
                     <div style={{padding:'12px'}}>
@@ -513,14 +469,14 @@ export default function Admin() {
                       <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'3px'}}>
                         {Array(primeiroDiaRev).fill(null).map((_,i)=><div key={i}/>)}
                         {Array(diasNoMesRev).fill(null).map((_,i)=>{
-                          const d=i+1; const date=new Date(anoRev,mesRev,d); const dow=date.getDay()
+                          const d=i+1;const date=new Date(anoRev,mesRev,d);const dow=date.getDay()
                           const ds=anoRev+'-'+String(mesRev+1).padStart(2,'0')+'-'+String(d).padStart(2,'0')
-                          const isWeekend=dow===0||dow===6; const temRev=diasComRev.has(ds); const isSel=diaSelecionado===ds
+                          const isWeekend=dow===0||dow===6;const temRev=diasComRev.has(ds);const isSel=diaSelecionado===ds
                           const isHoje=d===new Date().getDate()&&mesRev===new Date().getMonth()&&anoRev===new Date().getFullYear()
-                          if(isSel) return <div key={d} onClick={()=>setDiaSelecionado(null)} style={{aspectRatio:'1',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',borderRadius:'8px',cursor:'pointer',background:'linear-gradient(135deg,#1B2F7E,#2a45b0)',color:'#fff',fontSize:'12px',fontWeight:'800',boxShadow:'0 3px 10px rgba(27,47,126,0.4)'}}>{d}<div style={{width:'4px',height:'4px',borderRadius:'50%',background:'rgba(255,255,255,0.7)',marginTop:'1px'}}></div></div>
-                          if(temRev&&!isWeekend) return <div key={d} onClick={()=>setDiaSelecionado(ds)} style={{aspectRatio:'1',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',borderRadius:'8px',cursor:'pointer',background:'#eff3ff',border:'2px solid '+AZUL,fontSize:'12px',fontWeight:'700',color:AZUL}}>{d}<div style={{width:'5px',height:'5px',borderRadius:'50%',background:AZUL,marginTop:'1px'}}></div></div>
-                          if(isHoje&&!isWeekend) return <div key={d} onClick={()=>setDiaSelecionado(ds)} style={{aspectRatio:'1',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',borderRadius:'8px',cursor:'pointer',background:'#f0f7ff',border:'2px solid '+AZUL,fontSize:'12px',fontWeight:'700',color:AZUL}}>{d}<div style={{width:'4px',height:'4px',borderRadius:'50%',background:AZUL,marginTop:'1px'}}></div></div>
-                          return <div key={d} onClick={()=>!isWeekend&&setDiaSelecionado(ds)} style={{aspectRatio:'1',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:'8px',fontSize:'12px',color:isWeekend?'#e5e7eb':'#6b7280',cursor:isWeekend?'default':'pointer'}}>{d}</div>
+                          if(isSel)return<div key={d} onClick={()=>setDiaSelecionado(null)} style={{aspectRatio:'1',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',borderRadius:'8px',cursor:'pointer',background:'linear-gradient(135deg,#1B2F7E,#2a45b0)',color:'#fff',fontSize:'12px',fontWeight:'800',boxShadow:'0 3px 10px rgba(27,47,126,0.4)'}}>{d}<div style={{width:'4px',height:'4px',borderRadius:'50%',background:'rgba(255,255,255,0.7)',marginTop:'1px'}}></div></div>
+                          if(temRev&&!isWeekend)return<div key={d} onClick={()=>setDiaSelecionado(ds)} style={{aspectRatio:'1',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',borderRadius:'8px',cursor:'pointer',background:'#eff3ff',border:'2px solid '+AZUL,fontSize:'12px',fontWeight:'700',color:AZUL}}>{d}<div style={{width:'5px',height:'5px',borderRadius:'50%',background:AZUL,marginTop:'1px'}}></div></div>
+                          if(isHoje&&!isWeekend)return<div key={d} onClick={()=>setDiaSelecionado(ds)} style={{aspectRatio:'1',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',borderRadius:'8px',cursor:'pointer',background:'#f0f7ff',border:'2px solid '+AZUL,fontSize:'12px',fontWeight:'700',color:AZUL}}>{d}<div style={{width:'4px',height:'4px',borderRadius:'50%',background:AZUL,marginTop:'1px'}}></div></div>
+                          return<div key={d} onClick={()=>!isWeekend&&setDiaSelecionado(ds)} style={{aspectRatio:'1',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:'8px',fontSize:'12px',color:isWeekend?'#e5e7eb':'#6b7280',cursor:isWeekend?'default':'pointer'}}>{d}</div>
                         })}
                       </div>
                       <div style={{marginTop:'10px',paddingTop:'10px',borderTop:'1px solid #e8ecf5',display:'flex',gap:'12px',flexWrap:'wrap'}}>
@@ -530,31 +486,25 @@ export default function Admin() {
                     </div>
                   </div>
                   <div>
-                    {!diaSelecionado&&(
-                      <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'14px',padding:'2rem',textAlign:'center'}}>
-                        <div style={{fontSize:'32px',marginBottom:'8px'}}>📅</div>
-                        <p style={{fontSize:'14px',color:'#6b7280',margin:'0 0 4px',fontWeight:'600'}}>Selecione um dia no calendario</p>
-                        <p style={{fontSize:'12px',color:'#9ca3af',margin:0}}>Dias com ponto azul possuem revistorias</p>
-                      </div>
-                    )}
+                    {!diaSelecionado&&(<div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'14px',padding:'2rem',textAlign:'center'}}><div style={{fontSize:'32px',marginBottom:'8px'}}>📅</div><p style={{fontSize:'14px',color:'#6b7280',margin:'0 0 4px',fontWeight:'600'}}>Selecione um dia no calendario</p><p style={{fontSize:'12px',color:'#9ca3af',margin:0}}>Dias com ponto azul possuem revistorias</p></div>)}
                     {diaSelecionado&&(
                       <div style={{border:'1px solid #e0e5f5',borderRadius:'14px',overflow:'hidden'}}>
                         <div style={{padding:'12px 16px',background:'linear-gradient(135deg,#eff3ff,#e8edff)',borderBottom:'1px solid #e0e5f5',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                           <p style={{fontSize:'14px',fontWeight:'700',color:AZUL,margin:0,textTransform:'capitalize'}}>{new Date(diaSelecionado+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</p>
                           <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',background:AZUL,color:'#fff',fontWeight:'700'}}>{revDiaSelecionado.reduce((s,g)=>s+g.unidades.length,0)} unidade(s)</span>
                         </div>
-                        {revDiaSelecionado.length===0?(
-                          <div style={{padding:'2rem',textAlign:'center',color:'#9ca3af',fontSize:'13px'}}>Nenhuma revistoria neste dia.</div>
-                        ):(
+                        {revDiaSelecionado.length===0?(<div style={{padding:'2rem',textAlign:'center',color:'#9ca3af',fontSize:'13px'}}>Nenhuma revistoria neste dia.</div>):(
                           <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:'12px'}}>
                             {revDiaSelecionado.map((g,gi)=>{
                               const corEmp=empCoresMap[g.emp]||AZUL
                               return (
                                 <div key={gi}>
-                                  <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'6px'}}>
+                                  <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'6px',flexWrap:'wrap'}}>
                                     <span style={{fontSize:'13px',fontWeight:'700',color:corEmp,background:corEmp+'20',padding:'3px 12px',borderRadius:'20px',border:'1px solid '+corEmp+'40'}}>{(g.horario||'').slice(0,5)}</span>
                                     <span style={{fontSize:'12px',color:'#6b7280'}}>{g.emp} · {g.unidades.length} unidade(s)</span>
+                                    <BotaoEditar g={g}/>
                                   </div>
+                                  <PainelEdicao g={g}/>
                                   <div style={{paddingLeft:'8px',borderLeft:'3px solid '+corEmp,display:'flex',flexDirection:'column',gap:'4px'}}>
                                     {g.unidades.map((u,ui)=>(
                                       <div key={ui} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 12px',background:ui%2===0?'#f8f9ff':'#fff',borderRadius:'8px',border:'1px solid #eef0f8'}}>
@@ -579,41 +529,42 @@ export default function Admin() {
 
               {visualizacaoRev==='lista'&&(
                 <>
-                  {revGruposPaginados.length===0
-                    ?<div style={{textAlign:'center',padding:'3rem',color:'#9ca3af',fontSize:'14px',background:'#f9fafb',borderRadius:'12px'}}>Nenhuma revistoria cadastrada.</div>
-                    :(
-                      <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
-                        {revGruposPaginados.map((g,gi)=>{
-                          const corEmp=empCoresMap[g.emp]||AZUL
-                          return (
-                            <div key={gi} style={{border:'1px solid #e0e5f5',borderRadius:'14px',overflow:'hidden',boxShadow:'0 2px 8px rgba(27,47,126,0.05)'}}>
-                              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',background:'linear-gradient(135deg,#eff3ff,#e8edff)',borderBottom:'1px solid #e0e5f5'}}>
-                                <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
-                                  <div style={{width:'40px',height:'40px',borderRadius:'10px',background:corEmp,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',color:'#fff',flexShrink:0}}>🔄</div>
-                                  <div>
-                                    <div style={{fontSize:'14px',fontWeight:'700',color:AZUL}}>{g.emp}</div>
-                                    <div style={{fontSize:'12px',color:'#6b7280',marginTop:'2px'}}>📅 {new Date(g.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}<span style={{fontWeight:'700',color:AZUL,marginLeft:'8px'}}>🕐 {(g.horario||'').slice(0,5)}</span></div>
-                                  </div>
+                  {revGruposPaginados.length===0?<div style={{textAlign:'center',padding:'3rem',color:'#9ca3af',fontSize:'14px',background:'#f9fafb',borderRadius:'12px'}}>Nenhuma revistoria cadastrada.</div>:(
+                    <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+                      {revGruposPaginados.map((g,gi)=>{
+                        const corEmp=empCoresMap[g.emp]||AZUL
+                        return (
+                          <div key={gi} style={{border:'1px solid #e0e5f5',borderRadius:'14px',overflow:'hidden',boxShadow:'0 2px 8px rgba(27,47,126,0.05)'}}>
+                            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',background:'linear-gradient(135deg,#eff3ff,#e8edff)',borderBottom:'1px solid #e0e5f5'}}>
+                              <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+                                <div style={{width:'40px',height:'40px',borderRadius:'10px',background:corEmp,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',color:'#fff',flexShrink:0}}>🔄</div>
+                                <div>
+                                  <div style={{fontSize:'14px',fontWeight:'700',color:AZUL}}>{g.emp}</div>
+                                  <div style={{fontSize:'12px',color:'#6b7280',marginTop:'2px'}}>📅 {new Date(g.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}<span style={{fontWeight:'700',color:AZUL,marginLeft:'8px'}}>🕐 {(g.horario||'').slice(0,5)}</span></div>
                                 </div>
-                                <span style={{fontSize:'12px',padding:'4px 12px',borderRadius:'20px',background:corEmp,color:'#fff',fontWeight:'700',flexShrink:0}}>{g.unidades.length} unidade(s)</span>
                               </div>
-                              <div style={{padding:'10px 16px',display:'flex',flexDirection:'column',gap:'6px'}}>
-                                {g.unidades.map((u,ui)=>(
-                                  <div key={ui} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',background:ui%2===0?'#f8f9ff':'#fff',borderRadius:'10px',border:'1px solid #eef0f8'}}>
-                                    <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
-                                      <div style={{width:'34px',height:'34px',borderRadius:'10px',background:corEmp,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:'14px',fontWeight:'700',flexShrink:0}}>{(u.nome||'?').charAt(0).toUpperCase()}</div>
-                                      <div><div style={{fontSize:'13px',fontWeight:'700',color:'#111'}}>{u.nome}</div><div style={{fontSize:'11px',color:'#6b7280',marginTop:'1px'}}>🏠 {u.unidade}</div></div>
-                                    </div>
-                                    <button onClick={()=>removerRevistoria(u.id)} style={{padding:'5px 14px',background:'#fff5f5',border:'1px solid #fca5a5',borderRadius:'8px',fontSize:'11px',color:VERMELHO,cursor:'pointer',fontWeight:'700',flexShrink:0}}>REMOVER</button>
-                                  </div>
-                                ))}
+                              <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                <span style={{fontSize:'12px',padding:'4px 12px',borderRadius:'20px',background:corEmp,color:'#fff',fontWeight:'700'}}>{g.unidades.length} unidade(s)</span>
+                                <BotaoEditar g={g}/>
                               </div>
                             </div>
-                          )
-                        })}
-                      </div>
-                    )
-                  }
+                            <PainelEdicao g={g}/>
+                            <div style={{padding:'10px 16px',display:'flex',flexDirection:'column',gap:'6px'}}>
+                              {g.unidades.map((u,ui)=>(
+                                <div key={ui} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',background:ui%2===0?'#f8f9ff':'#fff',borderRadius:'10px',border:'1px solid #eef0f8'}}>
+                                  <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+                                    <div style={{width:'34px',height:'34px',borderRadius:'10px',background:corEmp,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:'14px',fontWeight:'700',flexShrink:0}}>{(u.nome||'?').charAt(0).toUpperCase()}</div>
+                                    <div><div style={{fontSize:'13px',fontWeight:'700',color:'#111'}}>{u.nome}</div><div style={{fontSize:'11px',color:'#6b7280',marginTop:'1px'}}>🏠 {u.unidade}</div></div>
+                                  </div>
+                                  <button onClick={()=>removerRevistoria(u.id)} style={{padding:'5px 14px',background:'#fff5f5',border:'1px solid #fca5a5',borderRadius:'8px',fontSize:'11px',color:VERMELHO,cursor:'pointer',fontWeight:'700',flexShrink:0}}>REMOVER</button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                   {totalPaginasRev>1&&(
                     <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',marginTop:'1.5rem',flexWrap:'wrap'}}>
                       <button onClick={()=>setPaginaRev(p=>Math.max(1,p-1))} disabled={paginaRev===1} style={{padding:'6px 14px',background:paginaRev===1?'#f3f4f6':'#fff',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'13px',fontWeight:'600',cursor:paginaRev===1?'not-allowed':'pointer',color:paginaRev===1?'#9ca3af':'#374151'}}>&#8249; Anterior</button>
@@ -672,17 +623,14 @@ export default function Admin() {
             <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
               {cpfsPaginados.length===0&&<p style={{color:'#9ca3af',fontSize:'13px',textAlign:'center',padding:'2rem'}}>{cpfsAutorizados.length===0?'Nenhum CPF cadastrado.':'Nenhum resultado encontrado.'}</p>}
               {cpfsPaginados.map(c=>{
-                const selecionado=cpfsSelecionados.includes(c.cpf); const datas=cpfDatas[c.cpf]||[]
+                const selecionado=cpfsSelecionados.includes(c.cpf);const datas=cpfDatas[c.cpf]||[]
                 return (
                   <div key={c.id} style={{background:selecionado?'#eff3ff':'#f8f9ff',borderRadius:'12px',border:selecionado?'1px solid #a5b4fc':'1px solid #e0e5f5',overflow:'hidden'}}>
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px'}}>
                       <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
                         <input type="checkbox" checked={selecionado} onChange={e=>setCpfsSelecionados(prev=>e.target.checked?[...prev,c.cpf]:prev.filter(x=>x!==c.cpf))} style={{width:'16px',height:'16px',cursor:'pointer',accentColor:AZUL}}/>
                         <div style={{width:'36px',height:'36px',borderRadius:'10px',background:AZUL,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:'14px',fontWeight:'700',flexShrink:0}}>{(c.nome||'?').charAt(0).toUpperCase()}</div>
-                        <div>
-                          {c.nome&&<div style={{fontSize:'13px',fontWeight:'600',color:AZUL,marginBottom:'2px'}}>{c.nome}</div>}
-                          <div style={{fontSize:'13px',color:'#374151',fontFamily:'monospace'}}>{c.cpf?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4')}</div>
-                        </div>
+                        <div>{c.nome&&<div style={{fontSize:'13px',fontWeight:'600',color:AZUL,marginBottom:'2px'}}>{c.nome}</div>}<div style={{fontSize:'13px',color:'#374151',fontFamily:'monospace'}}>{c.cpf?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4')}</div></div>
                       </div>
                       <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
                         <span style={{fontSize:'10px',padding:'3px 10px',borderRadius:'20px',background:datas.length>0?'#dbeafe':'#dcfce7',color:datas.length>0?'#1d4ed8':'#16a34a',fontWeight:'700'}}>{datas.length>0?datas.length+' DATA(S)':'TODAS AS DATAS'}</span>
@@ -839,7 +787,7 @@ export default function Admin() {
                 <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
                   {horariosBloqueadosData.length===0&&<p style={{color:'#9ca3af',fontSize:'13px',textAlign:'center',padding:'2rem'}}>Nenhuma restricao cadastrada.</p>}
                   {horariosBloqueadosData.map(b=>{
-                    const idx=HORARIOS_DISPONIVEIS.indexOf(b.ultimo_horario); const bloqueados=idx>=0?HORARIOS_DISPONIVEIS.slice(idx+1):[]; const isTodos=!b.empreendimento||b.empreendimento==='todos'
+                    const idx=HORARIOS_DISPONIVEIS.indexOf(b.ultimo_horario);const bloqueados=idx>=0?HORARIOS_DISPONIVEIS.slice(idx+1):[];const isTodos=!b.empreendimento||b.empreendimento==='todos'
                     return (
                       <div key={b.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 16px',background:'#fffbeb',borderRadius:'10px',border:'1px solid #fde68a'}}>
                         <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
@@ -925,7 +873,7 @@ export default function Admin() {
             {paginados.length===0?(<div style={{textAlign:'center',padding:'3rem',color:'#9ca3af',fontSize:'14px',background:'#fff',borderRadius:'16px'}}>Nenhum agendamento encontrado</div>):(
               <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
                 {paginados.map(a=>{
-                  const cancelado=a.status==='cancelado'; const partes=(a.apartamento||'').split(' - '); const empreend=partes[0]||''; const unidade=partes.slice(1).join(' - ')||''; const criadoEm=a.criado_em?new Date(a.criado_em):null
+                  const cancelado=a.status==='cancelado';const partes=(a.apartamento||'').split(' - ');const empreend=partes[0]||'';const unidade=partes.slice(1).join(' - ')||'';const criadoEm=a.criado_em?new Date(a.criado_em):null
                   return (
                     <div key={a.id} style={{background:cancelado?'#fff8f8':'#fff',borderRadius:'14px',padding:'1rem 1.25rem',boxShadow:'0 2px 12px rgba(27,47,126,0.06)',border:cancelado?'1px solid #fecaca':'1px solid #e8ecf5',display:'flex',alignItems:'center',gap:'1rem',position:'relative',overflow:'hidden'}}>
                       <div style={{position:'absolute',left:0,top:0,bottom:0,width:'5px',background:cancelado?'linear-gradient(180deg,#ef4444,#dc2626)':'linear-gradient(180deg,#1D9E75,#16a34a)',borderRadius:'14px 0 0 14px'}}></div>
