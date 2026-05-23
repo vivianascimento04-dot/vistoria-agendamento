@@ -12,8 +12,7 @@ const VERDE = '#1D9E75'
 const VERMELHO = '#dc2626'
 const HORARIOS_DISPONIVEIS = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30']
 const EMP_CORES = ['#1B2F7E','#6366f1','#0891b2','#059669','#d97706','#dc2626','#7c3aed','#db2777']
-
-const MOTIVOS = ['Selecione o motivo','Cliente solicitou cancelamento','Reagendamento necessario','Imovel indisponivel','Ausencia do cliente','Outro']
+const MOTIVOS = ['Selecione o motivo','Cliente solicitou cancelamento','Revistoria necessaria','Imovel indisponivel','Ausencia do cliente','Outro']
 
 function mascaraCPF(v) {
   return v.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2').slice(0,14)
@@ -37,6 +36,7 @@ export default function Admin() {
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
   const [gerandoPDF, setGerandoPDF] = useState(false)
+  const [gerandoPDFRev, setGerandoPDFRev] = useState(false)
   const [abaAtiva, setAbaAtiva] = useState('agendamentos')
   const [subAbaConfig, setSubAbaConfig] = useState('meses')
   const [empreendimentos, setEmpreendimentos] = useState([])
@@ -70,19 +70,19 @@ export default function Admin() {
   const [nomeEditando, setNomeEditando] = useState('')
   const [salvandoEdicao, setSalvandoEdicao] = useState(false)
   const [horarioSelecionado, setHorarioSelecionado] = useState({})
-  const [reagEmp, setReagEmp] = useState('')
-  const [reagData, setReagData] = useState('')
-  const [reagHorario, setReagHorario] = useState('')
-  const [reagUnidades, setReagUnidades] = useState([{unidade:'', nome:''}])
-  const [salvandoReag, setSalvandoReag] = useState(false)
-  const [erroReag, setErroReag] = useState('')
-  const [reagendamentos, setReagendamentos] = useState([])
-  const [filtroReagEmp, setFiltroReagEmp] = useState('')
-  const [paginaReag, setPaginaReag] = useState(1)
-  const [visualizacaoReag, setVisualizacaoReag] = useState('agenda')
+  const [revEmp, setRevEmp] = useState('')
+  const [revData, setRevData] = useState('')
+  const [revHorario, setRevHorario] = useState('')
+  const [revUnidades, setRevUnidades] = useState([{unidade:'', nome:''}])
+  const [salvandoRev, setSalvandoRev] = useState(false)
+  const [erroRev, setErroRev] = useState('')
+  const [revistorias, setRevistorias] = useState([])
+  const [filtroRevEmp, setFiltroRevEmp] = useState('')
+  const [paginaRev, setPaginaRev] = useState(1)
+  const [visualizacaoRev, setVisualizacaoRev] = useState('agenda')
   const [diaSelecionado, setDiaSelecionado] = useState(null)
-  const [anoReag, setAnoReag] = useState(new Date().getFullYear())
-  const [mesReag, setMesReag] = useState(new Date().getMonth())
+  const [anoRev, setAnoRev] = useState(new Date().getFullYear())
+  const [mesRev, setMesRev] = useState(new Date().getMonth())
 
   useEffect(() => { if (status === 'unauthenticated') router.push('/admin/login') }, [status])
   useEffect(() => {
@@ -93,49 +93,108 @@ export default function Admin() {
   }, [status])
   useEffect(() => { setPagina(1) }, [filtro, busca, ordem, dataInicio, dataFim, filtroEmp])
   useEffect(() => { setPaginaCpf(1) }, [buscaCpf])
-  useEffect(() => { if (abaAtiva === 'reagendamentos') buscarReagendamentos() }, [abaAtiva])
+  useEffect(() => { if (abaAtiva === 'revistorias') buscarRevistorias() }, [abaAtiva])
 
   async function buscarAgendamentos() {
     try { const res = await fetch('/api/agendamentos'); const data = await res.json(); setAgendamentos(Array.isArray(data)?data:[]) } catch(e) { setAgendamentos([]) }
     setLoading(false)
   }
 
-  async function buscarReagendamentos() {
+  async function buscarRevistorias() {
     try {
       const res = await fetch('/api/agendamentos'); const data = await res.json()
-      setReagendamentos((Array.isArray(data)?data:[]).filter(a => a.tipo==='reagendamento'))
-    } catch(e) { setReagendamentos([]) }
+      setRevistorias((Array.isArray(data)?data:[]).filter(a => a.tipo==='revistoria'))
+    } catch(e) { setRevistorias([]) }
   }
 
-  async function salvarReagendamento() {
-    if (!reagEmp||!reagData||!reagHorario) { setErroReag('Preencha empreendimento, data e horario.'); return }
-    const unidadesValidas = reagUnidades.filter(u => u.unidade.trim()&&u.nome.trim())
-    if (unidadesValidas.length===0) { setErroReag('Adicione pelo menos uma unidade com nome.'); return }
-    setSalvandoReag(true); setErroReag('')
+  async function salvarRevistoria() {
+    if (!revEmp||!revData||!revHorario) { setErroRev('Preencha empreendimento, data e horario.'); return }
+    const unidadesValidas = revUnidades.filter(u => u.unidade.trim()&&u.nome.trim())
+    if (unidadesValidas.length===0) { setErroRev('Adicione pelo menos uma unidade com nome.'); return }
+    setSalvandoRev(true); setErroRev('')
     try {
       for (const u of unidadesValidas) {
         await fetch('/api/agendamentos', { method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ nome:u.nome, cpf:'000.000.000-00', email:'reagendamento@markinvest.com.br', telefone:'(00) 00000-0000',
-            apartamento: reagEmp+' - '+u.unidade, data:reagData, horario:reagHorario,
-            nome_acompanhante:'-', cpf_acompanhante:'000.000.000-00', tipo:'reagendamento' }) })
+          body: JSON.stringify({ nome:u.nome, cpf:'000.000.000-00', email:'revistoria@markinvest.com.br', telefone:'(00) 00000-0000',
+            apartamento: revEmp+' - '+u.unidade, data:revData, horario:revHorario,
+            nome_acompanhante:'-', cpf_acompanhante:'000.000.000-00', tipo:'revistoria' }) })
       }
-      setReagEmp(''); setReagData(''); setReagHorario(''); setReagUnidades([{unidade:'',nome:''}])
-      buscarReagendamentos(); buscarAgendamentos()
-    } catch(e) { setErroReag('Erro ao salvar. Tente novamente.') }
-    setSalvandoReag(false)
+      setRevEmp(''); setRevData(''); setRevHorario(''); setRevUnidades([{unidade:'',nome:''}])
+      buscarRevistorias(); buscarAgendamentos()
+    } catch(e) { setErroRev('Erro ao salvar. Tente novamente.') }
+    setSalvandoRev(false)
   }
 
-  async function removerReagendamento(id) {
-    if (!confirm('Remover este reagendamento?')) return
+  async function removerRevistoria(id) {
+    if (!confirm('Remover esta revistoria?')) return
     try {
       await fetch('/api/agendamentos/'+id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'cancelado', motivo_cancelamento:'Removido pelo admin'}) })
-      buscarReagendamentos(); buscarAgendamentos()
+      buscarRevistorias(); buscarAgendamentos()
     } catch(e) {}
   }
 
-  function adicionarLinhaUnidade() { setReagUnidades(prev => [...prev, {unidade:'',nome:''}]) }
-  function removerLinhaUnidade(i) { setReagUnidades(prev => prev.filter((_,idx) => idx!==i)) }
-  function atualizarUnidade(i, campo, valor) { setReagUnidades(prev => prev.map((u,idx) => idx===i?{...u,[campo]:valor}:u)) }
+  function adicionarLinhaUnidade() { setRevUnidades(prev => [...prev, {unidade:'',nome:''}]) }
+  function removerLinhaUnidade(i) { setRevUnidades(prev => prev.filter((_,idx) => idx!==i)) }
+  function atualizarUnidade(i, campo, valor) { setRevUnidades(prev => prev.map((u,idx) => idx===i?{...u,[campo]:valor}:u)) }
+
+  function exportarCSVRevistorias() {
+    const cab = ['Nome','Unidade','Empreendimento','Data','Horario','Status','Criado Em']
+    const linhas = revFiltradas.map(r => {
+      const partes = (r.apartamento||'').split(' - ')
+      const emp = partes[0]||''
+      const unidade = partes.slice(1).join(' - ')||''
+      return [r.nome, unidade, emp, new Date(r.data+'T12:00:00').toLocaleDateString('pt-BR'), (r.horario||'').slice(0,5), r.status, r.criado_em?new Date(r.criado_em).toLocaleString('pt-BR'):'']
+    })
+    const csv = [cab,...linhas].map(l=>l.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n')
+    const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'})
+    const url = URL.createObjectURL(blob); const link = document.createElement('a')
+    link.href = url; link.download = 'revistorias-'+new Date().toISOString().split('T')[0]+'.csv'; link.click(); URL.revokeObjectURL(url)
+  }
+
+  async function gerarPDFRevistorias() {
+    setGerandoPDFRev(true)
+    try {
+      const script = document.createElement('script'); script.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; document.head.appendChild(script)
+      await new Promise((res,rej)=>{script.onload=res;script.onerror=rej})
+      const {jsPDF} = window.jspdf
+      const doc = new jsPDF({orientation:'landscape',unit:'mm',format:'a4'})
+      const W=297, M=12; let y=0
+      doc.setFillColor(27,47,126); doc.rect(0,0,W,32,'F')
+      doc.setTextColor(255,255,255); doc.setFontSize(20); doc.setFont('helvetica','bold'); doc.text('MARKINVEST',W/2,13,{align:'center'})
+      doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.text('Relatorio de Revistorias',W/2,21,{align:'center'})
+      doc.setFontSize(7.5); doc.text('Gerado em: '+new Date().toLocaleString('pt-BR'),W/2,28,{align:'center'}); y=38
+      doc.setFillColor(240,243,250); doc.rect(M,y-4,W-M*2,10,'F')
+      doc.setTextColor(60,60,100); doc.setFontSize(7.5); doc.setFont('helvetica','italic')
+      let ftxt = 'Total: '+revFiltradas.length+' revistoria(s)'
+      if (filtroRevEmp) ftxt += ' | Empreendimento: '+filtroRevEmp
+      doc.text(ftxt,M+3,y+2); y+=12
+      const cols = [{x:M,label:'NOME'},{x:M+50,label:'UNIDADE'},{x:M+100,label:'EMPREENDIMENTO'},{x:M+160,label:'DATA'},{x:M+185,label:'HORA'},{x:M+200,label:'STATUS'},{x:M+220,label:'CRIADO EM'}]
+      doc.setFillColor(27,47,126); doc.rect(M,y,W-M*2,8,'F')
+      doc.setTextColor(255,255,255); doc.setFontSize(7.5); doc.setFont('helvetica','bold')
+      cols.forEach(c=>doc.text(c.label,c.x+1,y+5.5)); y+=9; doc.setFont('helvetica','normal')
+      revFiltradas.forEach((r,idx)=>{
+        if(y>185){doc.addPage();y=15;doc.setFillColor(27,47,126);doc.rect(M,y,W-M*2,8,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7.5);cols.forEach(c=>doc.text(c.label,c.x+1,y+5.5));y+=9;doc.setFont('helvetica','normal')}
+        const rowH=8; if(idx%2===0){doc.setFillColor(247,249,255);doc.rect(M,y,W-M*2,rowH,'F')}
+        doc.setDrawColor(220,225,240); doc.line(M,y+rowH,W-M,y+rowH); doc.setFontSize(7.5)
+        const partes=(r.apartamento||'').split(' - '); const emp=partes[0]||''; const unidade=partes.slice(1).join(' - ')||r.apartamento||''
+        doc.setTextColor(30,30,30); doc.setFont('helvetica','bold'); doc.text((r.nome||'').slice(0,22),cols[0].x+1,y+5.5)
+        doc.setFont('helvetica','normal'); doc.setTextColor(60,60,60); doc.text(unidade.slice(0,24),cols[1].x+1,y+5.5)
+        doc.setTextColor(27,47,126); doc.text(emp.slice(0,24),cols[2].x+1,y+5.5)
+        doc.setTextColor(27,47,126); doc.setFont('helvetica','bold'); doc.text(new Date(r.data+'T12:00:00').toLocaleDateString('pt-BR'),cols[3].x+1,y+5.5)
+        doc.text((r.horario||'').slice(0,5),cols[4].x+1,y+5.5)
+        const cancelado=r.status==='cancelado'
+        if(cancelado){doc.setFillColor(254,226,226);doc.rect(cols[5].x,y+1.5,18,5.5,'F');doc.setTextColor(180,30,30)}else{doc.setFillColor(220,252,231);doc.rect(cols[5].x,y+1.5,18,5.5,'F');doc.setTextColor(22,101,52)}
+        doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.text(cancelado?'CANCEL.':'CONF.',cols[5].x+1,y+5.5)
+        const criadoEm=r.criado_em?new Date(r.criado_em):null
+        if(criadoEm){doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(100,100,100);doc.text(criadoEm.toLocaleDateString('pt-BR')+' '+criadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),cols[6].x+1,y+5.5)}
+        y+=rowH
+      })
+      const total=doc.getNumberOfPages()
+      for(let i=1;i<=total;i++){doc.setPage(i);doc.setFillColor(27,47,126);doc.rect(0,200,W,7,'F');doc.setTextColor(255,255,255);doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.text('Markinvest - Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo',W/2,204.5,{align:'center'});doc.text('Pagina '+i+' de '+total,W-M,204.5,{align:'right'})}
+      doc.save('revistorias-'+new Date().toISOString().split('T')[0]+'.pdf')
+    } catch(e) { console.error(e); alert('Erro ao gerar PDF.') }
+    setGerandoPDFRev(false)
+  }
 
   async function buscarEmpreendimentos() {
     try { const res = await fetch('/api/empreendimentos'); const data = await res.json(); setEmpreendimentos(Array.isArray(data)?data:[]) } catch(e) {}
@@ -153,12 +212,8 @@ export default function Admin() {
     try { const res = await fetch('/api/horarios-bloqueados-data'); const data = await res.json(); setHorariosBloqueadosData(Array.isArray(data)?data:[]) } catch(e) {}
   }
   async function salvarBloqueioData() {
-    if (!novaDataBloqueio||!novoUltimoHorario) return
-    setSalvandoBloqueio(true)
-    try {
-      await fetch('/api/horarios-bloqueados-data', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:novaDataBloqueio, ultimo_horario:novoUltimoHorario, empreendimento:novoEmpBloqueio||'todos'}) })
-      setNovaDataBloqueio(''); setNovoUltimoHorario(''); setNovoEmpBloqueio('todos'); buscarHorariosBloqueadosData()
-    } catch(e) {}
+    if (!novaDataBloqueio||!novoUltimoHorario) return; setSalvandoBloqueio(true)
+    try { await fetch('/api/horarios-bloqueados-data', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:novaDataBloqueio,ultimo_horario:novoUltimoHorario,empreendimento:novoEmpBloqueio||'todos'}) }); setNovaDataBloqueio(''); setNovoUltimoHorario(''); setNovoEmpBloqueio('todos'); buscarHorariosBloqueadosData() } catch(e) {}
     setSalvandoBloqueio(false)
   }
   async function removerBloqueioData(id) {
@@ -184,12 +239,12 @@ export default function Admin() {
     if (!horarioInicio) return
     const entrada = cpfDatas[cpf]?.find(d=>d.data===data); const horariosAtuais = entrada?.horarios||[]
     const idxInicio = HORARIOS_DISPONIVEIS.indexOf(horarioInicio); const idxFim = horarioFim?HORARIOS_DISPONIVEIS.indexOf(horarioFim):idxInicio
-    const intervalo = HORARIOS_DISPONIVEIS.slice(idxInicio, idxFim+1); const novosHorarios = [...new Set([...horariosAtuais,...intervalo])].sort()
-    try { await fetch('/api/cpf-datas', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpf,data,horarios:novosHorarios}) }); setHorarioSelecionado(prev=>({...prev,[cpf+'_'+data]:'',[cpf+'_'+data+'_fim']:''}) ); buscarCpfsAutorizados() } catch(e) {}
+    const novosHorarios = [...new Set([...horariosAtuais,...HORARIOS_DISPONIVEIS.slice(idxInicio,idxFim+1)])].sort()
+    try { await fetch('/api/cpf-datas', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpf,data,horarios:novosHorarios}) }); setHorarioSelecionado(prev=>({...prev,[cpf+'_'+data]:'',[cpf+'_'+data+'_fim']:''})); buscarCpfsAutorizados() } catch(e) {}
   }
   async function removerHorarioCpf(cpf, data, horario) {
-    const entrada = cpfDatas[cpf]?.find(d=>d.data===data); const novosHorarios = (entrada?.horarios||[]).filter(h=>h!==horario)
-    try { await fetch('/api/cpf-datas', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpf,data,horarios:novosHorarios}) }); buscarCpfsAutorizados() } catch(e) {}
+    const entrada = cpfDatas[cpf]?.find(d=>d.data===data)
+    try { await fetch('/api/cpf-datas', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpf,data,horarios:(entrada?.horarios||[]).filter(h=>h!==horario)}) }); buscarCpfsAutorizados() } catch(e) {}
   }
   async function salvarEdicaoCpf() {
     if (!editandoCpf) return; setSalvandoEdicao(true)
@@ -279,9 +334,8 @@ export default function Admin() {
       filtrados.forEach((a,idx)=>{
         if(y>185){doc.addPage();y=15;doc.setFillColor(27,47,126);doc.rect(M,y,W-M*2,8,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7.5);cols.forEach(c=>doc.text(c.label,c.x+1,y+5.5));y+=9;doc.setFont('helvetica','normal')}
         const rowH=8; if(idx%2===0){doc.setFillColor(247,249,255);doc.rect(M,y,W-M*2,rowH,'F')}; doc.setDrawColor(220,225,240); doc.line(M,y+rowH,W-M,y+rowH); doc.setFontSize(7.5); doc.setTextColor(30,30,30); doc.setFont('helvetica','bold'); doc.text((a.nome||'').slice(0,17),cols[0].x+1,y+5.5)
-        const aptoStr=a.apartamento||''; const partes=aptoStr.split(' - '); const empreend=partes[0]||''; const apto=partes.slice(1).join(' - ')||aptoStr
-        doc.setFont('helvetica','normal'); doc.setTextColor(27,47,126); doc.text(empreend.slice(0,15),cols[1].x+1,y+5.5); doc.setTextColor(60,60,60); doc.text(apto.slice(0,42),cols[2].x+1,y+5.5); doc.setTextColor(27,47,126); doc.setFont('helvetica','bold'); doc.text(new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'),cols[3].x+1,y+5.5); doc.text((a.horario||'').slice(0,5),cols[4].x+1,y+5.5); doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80); doc.text((a.telefone||'').slice(0,14),cols[5].x+1,y+5.5)
-        const criadoEm=a.criado_em?new Date(a.criado_em):null; const criadoFmt=criadoEm?criadoEm.toLocaleDateString('pt-BR')+' '+criadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'-'; doc.setTextColor(100,100,100); doc.text(criadoFmt,cols[6].x+1,y+5.5)
+        const aptoStr=a.apartamento||''; const partes=aptoStr.split(' - '); doc.setFont('helvetica','normal'); doc.setTextColor(27,47,126); doc.text((partes[0]||'').slice(0,15),cols[1].x+1,y+5.5); doc.setTextColor(60,60,60); doc.text((partes.slice(1).join(' - ')||aptoStr).slice(0,42),cols[2].x+1,y+5.5); doc.setTextColor(27,47,126); doc.setFont('helvetica','bold'); doc.text(new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'),cols[3].x+1,y+5.5); doc.text((a.horario||'').slice(0,5),cols[4].x+1,y+5.5); doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80); doc.text((a.telefone||'').slice(0,14),cols[5].x+1,y+5.5)
+        const criadoEm=a.criado_em?new Date(a.criado_em):null; doc.setTextColor(100,100,100); doc.text(criadoEm?criadoEm.toLocaleDateString('pt-BR')+' '+criadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'-',cols[6].x+1,y+5.5)
         const cancelado=a.status==='cancelado'; if(cancelado){doc.setFillColor(254,226,226);doc.rect(cols[7].x,y+1.5,15,5.5,'F');doc.setTextColor(180,30,30)}else{doc.setFillColor(220,252,231);doc.rect(cols[7].x,y+1.5,15,5.5,'F');doc.setTextColor(22,101,52)}
         doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.text(cancelado?'CANCEL.':'CONF.',cols[7].x+1,y+5.5)
         if(cancelado&&a.motivo_cancelamento){doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(180,30,30);doc.text((a.motivo_cancelamento||'').slice(0,22),cols[8].x+1,y+5.5)}
@@ -293,28 +347,25 @@ export default function Admin() {
     setGerandoPDF(false)
   }
 
-  const filtrados = agendamentos.filter(a=>a.tipo!=='reagendamento').filter(a=>filtro==='todos'||a.status===filtro).filter(a=>!filtroEmp||a.apartamento?.toLowerCase().includes(filtroEmp.toLowerCase())).filter(a=>{if(!busca)return true;const b=busca.toLowerCase();return a.nome?.toLowerCase().includes(b)||a.email?.toLowerCase().includes(b)||a.apartamento?.toLowerCase().includes(b)||a.telefone?.includes(b)||a.cpf?.includes(b)}).filter(a=>{if(dataInicio&&a.data<dataInicio)return false;if(dataFim&&a.data>dataFim)return false;return true}).sort((a,b)=>{const da=new Date(a.criado_em||0),db=new Date(b.criado_em||0);return ordem==='mais-antigo'?da-db:db-da})
+  const filtrados = agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>filtro==='todos'||a.status===filtro).filter(a=>!filtroEmp||a.apartamento?.toLowerCase().includes(filtroEmp.toLowerCase())).filter(a=>{if(!busca)return true;const b=busca.toLowerCase();return a.nome?.toLowerCase().includes(b)||a.email?.toLowerCase().includes(b)||a.apartamento?.toLowerCase().includes(b)||a.telefone?.includes(b)||a.cpf?.includes(b)}).filter(a=>{if(dataInicio&&a.data<dataInicio)return false;if(dataFim&&a.data>dataFim)return false;return true}).sort((a,b)=>{const da=new Date(a.criado_em||0),db=new Date(b.criado_em||0);return ordem==='mais-antigo'?da-db:db-da})
   const totalPaginas=Math.ceil(filtrados.length/POR_PAGINA); const paginados=filtrados.slice((pagina-1)*POR_PAGINA,pagina*POR_PAGINA)
-  const totalConf=agendamentos.filter(a=>a.status==='confirmado'&&a.tipo!=='reagendamento').length
-  const totalCanc=agendamentos.filter(a=>a.status==='cancelado'&&a.tipo!=='reagendamento').length
+  const totalConf=agendamentos.filter(a=>a.status==='confirmado'&&a.tipo!=='revistoria').length
+  const totalCanc=agendamentos.filter(a=>a.status==='cancelado'&&a.tipo!=='revistoria').length
   const hoje=new Date(); const mesesGrid=[]
   for(let i=0;i<12;i++){const d=new Date(hoje.getFullYear(),hoje.getMonth()+i,1);const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');mesesGrid.push({key,nomeMes:MESES_NOMES[d.getMonth()],anoMes:d.getFullYear(),bloqueado:mesesBloqueados.includes(key)})}
   const horariosAtivos=horariosConfig.filter(h=>h.ativo).length
-  const cpfsFiltrados=cpfsAutorizados.filter(c=>{if(!buscaCpf)return true;const buscaLower=buscaCpf.toLowerCase();const buscaDigitos=buscaCpf.replace(/\D/g,'');return c.nome?.toLowerCase().includes(buscaLower)||(buscaDigitos.length>0&&c.cpf?.includes(buscaDigitos))})
+  const cpfsFiltrados=cpfsAutorizados.filter(c=>{if(!buscaCpf)return true;const bL=buscaCpf.toLowerCase();const bD=buscaCpf.replace(/\D/g,'');return c.nome?.toLowerCase().includes(bL)||(bD.length>0&&c.cpf?.includes(bD))})
   const totalPaginasCpf=Math.ceil(cpfsFiltrados.length/POR_PAGINA_CPF); const cpfsPaginados=cpfsFiltrados.slice((paginaCpf-1)*POR_PAGINA_CPF,paginaCpf*POR_PAGINA_CPF)
-  const reagFiltrados=reagendamentos.filter(a=>a.status==='confirmado'&&(!filtroReagEmp||a.apartamento?.toLowerCase().includes(filtroReagEmp.toLowerCase())))
-  const reagAgrupados={}
-  for(const r of reagFiltrados){const emp=(r.apartamento||'').split(' - ')[0];const chave=emp+'||'+r.data+'||'+r.horario;if(!reagAgrupados[chave])reagAgrupados[chave]={emp,data:r.data,horario:r.horario,unidades:[]};const unidade=(r.apartamento||'').split(' - ').slice(1).join(' - ');reagAgrupados[chave].unidades.push({id:r.id,unidade,nome:r.nome})}
-  const reagGrupos=Object.values(reagAgrupados).sort((a,b)=>a.data<b.data?-1:a.data>b.data?1:a.horario<b.horario?-1:1)
-  const totalPaginasReag=Math.ceil(reagGrupos.length/POR_PAGINA_REAG); const reagGruposPaginados=reagGrupos.slice((paginaReag-1)*POR_PAGINA_REAG,paginaReag*POR_PAGINA_REAG)
 
-  // Calendário de reagendamentos
-  const primeiroDiaReag=new Date(anoReag,mesReag,1).getDay(); const diasNoMesReag=new Date(anoReag,mesReag+1,0).getDate()
-  const diasComReag=new Set(reagFiltrados.map(r=>r.data))
-  const mesKeyReag=anoReag+'-'+String(mesReag+1).padStart(2,'0')
-  const reagDiaSelecionado=diaSelecionado?reagGrupos.filter(g=>g.data===diaSelecionado):[]
-  const empCoresMap={}
-  empreendimentos.forEach((emp,i)=>{empCoresMap[emp]=EMP_CORES[i%EMP_CORES.length]})
+  const revFiltradas=revistorias.filter(a=>a.status==='confirmado'&&(!filtroRevEmp||a.apartamento?.toLowerCase().includes(filtroRevEmp.toLowerCase())))
+  const revAgrupadas={}
+  for(const r of revFiltradas){const emp=(r.apartamento||'').split(' - ')[0];const chave=emp+'||'+r.data+'||'+r.horario;if(!revAgrupadas[chave])revAgrupadas[chave]={emp,data:r.data,horario:r.horario,unidades:[]};const unidade=(r.apartamento||'').split(' - ').slice(1).join(' - ');revAgrupadas[chave].unidades.push({id:r.id,unidade,nome:r.nome})}
+  const revGrupos=Object.values(revAgrupadas).sort((a,b)=>a.data<b.data?-1:a.data>b.data?1:a.horario<b.horario?-1:1)
+  const totalPaginasRev=Math.ceil(revGrupos.length/POR_PAGINA_REAG); const revGruposPaginados=revGrupos.slice((paginaRev-1)*POR_PAGINA_REAG,paginaRev*POR_PAGINA_REAG)
+  const primeiroDiaRev=new Date(anoRev,mesRev,1).getDay(); const diasNoMesRev=new Date(anoRev,mesRev+1,0).getDate()
+  const diasComRev=new Set(revFiltradas.map(r=>r.data))
+  const revDiaSelecionado=diaSelecionado?revGrupos.filter(g=>g.data===diaSelecionado):[]
+  const empCoresMap={}; empreendimentos.forEach((emp,i)=>{empCoresMap[emp]=EMP_CORES[i%EMP_CORES.length]})
 
   if(status==='loading'||loading) return (<main style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#f0f3fa'}}><p style={{color:'#6b7280'}}>Carregando...</p></main>)
 
@@ -366,41 +417,41 @@ export default function Admin() {
       </div>
 
       <div style={{background:'#fff',borderBottom:'2px solid #e8ecf5',display:'flex',padding:'0 2rem',gap:'4px',overflowX:'auto'}}>
-        {[{id:'agendamentos',label:'📋 Agendamentos'},{id:'reagendamentos',label:'🔄 Reagendamentos'},{id:'empreendimentos',label:'🏢 Empreendimentos'},{id:'cpfs',label:'🔐 CPFs Autorizados'},{id:'configuracoes',label:'⚙️ Configuracoes'}].map(a=>(
+        {[{id:'agendamentos',label:'📋 Agendamentos'},{id:'revistorias',label:'🔄 Revistorias'},{id:'empreendimentos',label:'🏢 Empreendimentos'},{id:'cpfs',label:'🔐 CPFs Autorizados'},{id:'configuracoes',label:'⚙️ Configuracoes'}].map(a=>(
           <button key={a.id} onClick={()=>setAbaAtiva(a.id)} style={{padding:'14px 20px',background:'none',border:'none',borderBottom:abaAtiva===a.id?'3px solid '+AZUL:'3px solid transparent',fontSize:'13px',fontWeight:'700',cursor:'pointer',color:abaAtiva===a.id?AZUL:'#9ca3af',transition:'all 0.15s',marginBottom:'-2px',whiteSpace:'nowrap'}}>{a.label}</button>
         ))}
       </div>
 
       <div style={{maxWidth:'1100px',margin:'0 auto',padding:'1.5rem'}}>
 
-        {abaAtiva==='reagendamentos'&&(
+        {abaAtiva==='revistorias'&&(
           <div style={{display:'flex',flexDirection:'column',gap:'1.5rem'}}>
             <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
               <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'16px'}}>
                 <div style={{width:'40px',height:'40px',borderRadius:'12px',background:AZUL,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',flexShrink:0}}>🔄</div>
-                <div><h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:0}}>Novo Reagendamento</h2><p style={{fontSize:'12px',color:'#9ca3af',margin:0}}>Multiplas unidades podem compartilhar o mesmo horario</p></div>
+                <div><h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:0}}>Nova Revistoria</h2><p style={{fontSize:'12px',color:'#9ca3af',margin:0}}>Multiplas unidades podem compartilhar o mesmo horario</p></div>
               </div>
               <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'16px',padding:'14px',background:'#f8f9ff',borderRadius:'12px',border:'1px solid #e0e5f5'}}>
                 <div>
                   <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento *</label>
-                  <select value={reagEmp} onChange={e=>setReagEmp(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer',minWidth:'180px'}}>
+                  <select value={revEmp} onChange={e=>setRevEmp(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer',minWidth:'180px'}}>
                     <option value="">Selecione...</option>
                     {empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
                   </select>
                 </div>
                 <div>
                   <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Data *</label>
-                  <input type="date" value={reagData} onChange={e=>setReagData(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
+                  <input type="date" value={revData} onChange={e=>setRevData(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
                 </div>
                 <div>
                   <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Horario *</label>
-                  <select value={reagHorario} onChange={e=>setReagHorario(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
+                  <select value={revHorario} onChange={e=>setRevHorario(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
                     <option value="">Selecione...</option>
                     {HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}
                   </select>
                 </div>
               </div>
-              <p style={{fontSize:'12px',fontWeight:'700',color:AZUL,textTransform:'uppercase',margin:'0 0 8px',letterSpacing:'0.05em'}}>📋 Unidades neste horario</p>
+              <p style={{fontSize:'12px',fontWeight:'700',color:AZUL,textTransform:'uppercase',margin:'0 0 8px',letterSpacing:'0.05em'}}>📋 Unidades nesta revistoria</p>
               <div style={{border:'1px solid #e0e5f5',borderRadius:'10px',overflow:'hidden',marginBottom:'12px'}}>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 2fr auto',background:'#f0f3fa',padding:'8px 12px',borderBottom:'1px solid #e0e5f5'}}>
                   <span style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',textTransform:'uppercase'}}>Unidade</span>
@@ -408,96 +459,95 @@ export default function Admin() {
                   <span></span>
                 </div>
                 <div style={{padding:'8px 12px',display:'flex',flexDirection:'column',gap:'6px'}}>
-                  {reagUnidades.map((u,i)=>(
+                  {revUnidades.map((u,i)=>(
                     <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 2fr auto',gap:'8px',alignItems:'center'}}>
                       <input value={u.unidade} onChange={e=>atualizarUnidade(i,'unidade',e.target.value)} placeholder="Ex: Apto 301" style={{padding:'8px 10px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',width:'100%',boxSizing:'border-box'}}/>
                       <input value={u.nome} onChange={e=>atualizarUnidade(i,'nome',e.target.value)} placeholder="Nome completo do cliente" style={{padding:'8px 10px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',width:'100%',boxSizing:'border-box'}}/>
-                      <button onClick={()=>reagUnidades.length>1&&removerLinhaUnidade(i)} style={{padding:'7px 10px',background:reagUnidades.length>1?'#fff5f5':'#f9fafb',border:'1px solid '+(reagUnidades.length>1?'#fca5a5':'#e5e7eb'),borderRadius:'8px',fontSize:'13px',color:reagUnidades.length>1?VERMELHO:'#d1d5db',cursor:reagUnidades.length>1?'pointer':'not-allowed',fontWeight:'700'}}>✕</button>
+                      <button onClick={()=>revUnidades.length>1&&removerLinhaUnidade(i)} style={{padding:'7px 10px',background:revUnidades.length>1?'#fff5f5':'#f9fafb',border:'1px solid '+(revUnidades.length>1?'#fca5a5':'#e5e7eb'),borderRadius:'8px',fontSize:'13px',color:revUnidades.length>1?VERMELHO:'#d1d5db',cursor:revUnidades.length>1?'pointer':'not-allowed',fontWeight:'700'}}>✕</button>
                     </div>
                   ))}
                 </div>
               </div>
               <div style={{display:'flex',gap:'10px',alignItems:'center',flexWrap:'wrap'}}>
                 <button onClick={adicionarLinhaUnidade} style={{padding:'9px 16px',background:'#f0f7ff',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',color:AZUL,cursor:'pointer',fontWeight:'600'}}>+ Adicionar unidade</button>
-                <button onClick={salvarReagendamento} disabled={salvandoReag} style={{padding:'9px 24px',background:salvandoReag?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:salvandoReag?'not-allowed':'pointer'}}>{salvandoReag?'SALVANDO...':'SALVAR REAGENDAMENTO'}</button>
+                <button onClick={salvarRevistoria} disabled={salvandoRev} style={{padding:'9px 24px',background:salvandoRev?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:salvandoRev?'not-allowed':'pointer'}}>{salvandoRev?'SALVANDO...':'SALVAR REVISTORIA'}</button>
               </div>
-              {erroReag&&<div style={{background:'#fff5f5',border:'1px solid #fca5a5',borderRadius:'8px',padding:'10px 14px',marginTop:'12px'}}><p style={{color:VERMELHO,fontSize:'13px',fontWeight:'600',margin:0}}>⚠ {erroReag}</p></div>}
+              {erroRev&&<div style={{background:'#fff5f5',border:'1px solid #fca5a5',borderRadius:'8px',padding:'10px 14px',marginTop:'12px'}}><p style={{color:VERMELHO,fontSize:'13px',fontWeight:'600',margin:0}}>⚠ {erroRev}</p></div>}
             </div>
 
             <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px',flexWrap:'wrap',gap:'10px'}}>
                 <div>
-                  <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 2px'}}>Reagendamentos Cadastrados</h2>
-                  <p style={{fontSize:'12px',color:'#9ca3af',margin:0}}>{reagGrupos.length} grupo(s) · {reagFiltrados.length} unidade(s)</p>
+                  <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 2px'}}>Revistorias Cadastradas</h2>
+                  <p style={{fontSize:'12px',color:'#9ca3af',margin:0}}>{revGrupos.length} grupo(s) · {revFiltradas.length} unidade(s)</p>
                 </div>
                 <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
-                  <select value={filtroReagEmp} onChange={e=>{setFiltroReagEmp(e.target.value);setPaginaReag(1)}} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}>
+                  <select value={filtroRevEmp} onChange={e=>{setFiltroRevEmp(e.target.value);setPaginaRev(1)}} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}>
                     <option value="">Todos os empreendimentos</option>
                     {empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
                   </select>
+                  <button onClick={exportarCSVRevistorias} style={{padding:'8px 14px',background:AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>⬇ CSV</button>
+                  <button onClick={gerarPDFRevistorias} disabled={gerandoPDFRev} style={{padding:'8px 14px',background:gerandoPDFRev?'#9ca3af':'#C0392B',color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:gerandoPDFRev?'not-allowed':'pointer'}}>📄 {gerandoPDFRev?'GERANDO...':'PDF'}</button>
                   <div style={{display:'flex',gap:'4px',background:'#f4f6fb',borderRadius:'10px',padding:'4px'}}>
-                    <button onClick={()=>{setVisualizacaoReag('agenda');setDiaSelecionado(null)}} style={{padding:'6px 14px',borderRadius:'8px',border:'none',background:visualizacaoReag==='agenda'?AZUL:'transparent',color:visualizacaoReag==='agenda'?'#fff':'#9ca3af',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>📅 Agenda</button>
-                    <button onClick={()=>setVisualizacaoReag('lista')} style={{padding:'6px 14px',borderRadius:'8px',border:'none',background:visualizacaoReag==='lista'?AZUL:'transparent',color:visualizacaoReag==='lista'?'#fff':'#9ca3af',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>☰ Lista</button>
+                    <button onClick={()=>{setVisualizacaoRev('agenda');setDiaSelecionado(null)}} style={{padding:'6px 14px',borderRadius:'8px',border:'none',background:visualizacaoRev==='agenda'?AZUL:'transparent',color:visualizacaoRev==='agenda'?'#fff':'#9ca3af',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>📅 Agenda</button>
+                    <button onClick={()=>setVisualizacaoRev('lista')} style={{padding:'6px 14px',borderRadius:'8px',border:'none',background:visualizacaoRev==='lista'?AZUL:'transparent',color:visualizacaoRev==='lista'?'#fff':'#9ca3af',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>☰ Lista</button>
                   </div>
                 </div>
               </div>
 
-              {visualizacaoReag==='agenda'&&(
+              {visualizacaoRev==='agenda'&&(
                 <div style={{display:'grid',gridTemplateColumns:'300px 1fr',gap:'16px',alignItems:'start'}}>
                   <div style={{border:'1px solid #e0e5f5',borderRadius:'14px',overflow:'hidden'}}>
                     <div style={{background:'linear-gradient(135deg,#1B2F7E,#2a45b0)',padding:'14px 16px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                      <button onClick={()=>{if(mesReag===0){setMesReag(11);setAnoReag(a=>a-1)}else setMesReag(m=>m-1);setDiaSelecionado(null)}} style={{background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',width:'28px',height:'28px',cursor:'pointer',fontSize:'16px',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
+                      <button onClick={()=>{if(mesRev===0){setMesRev(11);setAnoRev(a=>a-1)}else setMesRev(m=>m-1);setDiaSelecionado(null)}} style={{background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',width:'28px',height:'28px',cursor:'pointer',fontSize:'16px',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
                       <div style={{textAlign:'center'}}>
-                        <div style={{color:'#fff',fontSize:'15px',fontWeight:'700',textTransform:'uppercase'}}>{MESES_NOMES[mesReag]}</div>
-                        <div style={{color:'rgba(255,255,255,0.65)',fontSize:'12px'}}>{anoReag}</div>
+                        <div style={{color:'#fff',fontSize:'15px',fontWeight:'700',textTransform:'uppercase'}}>{MESES_NOMES[mesRev]}</div>
+                        <div style={{color:'rgba(255,255,255,0.65)',fontSize:'12px'}}>{anoRev}</div>
                       </div>
-                      <button onClick={()=>{if(mesReag===11){setMesReag(0);setAnoReag(a=>a+1)}else setMesReag(m=>m+1);setDiaSelecionado(null)}} style={{background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',width:'28px',height:'28px',cursor:'pointer',fontSize:'16px',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
+                      <button onClick={()=>{if(mesRev===11){setMesRev(0);setAnoRev(a=>a+1)}else setMesRev(m=>m+1);setDiaSelecionado(null)}} style={{background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',width:'28px',height:'28px',cursor:'pointer',fontSize:'16px',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
                     </div>
                     <div style={{padding:'12px'}}>
                       <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',textAlign:'center',marginBottom:'6px'}}>
                         {['D','S','T','Q','Q','S','S'].map((d,i)=><span key={i} style={{fontSize:'10px',fontWeight:'700',color:i===0||i===6?'#e5e7eb':'#9ca3af',padding:'3px 0'}}>{d}</span>)}
                       </div>
                       <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'3px'}}>
-                        {Array(primeiroDiaReag).fill(null).map((_,i)=><div key={i}/>)}
-                        {Array(diasNoMesReag).fill(null).map((_,i)=>{
-                          const d=i+1; const date=new Date(anoReag,mesReag,d); const dow=date.getDay()
-                          const ds=anoReag+'-'+String(mesReag+1).padStart(2,'0')+'-'+String(d).padStart(2,'0')
-                          const isWeekend=dow===0||dow===6; const temReag=diasComReag.has(ds); const isSel=diaSelecionado===ds
-                          const isHoje=d===new Date().getDate()&&mesReag===new Date().getMonth()&&anoReag===new Date().getFullYear()
+                        {Array(primeiroDiaRev).fill(null).map((_,i)=><div key={i}/>)}
+                        {Array(diasNoMesRev).fill(null).map((_,i)=>{
+                          const d=i+1; const date=new Date(anoRev,mesRev,d); const dow=date.getDay()
+                          const ds=anoRev+'-'+String(mesRev+1).padStart(2,'0')+'-'+String(d).padStart(2,'0')
+                          const isWeekend=dow===0||dow===6; const temRev=diasComRev.has(ds); const isSel=diaSelecionado===ds
+                          const isHoje=d===new Date().getDate()&&mesRev===new Date().getMonth()&&anoRev===new Date().getFullYear()
                           if(isSel) return <div key={d} onClick={()=>setDiaSelecionado(null)} style={{aspectRatio:'1',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',borderRadius:'8px',cursor:'pointer',background:'linear-gradient(135deg,#1B2F7E,#2a45b0)',color:'#fff',fontSize:'12px',fontWeight:'800',boxShadow:'0 3px 10px rgba(27,47,126,0.4)'}}>{d}<div style={{width:'4px',height:'4px',borderRadius:'50%',background:'rgba(255,255,255,0.7)',marginTop:'1px'}}></div></div>
-                          if(temReag&&!isWeekend) return <div key={d} onClick={()=>setDiaSelecionado(ds)} style={{aspectRatio:'1',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',borderRadius:'8px',cursor:'pointer',background:'#eff3ff',border:'2px solid '+AZUL,fontSize:'12px',fontWeight:'700',color:AZUL}}>{d}<div style={{width:'5px',height:'5px',borderRadius:'50%',background:AZUL,marginTop:'1px'}}></div></div>
+                          if(temRev&&!isWeekend) return <div key={d} onClick={()=>setDiaSelecionado(ds)} style={{aspectRatio:'1',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',borderRadius:'8px',cursor:'pointer',background:'#eff3ff',border:'2px solid '+AZUL,fontSize:'12px',fontWeight:'700',color:AZUL}}>{d}<div style={{width:'5px',height:'5px',borderRadius:'50%',background:AZUL,marginTop:'1px'}}></div></div>
                           if(isHoje&&!isWeekend) return <div key={d} onClick={()=>setDiaSelecionado(ds)} style={{aspectRatio:'1',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',borderRadius:'8px',cursor:'pointer',background:'#f0f7ff',border:'2px solid '+AZUL,fontSize:'12px',fontWeight:'700',color:AZUL}}>{d}<div style={{width:'4px',height:'4px',borderRadius:'50%',background:AZUL,marginTop:'1px'}}></div></div>
                           return <div key={d} onClick={()=>!isWeekend&&setDiaSelecionado(ds)} style={{aspectRatio:'1',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:'8px',fontSize:'12px',color:isWeekend?'#e5e7eb':'#6b7280',cursor:isWeekend?'default':'pointer'}}>{d}</div>
                         })}
                       </div>
                       <div style={{marginTop:'10px',paddingTop:'10px',borderTop:'1px solid #e8ecf5',display:'flex',gap:'12px',flexWrap:'wrap'}}>
-                        <div style={{display:'flex',alignItems:'center',gap:'4px'}}><div style={{width:'8px',height:'8px',borderRadius:'50%',background:AZUL}}></div><span style={{fontSize:'10px',color:'#6b7280'}}>Com reagendamento</span></div>
+                        <div style={{display:'flex',alignItems:'center',gap:'4px'}}><div style={{width:'8px',height:'8px',borderRadius:'50%',background:AZUL}}></div><span style={{fontSize:'10px',color:'#6b7280'}}>Com revistoria</span></div>
                         <div style={{display:'flex',alignItems:'center',gap:'4px'}}><div style={{width:'8px',height:'8px',borderRadius:'50%',background:'#e5e7eb'}}></div><span style={{fontSize:'10px',color:'#6b7280'}}>Fim de semana</span></div>
                       </div>
                     </div>
                   </div>
-
                   <div>
                     {!diaSelecionado&&(
                       <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'14px',padding:'2rem',textAlign:'center'}}>
                         <div style={{fontSize:'32px',marginBottom:'8px'}}>📅</div>
                         <p style={{fontSize:'14px',color:'#6b7280',margin:'0 0 4px',fontWeight:'600'}}>Selecione um dia no calendario</p>
-                        <p style={{fontSize:'12px',color:'#9ca3af',margin:0}}>Dias com ponto azul possuem reagendamentos</p>
+                        <p style={{fontSize:'12px',color:'#9ca3af',margin:0}}>Dias com ponto azul possuem revistorias</p>
                       </div>
                     )}
                     {diaSelecionado&&(
                       <div style={{border:'1px solid #e0e5f5',borderRadius:'14px',overflow:'hidden'}}>
                         <div style={{padding:'12px 16px',background:'linear-gradient(135deg,#eff3ff,#e8edff)',borderBottom:'1px solid #e0e5f5',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                          <p style={{fontSize:'14px',fontWeight:'700',color:AZUL,margin:0,textTransform:'capitalize'}}>
-                            {new Date(diaSelecionado+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
-                          </p>
-                          <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',background:AZUL,color:'#fff',fontWeight:'700'}}>{reagDiaSelecionado.reduce((s,g)=>s+g.unidades.length,0)} unidade(s)</span>
+                          <p style={{fontSize:'14px',fontWeight:'700',color:AZUL,margin:0,textTransform:'capitalize'}}>{new Date(diaSelecionado+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</p>
+                          <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',background:AZUL,color:'#fff',fontWeight:'700'}}>{revDiaSelecionado.reduce((s,g)=>s+g.unidades.length,0)} unidade(s)</span>
                         </div>
-                        {reagDiaSelecionado.length===0?(
-                          <div style={{padding:'2rem',textAlign:'center',color:'#9ca3af',fontSize:'13px'}}>Nenhum reagendamento neste dia.</div>
+                        {revDiaSelecionado.length===0?(
+                          <div style={{padding:'2rem',textAlign:'center',color:'#9ca3af',fontSize:'13px'}}>Nenhuma revistoria neste dia.</div>
                         ):(
                           <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:'12px'}}>
-                            {reagDiaSelecionado.map((g,gi)=>{
+                            {revDiaSelecionado.map((g,gi)=>{
                               const corEmp=empCoresMap[g.emp]||AZUL
                               return (
                                 <div key={gi}>
@@ -510,12 +560,9 @@ export default function Admin() {
                                       <div key={ui} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 12px',background:ui%2===0?'#f8f9ff':'#fff',borderRadius:'8px',border:'1px solid #eef0f8'}}>
                                         <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
                                           <div style={{width:'30px',height:'30px',borderRadius:'8px',background:corEmp,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:'12px',fontWeight:'700',flexShrink:0}}>{(u.nome||'?').charAt(0).toUpperCase()}</div>
-                                          <div>
-                                            <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{u.nome}</div>
-                                            <div style={{fontSize:'11px',color:'#6b7280'}}>🏠 {u.unidade}</div>
-                                          </div>
+                                          <div><div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{u.nome}</div><div style={{fontSize:'11px',color:'#6b7280'}}>🏠 {u.unidade}</div></div>
                                         </div>
-                                        <button onClick={()=>removerReagendamento(u.id)} style={{padding:'4px 12px',background:'#fff5f5',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'11px',color:VERMELHO,cursor:'pointer',fontWeight:'700',flexShrink:0}}>REMOVER</button>
+                                        <button onClick={()=>removerRevistoria(u.id)} style={{padding:'4px 12px',background:'#fff5f5',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'11px',color:VERMELHO,cursor:'pointer',fontWeight:'700',flexShrink:0}}>REMOVER</button>
                                       </div>
                                     ))}
                                   </div>
@@ -530,13 +577,13 @@ export default function Admin() {
                 </div>
               )}
 
-              {visualizacaoReag==='lista'&&(
+              {visualizacaoRev==='lista'&&(
                 <>
-                  {reagGruposPaginados.length===0
-                    ?<div style={{textAlign:'center',padding:'3rem',color:'#9ca3af',fontSize:'14px',background:'#f9fafb',borderRadius:'12px'}}>Nenhum reagendamento cadastrado.</div>
+                  {revGruposPaginados.length===0
+                    ?<div style={{textAlign:'center',padding:'3rem',color:'#9ca3af',fontSize:'14px',background:'#f9fafb',borderRadius:'12px'}}>Nenhuma revistoria cadastrada.</div>
                     :(
                       <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
-                        {reagGruposPaginados.map((g,gi)=>{
+                        {revGruposPaginados.map((g,gi)=>{
                           const corEmp=empCoresMap[g.emp]||AZUL
                           return (
                             <div key={gi} style={{border:'1px solid #e0e5f5',borderRadius:'14px',overflow:'hidden',boxShadow:'0 2px 8px rgba(27,47,126,0.05)'}}>
@@ -545,10 +592,7 @@ export default function Admin() {
                                   <div style={{width:'40px',height:'40px',borderRadius:'10px',background:corEmp,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',color:'#fff',flexShrink:0}}>🔄</div>
                                   <div>
                                     <div style={{fontSize:'14px',fontWeight:'700',color:AZUL}}>{g.emp}</div>
-                                    <div style={{fontSize:'12px',color:'#6b7280',marginTop:'2px'}}>
-                                      📅 {new Date(g.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}
-                                      <span style={{fontWeight:'700',color:AZUL,marginLeft:'8px'}}>🕐 {(g.horario||'').slice(0,5)}</span>
-                                    </div>
+                                    <div style={{fontSize:'12px',color:'#6b7280',marginTop:'2px'}}>📅 {new Date(g.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}<span style={{fontWeight:'700',color:AZUL,marginLeft:'8px'}}>🕐 {(g.horario||'').slice(0,5)}</span></div>
                                   </div>
                                 </div>
                                 <span style={{fontSize:'12px',padding:'4px 12px',borderRadius:'20px',background:corEmp,color:'#fff',fontWeight:'700',flexShrink:0}}>{g.unidades.length} unidade(s)</span>
@@ -558,12 +602,9 @@ export default function Admin() {
                                   <div key={ui} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',background:ui%2===0?'#f8f9ff':'#fff',borderRadius:'10px',border:'1px solid #eef0f8'}}>
                                     <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
                                       <div style={{width:'34px',height:'34px',borderRadius:'10px',background:corEmp,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:'14px',fontWeight:'700',flexShrink:0}}>{(u.nome||'?').charAt(0).toUpperCase()}</div>
-                                      <div>
-                                        <div style={{fontSize:'13px',fontWeight:'700',color:'#111'}}>{u.nome}</div>
-                                        <div style={{fontSize:'11px',color:'#6b7280',marginTop:'1px'}}>🏠 {u.unidade}</div>
-                                      </div>
+                                      <div><div style={{fontSize:'13px',fontWeight:'700',color:'#111'}}>{u.nome}</div><div style={{fontSize:'11px',color:'#6b7280',marginTop:'1px'}}>🏠 {u.unidade}</div></div>
                                     </div>
-                                    <button onClick={()=>removerReagendamento(u.id)} style={{padding:'5px 14px',background:'#fff5f5',border:'1px solid #fca5a5',borderRadius:'8px',fontSize:'11px',color:VERMELHO,cursor:'pointer',fontWeight:'700',flexShrink:0}}>REMOVER</button>
+                                    <button onClick={()=>removerRevistoria(u.id)} style={{padding:'5px 14px',background:'#fff5f5',border:'1px solid #fca5a5',borderRadius:'8px',fontSize:'11px',color:VERMELHO,cursor:'pointer',fontWeight:'700',flexShrink:0}}>REMOVER</button>
                                   </div>
                                 ))}
                               </div>
@@ -573,14 +614,14 @@ export default function Admin() {
                       </div>
                     )
                   }
-                  {totalPaginasReag>1&&(
+                  {totalPaginasRev>1&&(
                     <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',marginTop:'1.5rem',flexWrap:'wrap'}}>
-                      <button onClick={()=>setPaginaReag(p=>Math.max(1,p-1))} disabled={paginaReag===1} style={{padding:'6px 14px',background:paginaReag===1?'#f3f4f6':'#fff',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'13px',fontWeight:'600',cursor:paginaReag===1?'not-allowed':'pointer',color:paginaReag===1?'#9ca3af':'#374151'}}>&#8249; Anterior</button>
-                      {(()=>{const paginas=[];for(let p=1;p<=totalPaginasReag;p++){if(p===1||p===totalPaginasReag||(p>=paginaReag-2&&p<=paginaReag+2))paginas.push(p)};const resultado=[];let anterior=0;for(const p of paginas){if(p-anterior>1)resultado.push('...');resultado.push(p);anterior=p};return resultado.map((p,i)=>p==='...'?<span key={'e'+i} style={{padding:'0 4px',color:'#9ca3af',fontSize:'13px'}}>...</span>:<button key={p} onClick={()=>setPaginaReag(p)} style={{width:'36px',height:'36px',borderRadius:'8px',border:paginaReag===p?'none':'1px solid #e5e7eb',background:paginaReag===p?AZUL:'#fff',color:paginaReag===p?'#fff':'#374151',fontSize:'13px',fontWeight:'700',cursor:'pointer'}}>{p}</button>)})()}
-                      <button onClick={()=>setPaginaReag(p=>Math.min(totalPaginasReag,p+1))} disabled={paginaReag===totalPaginasReag} style={{padding:'6px 14px',background:paginaReag===totalPaginasReag?'#f3f4f6':'#fff',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'13px',fontWeight:'600',cursor:paginaReag===totalPaginasReag?'not-allowed':'pointer',color:paginaReag===totalPaginasReag?'#9ca3af':'#374151'}}>Proximo &#8250;</button>
+                      <button onClick={()=>setPaginaRev(p=>Math.max(1,p-1))} disabled={paginaRev===1} style={{padding:'6px 14px',background:paginaRev===1?'#f3f4f6':'#fff',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'13px',fontWeight:'600',cursor:paginaRev===1?'not-allowed':'pointer',color:paginaRev===1?'#9ca3af':'#374151'}}>&#8249; Anterior</button>
+                      {(()=>{const paginas=[];for(let p=1;p<=totalPaginasRev;p++){if(p===1||p===totalPaginasRev||(p>=paginaRev-2&&p<=paginaRev+2))paginas.push(p)};const resultado=[];let anterior=0;for(const p of paginas){if(p-anterior>1)resultado.push('...');resultado.push(p);anterior=p};return resultado.map((p,i)=>p==='...'?<span key={'e'+i} style={{padding:'0 4px',color:'#9ca3af',fontSize:'13px'}}>...</span>:<button key={p} onClick={()=>setPaginaRev(p)} style={{width:'36px',height:'36px',borderRadius:'8px',border:paginaRev===p?'none':'1px solid #e5e7eb',background:paginaRev===p?AZUL:'#fff',color:paginaRev===p?'#fff':'#374151',fontSize:'13px',fontWeight:'700',cursor:'pointer'}}>{p}</button>)})()}
+                      <button onClick={()=>setPaginaRev(p=>Math.min(totalPaginasRev,p+1))} disabled={paginaRev===totalPaginasRev} style={{padding:'6px 14px',background:paginaRev===totalPaginasRev?'#f3f4f6':'#fff',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'13px',fontWeight:'600',cursor:paginaRev===totalPaginasRev?'not-allowed':'pointer',color:paginaRev===totalPaginasRev?'#9ca3af':'#374151'}}>Proximo &#8250;</button>
                     </div>
                   )}
-                  <p style={{textAlign:'center',fontSize:'12px',color:'#9ca3af',marginTop:'8px'}}>{reagGrupos.length===0?'Nenhum grupo':((paginaReag-1)*POR_PAGINA_REAG+1)+' - '+Math.min(paginaReag*POR_PAGINA_REAG,reagGrupos.length)+' de '+reagGrupos.length+' grupo(s)'}</p>
+                  <p style={{textAlign:'center',fontSize:'12px',color:'#9ca3af',marginTop:'8px'}}>{revGrupos.length===0?'Nenhum grupo':((paginaRev-1)*POR_PAGINA_REAG+1)+' - '+Math.min(paginaRev*POR_PAGINA_REAG,revGrupos.length)+' de '+revGrupos.length+' grupo(s)'}</p>
                 </>
               )}
             </div>
@@ -738,9 +779,7 @@ export default function Admin() {
               <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 6px'}}>Gerenciar Horarios</h2>
                 <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 16px'}}>Ative ou desative horarios globalmente.</p>
-                <div style={{background:'#f0f7ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'10px 14px',marginBottom:'20px'}}>
-                  <p style={{fontSize:'12px',color:'#1d4ed8',margin:0,fontWeight:'600'}}>{horariosAtivos} de {horariosConfig.length} horarios ativos</p>
-                </div>
+                <div style={{background:'#f0f7ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'10px 14px',marginBottom:'20px'}}><p style={{fontSize:'12px',color:'#1d4ed8',margin:0,fontWeight:'600'}}>{horariosAtivos} de {horariosConfig.length} horarios ativos</p></div>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'10px'}}>
                   {horariosConfig.map(h=>(
                     <button key={h.horario} onClick={()=>toggleHorario(h.horario,h.ativo)} disabled={salvandoHorario} style={{padding:'16px 10px',borderRadius:'12px',border:h.ativo?'2px solid #1D9E75':'2px solid #e5e7eb',background:h.ativo?'#f0fdf4':'#f9fafb',cursor:'pointer',textAlign:'center',opacity:salvandoHorario?0.7:1}}>
@@ -847,7 +886,7 @@ export default function Admin() {
         {abaAtiva==='agendamentos'&&(
           <>
             <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'16px',marginBottom:'1.5rem'}}>
-              {[{label:'TOTAL',val:agendamentos.filter(a=>a.tipo!=='reagendamento').length,cor:AZUL,icon:'📅',bg:'#eff3ff'},{label:'CONFIRMADOS',val:totalConf,cor:VERDE,icon:'✅',bg:'#f0fdf4'},{label:'CANCELADOS',val:totalCanc,cor:VERMELHO,icon:'❌',bg:'#fff5f5'}].map(c=>(
+              {[{label:'TOTAL',val:agendamentos.filter(a=>a.tipo!=='revistoria').length,cor:AZUL,icon:'📅',bg:'#eff3ff'},{label:'CONFIRMADOS',val:totalConf,cor:VERDE,icon:'✅',bg:'#f0fdf4'},{label:'CANCELADOS',val:totalCanc,cor:VERMELHO,icon:'❌',bg:'#fff5f5'}].map(c=>(
                 <div key={c.label} style={{background:'#fff',borderRadius:'16px',padding:'1.25rem 1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)',borderLeft:'4px solid '+c.cor,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                   <div><p style={{fontSize:'10px',fontWeight:'700',color:'#9ca3af',textTransform:'uppercase',letterSpacing:'0.1em',margin:'0 0 6px'}}>{c.label}</p><p style={{fontSize:'32px',fontWeight:'800',color:c.cor,margin:0,lineHeight:1}}>{c.val}</p></div>
                   <div style={{width:'48px',height:'48px',background:c.bg,borderRadius:'12px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'22px'}}>{c.icon}</div>
