@@ -23,41 +23,49 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Preencha todos os campos obrigatorios.' }, { status: 400 })
   }
 
+  const tipoAgendamento = body.tipo || 'normal'
   const cpfLimpo = cpf.replace(/\D/g, '')
 
-  const { data: todosAgends } = await supabase
-    .from('agendamentos')
-    .select('id, cpf')
-    .eq('status', 'confirmado')
+  // Verificar CPF duplicado apenas para agendamentos normais
+  if (tipoAgendamento === 'normal') {
+    const { data: todosAgends } = await supabase
+      .from('agendamentos')
+      .select('id, cpf')
+      .eq('status', 'confirmado')
 
-  const cpfJaAgendado = (todosAgends || []).some(
-    a => a.cpf && a.cpf.replace(/\D/g, '') === cpfLimpo
-  )
-
-  if (cpfJaAgendado) {
-    return NextResponse.json(
-      { error: 'Seu horario ja esta confirmado. Entre em contato com o Relacionamento.' },
-      { status: 409 }
+    const cpfJaAgendado = (todosAgends || []).some(
+      a => a.cpf && a.cpf.replace(/\D/g, '') === cpfLimpo
     )
+
+    if (cpfJaAgendado) {
+      return NextResponse.json(
+        { error: 'Seu horario ja esta confirmado. Entre em contato com o Relacionamento.' },
+        { status: 409 }
+      )
+    }
   }
 
+  // Verificar conflito por empreendimento apenas para agendamentos normais
   const empreendimento = apartamento.split(' - ')[0]
-  const { data: horarioOcupado } = await supabase
-    .from('agendamentos')
-    .select('id')
-    .eq('data', data)
-    .eq('horario', horario)
-    .eq('status', 'confirmado')
-    .ilike('apartamento', empreendimento + '%')
-    .maybeSingle()
 
-  if (horarioOcupado) {
-    return NextResponse.json({ error: 'Horario ja ocupado' }, { status: 409 })
+  if (tipoAgendamento === 'normal') {
+    const { data: horarioOcupado } = await supabase
+      .from('agendamentos')
+      .select('id')
+      .eq('data', data)
+      .eq('horario', horario)
+      .eq('status', 'confirmado')
+      .ilike('apartamento', empreendimento + '%')
+      .maybeSingle()
+
+    if (horarioOcupado) {
+      return NextResponse.json({ error: 'Horario ja ocupado' }, { status: 409 })
+    }
   }
 
   const { data: agendamento, error } = await supabase
     .from('agendamentos')
-    .insert([{ nome, cpf, email, telefone, apartamento, data, horario, nome_acompanhante, cpf_acompanhante }])
+    .insert([{ nome, cpf, email, telefone, apartamento, data, horario, nome_acompanhante, cpf_acompanhante, tipo: tipoAgendamento }])
     .select()
     .single()
 
@@ -70,12 +78,14 @@ export async function POST(request) {
   })
   const dataCapitalizada = dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1)
 
-  try {
-    await transporter.sendMail({
-      from: '"Markinvest" <' + process.env.EMAIL_USER + '>',
-      to: email,
-      subject: 'Vistoria Confirmada - Markinvest',
-      html: `<!DOCTYPE html>
+  // Enviar emails apenas para agendamentos normais
+  if (tipoAgendamento === 'normal') {
+    try {
+      await transporter.sendMail({
+        from: '"Markinvest" <' + process.env.EMAIL_USER + '>',
+        to: email,
+        subject: 'Vistoria Confirmada - Markinvest',
+        html: `<!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:30px 0;">
@@ -127,13 +137,13 @@ export async function POST(request) {
 </table>
 </body>
 </html>`
-    })
+      })
 
-    await transporter.sendMail({
-      from: '"Markinvest" <' + process.env.EMAIL_USER + '>',
-      to: 'relacionamento@markinvest.com.br',
-      subject: 'Nova Vistoria - ' + apartamento + ' | ' + dataCapitalizada,
-      html: `<!DOCTYPE html>
+      await transporter.sendMail({
+        from: '"Markinvest" <' + process.env.EMAIL_USER + '>',
+        to: 'relacionamento@markinvest.com.br',
+        subject: 'Nova Vistoria - ' + apartamento + ' | ' + dataCapitalizada,
+        html: `<!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:30px 0;">
@@ -195,9 +205,10 @@ export async function POST(request) {
 </table>
 </body>
 </html>`
-    })
-  } catch(e) {
-    console.error('Erro e-mail:', e.message)
+      })
+    } catch(e) {
+      console.error('Erro e-mail:', e.message)
+    }
   }
 
   return NextResponse.json({ success: true, agendamento })

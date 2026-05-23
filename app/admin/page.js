@@ -1,6 +1,4 @@
 'use client'
-// v2
-//v2
 import { useSession, signOut } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -78,6 +76,16 @@ export default function Admin() {
   const [salvandoEdicao, setSalvandoEdicao] = useState(false)
   const [horarioSelecionado, setHorarioSelecionado] = useState({})
 
+  // Reagendamentos
+  const [reagEmp, setReagEmp] = useState('')
+  const [reagData, setReagData] = useState('')
+  const [reagHorario, setReagHorario] = useState('')
+  const [reagUnidades, setReagUnidades] = useState([{unidade:'', nome:''}])
+  const [salvandoReag, setSalvandoReag] = useState(false)
+  const [erroReag, setErroReag] = useState('')
+  const [reagendamentos, setReagendamentos] = useState([])
+  const [filtroReagEmp, setFiltroReagEmp] = useState('')
+
   useEffect(() => { if (status === 'unauthenticated') router.push('/admin/login') }, [status])
   useEffect(() => {
     if (status === 'authenticated') {
@@ -92,6 +100,7 @@ export default function Admin() {
   }, [status])
   useEffect(() => { setPagina(1) }, [filtro, busca, ordem, dataInicio, dataFim, filtroEmp])
   useEffect(() => { setPaginaCpf(1) }, [buscaCpf])
+  useEffect(() => { if (abaAtiva === 'reagendamentos') buscarReagendamentos() }, [abaAtiva])
 
   async function buscarAgendamentos() {
     try {
@@ -101,6 +110,59 @@ export default function Admin() {
     } catch(e) { setAgendamentos([]) }
     setLoading(false)
   }
+
+  async function buscarReagendamentos() {
+    try {
+      const res = await fetch('/api/agendamentos')
+      const data = await res.json()
+      const reags = (Array.isArray(data) ? data : []).filter(a => a.tipo === 'reagendamento')
+      setReagendamentos(reags)
+    } catch(e) { setReagendamentos([]) }
+  }
+
+  async function salvarReagendamento() {
+    if (!reagEmp || !reagData || !reagHorario) { setErroReag('Preencha empreendimento, data e horario.'); return }
+    const unidadesValidas = reagUnidades.filter(u => u.unidade.trim() && u.nome.trim())
+    if (unidadesValidas.length === 0) { setErroReag('Adicione pelo menos uma unidade com nome.'); return }
+    setSalvandoReag(true); setErroReag('')
+    try {
+      for (const u of unidadesValidas) {
+        await fetch('/api/agendamentos', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            nome: u.nome,
+            cpf: '000.000.000-00',
+            email: 'reagendamento@markinvest.com.br',
+            telefone: '(00) 00000-0000',
+            apartamento: reagEmp + ' - ' + u.unidade,
+            data: reagData,
+            horario: reagHorario,
+            nome_acompanhante: '-',
+            cpf_acompanhante: '000.000.000-00',
+            tipo: 'reagendamento'
+          })
+        })
+      }
+      setReagEmp(''); setReagData(''); setReagHorario(''); setReagUnidades([{unidade:'', nome:''}])
+      buscarReagendamentos()
+      buscarAgendamentos()
+    } catch(e) { setErroReag('Erro ao salvar. Tente novamente.') }
+    setSalvandoReag(false)
+  }
+
+  async function removerReagendamento(id) {
+    if (!confirm('Remover este reagendamento?')) return
+    try {
+      await fetch('/api/agendamentos/' + id, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({status:'cancelado', motivo_cancelamento:'Removido pelo admin'}) })
+      buscarReagendamentos()
+      buscarAgendamentos()
+    } catch(e) {}
+  }
+
+  function adicionarLinhaUnidade() { setReagUnidades(prev => [...prev, {unidade:'', nome:''}]) }
+  function removerLinhaUnidade(i) { setReagUnidades(prev => prev.filter((_,idx) => idx !== i)) }
+  function atualizarUnidade(i, campo, valor) { setReagUnidades(prev => prev.map((u,idx) => idx===i ? {...u, [campo]:valor} : u)) }
 
   async function buscarEmpreendimentos() {
     try {
@@ -159,11 +221,7 @@ export default function Admin() {
 
   async function removerBloqueioData(id) {
     try {
-      await fetch('/api/horarios-bloqueados-data', {
-        method: 'DELETE',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ id })
-      })
+      await fetch('/api/horarios-bloqueados-data', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ id }) })
       buscarHorariosBloqueadosData()
     } catch(e) {}
   }
@@ -465,6 +523,7 @@ export default function Admin() {
   }
 
   const filtrados = agendamentos
+    .filter(a => a.tipo !== 'reagendamento')
     .filter(a => filtro==='todos' || a.status===filtro)
     .filter(a => !filtroEmp || a.apartamento?.toLowerCase().includes(filtroEmp.toLowerCase()))
     .filter(a => {
@@ -484,8 +543,8 @@ export default function Admin() {
 
   const totalPaginas = Math.ceil(filtrados.length/POR_PAGINA)
   const paginados = filtrados.slice((pagina-1)*POR_PAGINA, pagina*POR_PAGINA)
-  const totalConf = agendamentos.filter(a=>a.status==='confirmado').length
-  const totalCanc = agendamentos.filter(a=>a.status==='cancelado').length
+  const totalConf = agendamentos.filter(a=>a.status==='confirmado'&&a.tipo!=='reagendamento').length
+  const totalCanc = agendamentos.filter(a=>a.status==='cancelado'&&a.tipo!=='reagendamento').length
 
   const hoje = new Date()
   const mesesGrid = []
@@ -496,7 +555,7 @@ export default function Admin() {
   }
 
   const horariosAtivos = horariosConfig.filter(h => h.ativo).length
- const cpfsFiltrados = cpfsAutorizados.filter(c => {
+  const cpfsFiltrados = cpfsAutorizados.filter(c => {
     if (!buscaCpf) return true
     const buscaLower = buscaCpf.toLowerCase()
     const buscaDigitos = buscaCpf.replace(/\D/g,'')
@@ -506,6 +565,20 @@ export default function Admin() {
   })
   const totalPaginasCpf = Math.ceil(cpfsFiltrados.length / POR_PAGINA_CPF)
   const cpfsPaginados = cpfsFiltrados.slice((paginaCpf-1)*POR_PAGINA_CPF, paginaCpf*POR_PAGINA_CPF)
+
+  // Agrupar reagendamentos por empreendimento+data+horario
+  const reagFiltrados = reagendamentos.filter(a =>
+    a.status === 'confirmado' && (!filtroReagEmp || a.apartamento?.toLowerCase().includes(filtroReagEmp.toLowerCase()))
+  )
+  const reagAgrupados = {}
+  for (const r of reagFiltrados) {
+    const emp = (r.apartamento||'').split(' - ')[0]
+    const chave = emp + '||' + r.data + '||' + r.horario
+    if (!reagAgrupados[chave]) reagAgrupados[chave] = { emp, data: r.data, horario: r.horario, unidades: [] }
+    const unidade = (r.apartamento||'').split(' - ').slice(1).join(' - ')
+    reagAgrupados[chave].unidades.push({ id: r.id, unidade, nome: r.nome })
+  }
+  const reagGrupos = Object.values(reagAgrupados).sort((a,b) => a.data < b.data ? -1 : 1)
 
   if (status==='loading'||loading) return (
     <main style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f0f3fa'}}>
@@ -565,6 +638,7 @@ export default function Admin() {
       <div style={{background:'#fff', borderBottom:'2px solid #e8ecf5', display:'flex', padding:'0 2rem', gap:'4px', overflowX:'auto'}}>
         {[
           {id:'agendamentos',label:'📋 Agendamentos'},
+          {id:'reagendamentos',label:'🔄 Reagendamentos'},
           {id:'empreendimentos',label:'🏢 Empreendimentos'},
           {id:'cpfs',label:'🔐 CPFs Autorizados'},
           {id:'configuracoes',label:'⚙️ Configuracoes'}
@@ -574,6 +648,111 @@ export default function Admin() {
       </div>
 
       <div style={{maxWidth:'1100px', margin:'0 auto', padding:'1.5rem'}}>
+
+        {abaAtiva === 'reagendamentos' && (
+          <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
+            <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
+              <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Novo Reagendamento</h2>
+              <p style={{fontSize:'13px', color:'#6b7280', margin:'0 0 20px'}}>O admin agenda diretamente. Multiplas unidades podem compartilhar o mesmo horario. Agendamentos normais nao poderao ocupar esses horarios.</p>
+              <div style={{display:'flex', gap:'10px', flexWrap:'wrap', marginBottom:'16px'}}>
+                <div>
+                  <label style={{fontSize:'11px', fontWeight:'700', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Empreendimento *</label>
+                  <select value={reagEmp} onChange={e => setReagEmp(e.target.value)}
+                    style={{padding:'8px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none', background:'#fff', cursor:'pointer'}}>
+                    <option value="">Selecione...</option>
+                    {empreendimentos.map(emp => <option key={emp} value={emp}>{emp}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{fontSize:'11px', fontWeight:'700', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Data *</label>
+                  <input type="date" value={reagData} onChange={e => setReagData(e.target.value)}
+                    style={{padding:'8px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none'}}/>
+                </div>
+                <div>
+                  <label style={{fontSize:'11px', fontWeight:'700', color:'#6b7280', display:'block', marginBottom:'4px', textTransform:'uppercase'}}>Horario *</label>
+                  <select value={reagHorario} onChange={e => setReagHorario(e.target.value)}
+                    style={{padding:'8px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none', background:'#fff', cursor:'pointer'}}>
+                    <option value="">Selecione...</option>
+                    {HORARIOS_DISPONIVEIS.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+              </div>
+              <p style={{fontSize:'12px', fontWeight:'700', color:AZUL, textTransform:'uppercase', margin:'0 0 8px', letterSpacing:'0.05em'}}>Unidades neste horario</p>
+              <div style={{display:'flex', flexDirection:'column', gap:'8px', marginBottom:'12px'}}>
+                {reagUnidades.map((u, i) => (
+                  <div key={i} style={{display:'flex', gap:'8px', alignItems:'center'}}>
+                    <input value={u.unidade} onChange={e => atualizarUnidade(i, 'unidade', e.target.value)} placeholder="Unidade (ex: Apto 301)"
+                      style={{flex:1, padding:'8px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none'}}/>
+                    <input value={u.nome} onChange={e => atualizarUnidade(i, 'nome', e.target.value)} placeholder="Nome do cliente"
+                      style={{flex:2, padding:'8px 12px', border:'1px solid #dde1f0', borderRadius:'8px', fontSize:'13px', outline:'none'}}/>
+                    {reagUnidades.length > 1 && (
+                      <button onClick={() => removerLinhaUnidade(i)}
+                        style={{padding:'8px 12px', background:'#fff5f5', border:'1px solid #fca5a5', borderRadius:'8px', fontSize:'13px', color:VERMELHO, cursor:'pointer', fontWeight:'700', flexShrink:0}}>✕</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div style={{display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap'}}>
+                <button onClick={adicionarLinhaUnidade}
+                  style={{padding:'8px 16px', background:'#f0f7ff', border:'1px solid #bfdbfe', borderRadius:'8px', fontSize:'13px', color:AZUL, cursor:'pointer', fontWeight:'600'}}>+ Adicionar unidade</button>
+                <button onClick={salvarReagendamento} disabled={salvandoReag}
+                  style={{padding:'8px 24px', background:salvandoReag?'#9ca3af':AZUL, color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'700', cursor:salvandoReag?'not-allowed':'pointer'}}>
+                  {salvandoReag?'SALVANDO...':'SALVAR REAGENDAMENTO'}
+                </button>
+              </div>
+              {erroReag && <p style={{color:VERMELHO, fontSize:'12px', margin:'10px 0 0', fontWeight:'600'}}>⚠ {erroReag}</p>}
+            </div>
+
+            <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
+              <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px', flexWrap:'wrap', gap:'10px'}}>
+                <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:0}}>Reagendamentos Cadastrados</h2>
+                <select value={filtroReagEmp} onChange={e => setFiltroReagEmp(e.target.value)}
+                  style={{padding:'8px 12px', border:'1px solid #e5e7eb', borderRadius:'10px', fontSize:'13px', outline:'none', background:'#f9fafb', cursor:'pointer'}}>
+                  <option value="">Todos os empreendimentos</option>
+                  {empreendimentos.map(emp => <option key={emp} value={emp}>{emp}</option>)}
+                </select>
+              </div>
+              {reagGrupos.length === 0 && <p style={{color:'#9ca3af', fontSize:'13px', textAlign:'center', padding:'2rem'}}>Nenhum reagendamento cadastrado.</p>}
+              <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+                {reagGrupos.map((g, gi) => (
+                  <div key={gi} style={{border:'1px solid #e0e5f5', borderRadius:'12px', overflow:'hidden'}}>
+                    <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 16px', background:'#eff3ff', borderBottom:'1px solid #e0e5f5'}}>
+                      <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                        <span style={{fontSize:'16px'}}>🔄</span>
+                        <div>
+                          <span style={{fontSize:'13px', fontWeight:'700', color:AZUL}}>{g.emp}</span>
+                          <span style={{fontSize:'13px', color:'#6b7280', marginLeft:'10px'}}>
+                            {new Date(g.data+'T12:00:00').toLocaleDateString('pt-BR')} · {g.horario}
+                          </span>
+                        </div>
+                      </div>
+                      <span style={{fontSize:'11px', padding:'3px 10px', borderRadius:'20px', background:AZUL, color:'#fff', fontWeight:'700'}}>
+                        {g.unidades.length} unidade(s)
+                      </span>
+                    </div>
+                    <div style={{padding:'8px 16px', display:'flex', flexDirection:'column', gap:'6px'}}>
+                      {g.unidades.map((u, ui) => (
+                        <div key={ui} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', background:'#f8f9ff', borderRadius:'8px', border:'1px solid #e8ecf5'}}>
+                          <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                            <div style={{width:'28px', height:'28px', borderRadius:'8px', background:AZUL, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:'11px', fontWeight:'700', flexShrink:0}}>
+                              {(u.nome||'?').charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{fontSize:'13px', fontWeight:'600', color:'#111'}}>{u.nome}</div>
+                              <div style={{fontSize:'11px', color:'#6b7280'}}>{u.unidade}</div>
+                            </div>
+                          </div>
+                          <button onClick={() => removerReagendamento(u.id)}
+                            style={{padding:'4px 12px', background:'none', border:'1px solid #fca5a5', borderRadius:'6px', fontSize:'11px', color:VERMELHO, cursor:'pointer', fontWeight:'600'}}>REMOVER</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {abaAtiva === 'cpfs' && (
           <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
@@ -604,7 +783,6 @@ export default function Admin() {
               </div>
               {erroCpf && <p style={{color:'#dc2626', fontSize:'12px', margin:'8px 0 0', fontWeight:'600'}}>{erroCpf}</p>}
             </div>
-
             {cpfsAutorizados.length > 0 && (
               <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px', flexWrap:'wrap', gap:'8px', padding:'10px 14px', background:'#f4f6fb', borderRadius:'10px'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
@@ -626,7 +804,6 @@ export default function Admin() {
                 </div>
               </div>
             )}
-
             <div style={{display:'flex', gap:'10px', alignItems:'center', marginBottom:'12px'}}>
               <div style={{flex:1, position:'relative'}}>
                 <span style={{position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)', fontSize:'13px'}}>🔍</span>
@@ -635,7 +812,6 @@ export default function Admin() {
               </div>
               <span style={{fontSize:'12px', color:'#9ca3af', whiteSpace:'nowrap'}}>{cpfsFiltrados.length} de {cpfsAutorizados.length} CPFs</span>
             </div>
-
             <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
               {cpfsPaginados.length === 0 && (
                 <p style={{color:'#9ca3af', fontSize:'13px', textAlign:'center', padding:'2rem'}}>
@@ -749,7 +925,6 @@ export default function Admin() {
                 )
               })}
             </div>
-
             {totalPaginasCpf > 1 && (
               <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', marginTop:'1.5rem', flexWrap:'wrap'}}>
                 <button onClick={() => setPaginaCpf(p=>Math.max(1,p-1))} disabled={paginaCpf===1}
@@ -757,9 +932,7 @@ export default function Admin() {
                 {(() => {
                   const paginas = []
                   for (let p = 1; p <= totalPaginasCpf; p++) {
-                    if (p === 1 || p === totalPaginasCpf || (p >= paginaCpf - 2 && p <= paginaCpf + 2)) {
-                      paginas.push(p)
-                    }
+                    if (p === 1 || p === totalPaginasCpf || (p >= paginaCpf - 2 && p <= paginaCpf + 2)) paginas.push(p)
                   }
                   const resultado = []
                   let anterior = 0
@@ -790,7 +963,6 @@ export default function Admin() {
                 <button key={s.id} onClick={() => setSubAbaConfig(s.id)} style={{padding:'10px 20px', borderRadius:'10px', border:subAbaConfig===s.id?'none':'1px solid #e5e7eb', background:subAbaConfig===s.id?AZUL:'#fff', color:subAbaConfig===s.id?'#fff':'#6b7280', fontSize:'13px', fontWeight:'700', cursor:'pointer', boxShadow:subAbaConfig===s.id?'0 4px 12px rgba(27,47,126,0.3)':'none'}}>{s.label}</button>
               ))}
             </div>
-
             {subAbaConfig === 'meses' && (
               <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Bloquear / Liberar Meses</h2>
@@ -806,7 +978,6 @@ export default function Admin() {
                 </div>
               </div>
             )}
-
             {subAbaConfig === 'horarios' && (
               <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Gerenciar Horarios</h2>
@@ -825,7 +996,6 @@ export default function Admin() {
                 </div>
               </div>
             )}
-
             {subAbaConfig === 'dias' && (
               <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Periodos Especiais</h2>
@@ -872,7 +1042,6 @@ export default function Admin() {
                 </div>
               </div>
             )}
-
             {subAbaConfig === 'bloqueios' && (
               <div style={{background:'#fff', borderRadius:'16px', padding:'1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px', fontWeight:'700', color:AZUL, margin:'0 0 6px'}}>Horarios por Data e Empreendimento</h2>
@@ -969,7 +1138,7 @@ export default function Admin() {
         {abaAtiva === 'agendamentos' && (
           <>
             <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'16px', marginBottom:'1.5rem'}}>
-              {[{label:'TOTAL',val:agendamentos.length,cor:AZUL,icon:'📅',bg:'#eff3ff'},{label:'CONFIRMADOS',val:totalConf,cor:VERDE,icon:'✅',bg:'#f0fdf4'},{label:'CANCELADOS',val:totalCanc,cor:VERMELHO,icon:'❌',bg:'#fff5f5'}].map(c => (
+              {[{label:'TOTAL',val:agendamentos.filter(a=>a.tipo!=='reagendamento').length,cor:AZUL,icon:'📅',bg:'#eff3ff'},{label:'CONFIRMADOS',val:totalConf,cor:VERDE,icon:'✅',bg:'#f0fdf4'},{label:'CANCELADOS',val:totalCanc,cor:VERMELHO,icon:'❌',bg:'#fff5f5'}].map(c => (
                 <div key={c.label} style={{background:'#fff', borderRadius:'16px', padding:'1.25rem 1.5rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)', borderLeft:'4px solid '+c.cor, display:'flex', alignItems:'center', justifyContent:'space-between'}}>
                   <div>
                     <p style={{fontSize:'10px', fontWeight:'700', color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 6px'}}>{c.label}</p>
@@ -979,7 +1148,6 @@ export default function Admin() {
                 </div>
               ))}
             </div>
-
             <div style={{background:'#fff', borderRadius:'16px', padding:'1rem 1.25rem', marginBottom:'1rem', boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
               <div style={{display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'center', marginBottom:'10px'}}>
                 <div style={{display:'flex', gap:'4px', background:'#f4f6fb', borderRadius:'10px', padding:'4px'}}>
@@ -1017,7 +1185,6 @@ export default function Admin() {
                 <button onClick={gerarPDF} disabled={gerandoPDF} style={{padding:'8px 18px', background:gerandoPDF?'#9ca3af':'#C0392B', color:'#fff', border:'none', borderRadius:'10px', fontSize:'12px', fontWeight:'700', cursor:gerandoPDF?'not-allowed':'pointer'}}>📄 {gerandoPDF?'GERANDO...':'EXPORTAR PDF'}</button>
               </div>
             </div>
-
             {paginados.length===0 ? (
               <div style={{textAlign:'center', padding:'3rem', color:'#9ca3af', fontSize:'14px', background:'#fff', borderRadius:'16px'}}>Nenhum agendamento encontrado</div>
             ) : (
@@ -1079,7 +1246,6 @@ export default function Admin() {
                 })}
               </div>
             )}
-
             {totalPaginas>1 && (
               <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', marginTop:'1.5rem', flexWrap:'wrap'}}>
                 <button onClick={() => setPagina(p=>Math.max(1,p-1))} disabled={pagina===1} style={{padding:'6px 14px', background:pagina===1?'#f3f4f6':'#fff', border:'1px solid #e5e7eb', borderRadius:'8px', fontSize:'13px', fontWeight:'600', cursor:pagina===1?'not-allowed':'pointer', color:pagina===1?'#9ca3af':'#374151'}}>&#8249; Anterior</button>
