@@ -32,6 +32,7 @@ export async function POST(request) {
       .from('agendamentos')
       .select('id, cpf')
       .eq('status', 'confirmado')
+      .eq('tipo', 'normal')
 
     const cpfJaAgendado = (todosAgends || []).some(
       a => a.cpf && a.cpf.replace(/\D/g, '') === cpfLimpo
@@ -43,22 +44,20 @@ export async function POST(request) {
         { status: 409 }
       )
     }
-  }
 
-  // Verificar conflito por empreendimento apenas para agendamentos normais
-  const empreendimento = apartamento.split(' - ')[0]
-
-  if (tipoAgendamento === 'normal') {
-    const { data: horarioOcupado } = await supabase
+    // Verificar conflito apenas entre agendamentos normais
+    const empreendimento = apartamento.split(' - ')[0]
+    const { data: horariosOcupados } = await supabase
       .from('agendamentos')
       .select('id')
       .eq('data', data)
       .eq('horario', horario)
       .eq('status', 'confirmado')
+      .eq('tipo', 'normal')
       .ilike('apartamento', empreendimento + '%')
-      .maybeSingle()
+      .limit(1)
 
-    if (horarioOcupado) {
+    if (horariosOcupados && horariosOcupados.length > 0) {
       return NextResponse.json({ error: 'Horario ja ocupado' }, { status: 409 })
     }
   }
