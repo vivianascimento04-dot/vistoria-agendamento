@@ -155,7 +155,8 @@ export default function Admin() {
     const diasSemana = ['Domingo','Segunda-feira','Terca-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sabado']
     const diaSemana = diasSemana[dataObj.getDay()]
     setEmailAssunto('Sua unidade foi liberada para Vistoria - '+templateEmp)
-    setEmailMensagem('Prezado(a) Cliente,\n\n\nTemos uma excelente noticia: SUA UNIDADE no '+templateEmp+' acaba de ser LIBERADA pela Engenharia para a fase de VISTORIA\n\nComo estamos trabalhando para antecipar a entrega do empreendimento as vistorias estao ocorrendo em ritmo acelerado.\n\nPor isso, a agenda foi aberta agora para voce realizar o seu agendamento direto, conforme sua conveniencia.\n\nIMPORTANTE: As vagas sao limitadas e preenchidas por ordem de acesso. Recomendamos que realize o seu agendamento imediatamente para garantir os horarios disponiveis no cronograma atual.\n\nCOMO AGENDAR?\nClique no link abaixo e escolha o melhor horario para voce no dia '+dataFmt+' ('+diaSemana+').\nhttps://vistoria-agendamento.vercel.app/markinvest\n\nORIENTACOES:\nPara que possamos realizar sua vistoria sem imprevistos, observe as regras obrigatorias de obra:\n· Documentacao: Apresentacao indispensavel de documento oficial com foto (RG ou CNH).\n· Participacao: Restrita aos titulares do contrato ou representantes legais (munidos de procuracao com poderes expressos). E permitido apenas 01 acompanhante maior de idade.\n· Trajes e Seguranca: E obrigatorio o uso de calcados fechados e sem salto.\n· Restricoes: Nao sera permitida a entrada de criancas menores de 12 anos ou animais domesticos.\n· Pontualidade: A vistoria tem duracao de 50 minutos. Solicitamos chegada com 10 minutos de antecedencia.\n\n\nLocalizacao: Avenida Francisco de Paula Leite, n.o 466 (entrada principal - acesso de pedestres).\n\nCorra e garanta seu horario! Estamos ansiosos para te mostrar cada detalhe do seu novo imovel\n\nEm caso de duvidas, nossa Central de Relacionamento permanece a disposicao.')
+    setEmailMensagem(
+'Prezado(a) Cliente,\n\n\nTemos uma excelente noticia: SUA UNIDADE no '+templateEmp+' acaba de ser LIBERADA pela Engenharia para a fase de VISTORIA\n\nComo estamos trabalhando para antecipar a entrega do empreendimento as vistorias estao ocorrendo em ritmo acelerado.\n\nPor isso, a agenda foi aberta agora para voce realizar o seu agendamento direto, conforme sua conveniencia.\n\nIMPORTANTE: As vagas sao limitadas e preenchidas por ordem de acesso. Recomendamos que realize o seu agendamento imediatamente para garantir os horarios disponiveis no cronograma atual.\n\nCOMO AGENDAR?\nClique no link abaixo e escolha o melhor horario para voce no dia '+dataFmt+' ('+diaSemana+').\nhttps://vistoria-agendamento.vercel.app/markinvest\n\nORIENTACOES:\nPara que possamos realizar sua vistoria sem imprevistos, observe as regras obrigatorias de obra:\n\n· Documentacao: Apresentacao indispensavel de documento oficial com foto (RG ou CNH).\n\n· Participacao: Restrita aos titulares do contrato ou representantes legais (munidos de procuracao com poderes expressos para acompanhamento da vistoria e firma reconhecida ou copia autenticada de procuracao publica com amplos poderes). E permitido apenas 01 acompanhante maior de idade. Profissionais tecnicos (Engenheiro/Arquiteto) devem apresentar a carteira do conselho (CREA/CAU) e a ART, de forma indispensavel.\n\n· Trajes e Seguranca: Por estarmos em um canteiro de obras, e obrigatorio o uso de calcados fechados e sem salto. O acesso sera impedido caso o calcado seja inadequado. Recomendamos calca comprida e roupas confortaveis.\n\n· Restricoes: Nao sera permitida a entrada de criancas menores de 12 anos ou animais domesticos.\n\n· Pontualidade: A vistoria tem duracao de 50 minutos. Solicitamos chegada com 10 minutos de antecedencia. Atrasos serao descontados do tempo total de vistoria de modo a nao impactar o cronograma e, atrasos superiores a 30 minutos implicarao no cancelamento com novo agendamento para o final do cronograma geral.\n\n\nLocalizacao: Avenida Francisco de Paula Leite, n.o 466 (entrada principal - acesso de pedestres).\n\nCorra e garanta seu horario! Estamos ansiosos para te mostrar cada detalhe do seu novo imovel\n\nEm caso de duvidas, nossa Central de Relacionamento permanece a disposicao.')
     setTemplateMostrar(false)
   }
 
@@ -619,7 +620,6 @@ export default function Admin() {
           <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
             <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 6px'}}>CPFs Autorizados</h2>
             <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 20px',lineHeight:'1.6'}}>Somente CPFs cadastrados aqui conseguem acessar a agenda. URL de acesso:<span style={{display:'block',marginTop:'4px',fontWeight:'600',color:AZUL,fontSize:'12px'}}>https://vistoria-agendamento.vercel.app/markinvest/verificar</span></p>
-
             <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'1.25rem',marginBottom:'1.5rem'}}>
               <p style={{fontSize:'13px',fontWeight:'700',color:AZUL,margin:'0 0 12px'}}>Adicionar CPF autorizado</p>
               <div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}>
@@ -630,7 +630,6 @@ export default function Admin() {
               </div>
               {erroCpf&&<p style={{color:'#dc2626',fontSize:'12px',margin:'8px 0 0',fontWeight:'600'}}>{erroCpf}</p>}
             </div>
-
             <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'12px 14px',marginBottom:'12px',display:'flex',gap:'10px',alignItems:'center',flexWrap:'wrap'}}>
               <div style={{flex:1,position:'relative',minWidth:'180px'}}>
                 <span style={{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)',fontSize:'13px'}}>🔍</span>
@@ -643,9 +642,7 @@ export default function Admin() {
               </div>
               <span style={{fontSize:'12px',color:'#9ca3af',whiteSpace:'nowrap'}}>{cpfsFiltrados.length} de {cpfsAutorizados.length} CPFs</span>
             </div>
-
             {filtroCpfData&&(<div style={{background:'#eff3ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'8px 14px',marginBottom:'12px',display:'flex',alignItems:'center',gap:'8px'}}><span style={{fontSize:'13px',color:AZUL,fontWeight:'600'}}>📅 Mostrando CPFs para: {new Date(filtroCpfData+'T12:00:00').toLocaleDateString('pt-BR')}</span><span style={{fontSize:'12px',padding:'2px 8px',borderRadius:'20px',background:AZUL,color:'#fff',fontWeight:'700'}}>{cpfsFiltrados.length} CPF(s)</span></div>)}
-
             {cpfsAutorizados.length>0&&(
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px',flexWrap:'wrap',gap:'8px',padding:'10px 14px',background:'#f4f6fb',borderRadius:'10px'}}>
                 <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
@@ -659,13 +656,10 @@ export default function Admin() {
                 </div>
               </div>
             )}
-
             <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
               {cpfsPaginados.length===0&&<p style={{color:'#9ca3af',fontSize:'13px',textAlign:'center',padding:'2rem'}}>{cpfsAutorizados.length===0?'Nenhum CPF cadastrado.':filtroCpfData?'Nenhum CPF autorizado para esta data.':'Nenhum resultado encontrado.'}</p>}
               {cpfsPaginados.map(c=>{
-                const selecionado=cpfsSelecionados.includes(c.cpf)
-                const datas=cpfDatas[c.cpf]||[]
-                const expandido=cpfsExpandidos.has(c.cpf)
+                const selecionado=cpfsSelecionados.includes(c.cpf);const datas=cpfDatas[c.cpf]||[];const expandido=cpfsExpandidos.has(c.cpf)
                 return (
                   <div key={c.id} style={{background:selecionado?'#eff3ff':'#f8f9ff',borderRadius:'12px',border:selecionado?'1px solid #a5b4fc':'1px solid #e0e5f5',overflow:'hidden'}}>
                     <div style={{display:'flex',alignItems:'center',gap:'10px',padding:'12px 14px',flexWrap:'wrap'}}>
@@ -683,19 +677,7 @@ export default function Admin() {
                         <button onClick={()=>removerCpf(c.cpf)} style={{padding:'5px 12px',background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'11px',color:'#dc2626',cursor:'pointer',fontWeight:'600'}}>✕</button>
                       </div>
                     </div>
-
-                    {editandoCpf===c.cpf&&(
-                      <div style={{padding:'10px 14px 14px',borderTop:'1px solid #e0e5f5',background:'#f0f7ff'}}>
-                        <p style={{fontSize:'12px',fontWeight:'700',color:AZUL,margin:'0 0 8px'}}>✏ Editar dados</p>
-                        <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
-                          <input value={nomeEditando} onChange={e=>setNomeEditando(e.target.value)} placeholder="Nome" style={{flex:2,minWidth:'140px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
-                          <input value={unidadeEditando} onChange={e=>setUnidadeEditando(e.target.value)} placeholder="Unidade (ex: Apto 301)" style={{flex:1,minWidth:'120px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
-                          <button onClick={salvarEdicaoCpf} disabled={salvandoEdicao} style={{padding:'8px 16px',background:salvandoEdicao?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>{salvandoEdicao?'SALVANDO...':'✓ SALVAR'}</button>
-                          <button onClick={()=>setEditandoCpf(null)} style={{padding:'8px 12px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>✕</button>
-                        </div>
-                      </div>
-                    )}
-
+                    {editandoCpf===c.cpf&&(<div style={{padding:'10px 14px 14px',borderTop:'1px solid #e0e5f5',background:'#f0f7ff'}}><p style={{fontSize:'12px',fontWeight:'700',color:AZUL,margin:'0 0 8px'}}>✏ Editar dados</p><div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}><input value={nomeEditando} onChange={e=>setNomeEditando(e.target.value)} placeholder="Nome" style={{flex:2,minWidth:'140px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/><input value={unidadeEditando} onChange={e=>setUnidadeEditando(e.target.value)} placeholder="Unidade (ex: Apto 301)" style={{flex:1,minWidth:'120px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/><button onClick={salvarEdicaoCpf} disabled={salvandoEdicao} style={{padding:'8px 16px',background:salvandoEdicao?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>{salvandoEdicao?'SALVANDO...':'✓ SALVAR'}</button><button onClick={()=>setEditandoCpf(null)} style={{padding:'8px 12px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>✕</button></div></div>)}
                     {expandido&&(
                       <div style={{borderTop:'1px solid #e0e5f5',padding:'12px 14px',background:'#fff'}}>
                         <div style={{background:'#f0f7ff',border:'1px solid #bfdbfe',borderRadius:'10px',padding:'12px',marginBottom:'12px'}}>
@@ -731,7 +713,6 @@ export default function Admin() {
                 )
               })}
             </div>
-
             {totalPaginasCpf>1&&(
               <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',marginTop:'1.5rem',flexWrap:'wrap'}}>
                 <button onClick={()=>setPaginaCpf(p=>Math.max(1,p-1))} disabled={paginaCpf===1} style={{padding:'6px 14px',background:paginaCpf===1?'#f3f4f6':'#fff',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'13px',fontWeight:'600',cursor:paginaCpf===1?'not-allowed':'pointer',color:paginaCpf===1?'#9ca3af':'#374151'}}>&#8249; Anterior</button>
