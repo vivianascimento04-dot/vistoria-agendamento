@@ -21,12 +21,12 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    const { cpf, nome } = await request.json()
+    const { cpf, nome, unidade } = await request.json()
     if (!cpf) return NextResponse.json({ error: 'CPF obrigatorio' }, { status: 400 })
     const cpfLimpo = cpf.replace(/\D/g, '')
     const { error } = await supabase
       .from('cpfs_autorizados')
-      .insert([{ cpf: cpfLimpo, nome: nome || '' }])
+      .insert([{ cpf: cpfLimpo, nome: nome || '', unidade: unidade || '' }])
     if (error) {
       if (error.code === '23505') return NextResponse.json({ error: 'CPF ja cadastrado' }, { status: 409 })
       throw error
@@ -39,12 +39,14 @@ export async function POST(request) {
 
 export async function PATCH(request) {
   try {
-    const { cpf, nome } = await request.json()
+    const { cpf, nome, unidade } = await request.json()
     if (!cpf) return NextResponse.json({ error: 'CPF obrigatorio' }, { status: 400 })
     const cpfLimpo = cpf.replace(/\D/g, '')
+    const updates = { nome: nome || '' }
+    if (unidade !== undefined) updates.unidade = unidade
     const { error } = await supabase
       .from('cpfs_autorizados')
-      .update({ nome: nome || '' })
+      .update(updates)
       .eq('cpf', cpfLimpo)
     if (error) throw error
     return NextResponse.json({ success: true })
@@ -56,36 +58,23 @@ export async function PATCH(request) {
 export async function DELETE(request) {
   try {
     const body = await request.json()
-
     if (body.todos === true) {
-      const { error } = await supabase
-        .from('cpfs_autorizados')
-        .delete()
-        .neq('cpf', '')
+      const { error } = await supabase.from('cpfs_autorizados').delete().neq('cpf', '')
       if (error) throw error
       return NextResponse.json({ success: true })
     }
-
     if (Array.isArray(body.cpfs)) {
       const cpfsLimpos = body.cpfs.map(c => c.replace(/\D/g, ''))
-      const { error } = await supabase
-        .from('cpfs_autorizados')
-        .delete()
-        .in('cpf', cpfsLimpos)
+      const { error } = await supabase.from('cpfs_autorizados').delete().in('cpf', cpfsLimpos)
       if (error) throw error
       return NextResponse.json({ success: true })
     }
-
     if (body.cpf) {
       const cpfLimpo = body.cpf.replace(/\D/g, '')
-      const { error } = await supabase
-        .from('cpfs_autorizados')
-        .delete()
-        .eq('cpf', cpfLimpo)
+      const { error } = await supabase.from('cpfs_autorizados').delete().eq('cpf', cpfLimpo)
       if (error) throw error
       return NextResponse.json({ success: true })
     }
-
     return NextResponse.json({ error: 'Parametro invalido' }, { status: 400 })
   } catch(e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
@@ -99,11 +88,11 @@ export async function PUT(request) {
     const cpfLimpo = cpf.replace(/\D/g, '')
     const { data, error } = await supabase
       .from('cpfs_autorizados')
-      .select('cpf, nome')
+      .select('cpf, nome, unidade')
       .eq('cpf', cpfLimpo)
       .maybeSingle()
     if (error) throw error
-    return NextResponse.json({ autorizado: !!data, nome: data?.nome || '' })
+    return NextResponse.json({ autorizado: !!data, nome: data?.nome || '', unidade: data?.unidade || '' })
   } catch(e) {
     return NextResponse.json({ autorizado: false })
   }

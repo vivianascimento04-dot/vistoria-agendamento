@@ -60,6 +60,7 @@ export default function Admin() {
   const [cpfsAutorizados, setCpfsAutorizados] = useState([])
   const [novoCpf, setNovoCpf] = useState('')
   const [nomeNovoCpf, setNomeNovoCpf] = useState('')
+  const [unidadeNovoCpf, setUnidadeNovoCpf] = useState('')
   const [salvandoCpf, setSalvandoCpf] = useState(false)
   const [erroCpf, setErroCpf] = useState('')
   const [buscaCpf, setBuscaCpf] = useState('')
@@ -69,8 +70,10 @@ export default function Admin() {
   const [novaDataCpf, setNovaDataCpf] = useState({})
   const [editandoCpf, setEditandoCpf] = useState(null)
   const [nomeEditando, setNomeEditando] = useState('')
+  const [unidadeEditando, setUnidadeEditando] = useState('')
   const [salvandoEdicao, setSalvandoEdicao] = useState(false)
   const [horarioSelecionado, setHorarioSelecionado] = useState({})
+  const [cpfsExpandidos, setCpfsExpandidos] = useState(new Set())
   const [revEmp, setRevEmp] = useState('')
   const [revData, setRevData] = useState('')
   const [revHorario, setRevHorario] = useState('')
@@ -141,11 +144,7 @@ export default function Admin() {
 
   async function buscarEmailsLog() {
     setLoadingLog(true)
-    try {
-      const res = await fetch('/api/enviar-email')
-      const data = await res.json()
-      setEmailsLog(Array.isArray(data) ? data : [])
-    } catch(e) { setEmailsLog([]) }
+    try { const res = await fetch('/api/enviar-email'); const data = await res.json(); setEmailsLog(Array.isArray(data)?data:[]) } catch(e) { setEmailsLog([]) }
     setLoadingLog(false)
   }
 
@@ -170,11 +169,7 @@ export default function Admin() {
       const res = await fetch('/api/enviar-email', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({destinatarios:todos,assunto:emailAssunto,mensagem:emailMensagem}) })
       const data = await res.json()
       setEmailResultado(data)
-      if (data.success) {
-        setEmailDestinatarios([]); setEmailManual('')
-        setEmailAssunto(''); setEmailMensagem('')
-        setTemplateEmp(''); setTemplateData('')
-      }
+      if (data.success) { setEmailDestinatarios([]); setEmailManual(''); setEmailAssunto(''); setEmailMensagem(''); setTemplateEmp(''); setTemplateData('') }
     } catch(e) { setEmailResultado({error:'Erro de conexao.'}) }
     setEnviandoEmail(false)
   }
@@ -191,17 +186,15 @@ export default function Admin() {
     if (!novaData||!novoHorario) return
     setSalvandoEditRev(true)
     try {
-      for (const id of ids) {
-        await fetch('/api/agendamentos/'+id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:novaData,horario:novoHorario}) })
-      }
-      setEditandoRevGrupo(null); setEditRevData(''); setEditRevHorario('')
-      buscarRevistorias(); buscarAgendamentos()
+      for (const id of ids) { await fetch('/api/agendamentos/'+id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:novaData,horario:novoHorario}) }) }
+      setEditandoRevGrupo(null); setEditRevData(''); setEditRevHorario(''); buscarRevistorias(); buscarAgendamentos()
     } catch(e) {}
     setSalvandoEditRev(false)
   }
   function adicionarLinhaUnidade() { setRevUnidades(prev=>[...prev,{unidade:'',nome:''}]) }
   function removerLinhaUnidade(i) { setRevUnidades(prev=>prev.filter((_,idx)=>idx!==i)) }
   function atualizarUnidade(i,campo,valor) { setRevUnidades(prev=>prev.map((u,idx)=>idx===i?{...u,[campo]:valor}:u)) }
+  function toggleCpfExpandido(cpf){setCpfsExpandidos(prev=>{const next=new Set(prev);if(next.has(cpf))next.delete(cpf);else next.add(cpf);return next})}
 
   function exportarCSVRevistorias() {
     const cab=['Nome','Unidade','Empreendimento','Data','Horario','Status','Criado Em']
@@ -269,10 +262,10 @@ export default function Admin() {
     try{await fetch('/api/cpf-datas',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf,data,horarios:novosHorarios})});setHorarioSelecionado(prev=>({...prev,[cpf+'_'+data]:'',[cpf+'_'+data+'_fim']:''}));buscarCpfsAutorizados()}catch(e){}
   }
   async function removerHorarioCpf(cpf,data,horario){const entrada=cpfDatas[cpf]?.find(d=>d.data===data);try{await fetch('/api/cpf-datas',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf,data,horarios:(entrada?.horarios||[]).filter(h=>h!==horario)})});buscarCpfsAutorizados()}catch(e){}}
-  async function salvarEdicaoCpf(){if(!editandoCpf)return;setSalvandoEdicao(true);try{await fetch('/api/cpfs-autorizados',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:editandoCpf,nome:nomeEditando})});setEditandoCpf(null);setNomeEditando('');buscarCpfsAutorizados()}catch(e){};setSalvandoEdicao(false)}
+  async function salvarEdicaoCpf(){if(!editandoCpf)return;setSalvandoEdicao(true);try{await fetch('/api/cpfs-autorizados',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:editandoCpf,nome:nomeEditando,unidade:unidadeEditando})});setEditandoCpf(null);setNomeEditando('');setUnidadeEditando('');buscarCpfsAutorizados()}catch(e){};setSalvandoEdicao(false)}
   async function adicionarCpf(){
     if(!novoCpf.trim())return;setSalvandoCpf(true);setErroCpf('')
-    try{const res=await fetch('/api/cpfs-autorizados',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:novoCpf,nome:nomeNovoCpf})});if(res.ok){setNovoCpf('');setNomeNovoCpf('');buscarCpfsAutorizados()}else{const d=await res.json();setErroCpf(d.error||'Erro ao salvar.')}}catch(e){setErroCpf('Erro de conexao.')}
+    try{const res=await fetch('/api/cpfs-autorizados',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:novoCpf,nome:nomeNovoCpf,unidade:unidadeNovoCpf})});if(res.ok){setNovoCpf('');setNomeNovoCpf('');setUnidadeNovoCpf('');buscarCpfsAutorizados()}else{const d=await res.json();setErroCpf(d.error||'Erro ao salvar.')}}catch(e){setErroCpf('Erro de conexao.')}
     setSalvandoCpf(false)
   }
   async function removerCpf(cpf){if(!confirm('Remover CPF '+cpf+'?'))return;try{await fetch('/api/cpfs-autorizados',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf})});await fetch('/api/cpf-datas',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf,todos_cpf:true})});buscarCpfsAutorizados()}catch(e){}}
@@ -352,7 +345,7 @@ export default function Admin() {
   const horariosAtivos=horariosConfig.filter(h=>h.ativo).length
   const cpfsFiltrados=cpfsAutorizados.filter(c=>{
     const bL=buscaCpf.toLowerCase(); const bD=buscaCpf.replace(/\D/g,'')
-    const passaBusca=!buscaCpf||(c.nome?.toLowerCase().includes(bL)||(bD.length>0&&c.cpf?.includes(bD)))
+    const passaBusca=!buscaCpf||(c.nome?.toLowerCase().includes(bL)||c.unidade?.toLowerCase().includes(bL)||(bD.length>0&&c.cpf?.includes(bD)))
     if(!passaBusca)return false
     if(!filtroCpfData)return true
     const datas=cpfDatas[c.cpf]||[]
@@ -458,17 +451,9 @@ export default function Admin() {
                 <div><h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:0}}>Nova Revistoria</h2><p style={{fontSize:'12px',color:'#9ca3af',margin:0}}>Multiplas unidades podem compartilhar o mesmo horario</p></div>
               </div>
               <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'16px',padding:'14px',background:'#f8f9ff',borderRadius:'12px',border:'1px solid #e0e5f5'}}>
-                <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento *</label>
-                  <select value={revEmp} onChange={e=>setRevEmp(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer',minWidth:'180px'}}>
-                    <option value="">Selecione...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
-                  </select>
-                </div>
+                <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento *</label><select value={revEmp} onChange={e=>setRevEmp(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer',minWidth:'180px'}}><option value="">Selecione...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select></div>
                 <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Data *</label><input type="date" value={revData} onChange={e=>setRevData(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none'}}/></div>
-                <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Horario *</label>
-                  <select value={revHorario} onChange={e=>setRevHorario(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
-                    <option value="">Selecione...</option>{HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}
-                  </select>
-                </div>
+                <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Horario *</label><select value={revHorario} onChange={e=>setRevHorario(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}><option value="">Selecione...</option>{HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}</select></div>
               </div>
               <p style={{fontSize:'12px',fontWeight:'700',color:AZUL,textTransform:'uppercase',margin:'0 0 8px',letterSpacing:'0.05em'}}>📋 Unidades nesta revistoria</p>
               <div style={{border:'1px solid #e0e5f5',borderRadius:'10px',overflow:'hidden',marginBottom:'12px'}}>
@@ -498,9 +483,7 @@ export default function Admin() {
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px',flexWrap:'wrap',gap:'10px'}}>
                 <div><h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 2px'}}>Revistorias Cadastradas</h2><p style={{fontSize:'12px',color:'#9ca3af',margin:0}}>{revGrupos.length} grupo(s) · {revFiltradas.length} unidade(s)</p></div>
                 <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
-                  <select value={filtroRevEmp} onChange={e=>{setFiltroRevEmp(e.target.value);setPaginaRev(1)}} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}>
-                    <option value="">Todos os empreendimentos</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
-                  </select>
+                  <select value={filtroRevEmp} onChange={e=>{setFiltroRevEmp(e.target.value);setPaginaRev(1)}} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}><option value="">Todos os empreendimentos</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select>
                   <button onClick={exportarCSVRevistorias} style={{padding:'8px 14px',background:AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>⬇ CSV</button>
                   <button onClick={gerarPDFRevistorias} disabled={gerandoPDFRev} style={{padding:'8px 14px',background:gerandoPDFRev?'#9ca3af':'#C0392B',color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:gerandoPDFRev?'not-allowed':'pointer'}}>📄 {gerandoPDFRev?'GERANDO...':'PDF'}</button>
                   <div style={{display:'flex',gap:'4px',background:'#f4f6fb',borderRadius:'10px',padding:'4px'}}>
@@ -636,19 +619,22 @@ export default function Admin() {
           <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
             <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 6px'}}>CPFs Autorizados</h2>
             <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 20px',lineHeight:'1.6'}}>Somente CPFs cadastrados aqui conseguem acessar a agenda. URL de acesso:<span style={{display:'block',marginTop:'4px',fontWeight:'600',color:AZUL,fontSize:'12px'}}>https://vistoria-agendamento.vercel.app/markinvest/verificar</span></p>
+
             <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'1.25rem',marginBottom:'1.5rem'}}>
               <p style={{fontSize:'13px',fontWeight:'700',color:AZUL,margin:'0 0 12px'}}>Adicionar CPF autorizado</p>
               <div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}>
-                <div style={{flex:1,minWidth:'140px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>CPF *</label><input value={novoCpf} onChange={e=>{setNovoCpf(mascaraCPF(e.target.value));setErroCpf('')}} placeholder="000.000.000-00" maxLength={14} style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/></div>
-                <div style={{flex:2,minWidth:'180px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Nome (opcional)</label><input value={nomeNovoCpf} onChange={e=>setNomeNovoCpf(e.target.value)} placeholder="Nome do proprietario" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/></div>
+                <div style={{flex:1,minWidth:'130px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>CPF *</label><input value={novoCpf} onChange={e=>{setNovoCpf(mascaraCPF(e.target.value));setErroCpf('')}} placeholder="000.000.000-00" maxLength={14} style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/></div>
+                <div style={{flex:2,minWidth:'150px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Nome (opcional)</label><input value={nomeNovoCpf} onChange={e=>setNomeNovoCpf(e.target.value)} placeholder="Nome do proprietario" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/></div>
+                <div style={{flex:1,minWidth:'120px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Unidade (opcional)</label><input value={unidadeNovoCpf} onChange={e=>setUnidadeNovoCpf(e.target.value)} placeholder="Ex: Apto 301" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/></div>
                 <div style={{display:'flex',alignItems:'flex-end'}}><button onClick={adicionarCpf} disabled={salvandoCpf||!novoCpf.trim()} style={{padding:'9px 20px',background:salvandoCpf||!novoCpf.trim()?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:'pointer',whiteSpace:'nowrap'}}>{salvandoCpf?'SALVANDO...':'+ ADICIONAR'}</button></div>
               </div>
               {erroCpf&&<p style={{color:'#dc2626',fontSize:'12px',margin:'8px 0 0',fontWeight:'600'}}>{erroCpf}</p>}
             </div>
+
             <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'12px 14px',marginBottom:'12px',display:'flex',gap:'10px',alignItems:'center',flexWrap:'wrap'}}>
               <div style={{flex:1,position:'relative',minWidth:'180px'}}>
                 <span style={{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)',fontSize:'13px'}}>🔍</span>
-                <input value={buscaCpf} onChange={e=>setBuscaCpf(e.target.value)} placeholder="Buscar por CPF ou nome..." style={{width:'100%',padding:'8px 12px 8px 34px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#fff',boxSizing:'border-box'}}/>
+                <input value={buscaCpf} onChange={e=>setBuscaCpf(e.target.value)} placeholder="Buscar por CPF, nome ou unidade..." style={{width:'100%',padding:'8px 12px 8px 34px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#fff',boxSizing:'border-box'}}/>
               </div>
               <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
                 <label style={{fontSize:'12px',fontWeight:'600',color:'#6b7280',whiteSpace:'nowrap'}}>📅 Filtrar por data:</label>
@@ -657,7 +643,9 @@ export default function Admin() {
               </div>
               <span style={{fontSize:'12px',color:'#9ca3af',whiteSpace:'nowrap'}}>{cpfsFiltrados.length} de {cpfsAutorizados.length} CPFs</span>
             </div>
-            {filtroCpfData&&(<div style={{background:'#eff3ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'8px 14px',marginBottom:'12px',display:'flex',alignItems:'center',gap:'8px'}}><span style={{fontSize:'13px',color:AZUL,fontWeight:'600'}}>📅 Mostrando CPFs autorizados para: {new Date(filtroCpfData+'T12:00:00').toLocaleDateString('pt-BR')}</span><span style={{fontSize:'12px',padding:'2px 8px',borderRadius:'20px',background:AZUL,color:'#fff',fontWeight:'700'}}>{cpfsFiltrados.length} CPF(s)</span></div>)}
+
+            {filtroCpfData&&(<div style={{background:'#eff3ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'8px 14px',marginBottom:'12px',display:'flex',alignItems:'center',gap:'8px'}}><span style={{fontSize:'13px',color:AZUL,fontWeight:'600'}}>📅 Mostrando CPFs para: {new Date(filtroCpfData+'T12:00:00').toLocaleDateString('pt-BR')}</span><span style={{fontSize:'12px',padding:'2px 8px',borderRadius:'20px',background:AZUL,color:'#fff',fontWeight:'700'}}>{cpfsFiltrados.length} CPF(s)</span></div>)}
+
             {cpfsAutorizados.length>0&&(
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px',flexWrap:'wrap',gap:'8px',padding:'10px 14px',background:'#f4f6fb',borderRadius:'10px'}}>
                 <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
@@ -671,57 +659,79 @@ export default function Admin() {
                 </div>
               </div>
             )}
-            <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
+
+            <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
               {cpfsPaginados.length===0&&<p style={{color:'#9ca3af',fontSize:'13px',textAlign:'center',padding:'2rem'}}>{cpfsAutorizados.length===0?'Nenhum CPF cadastrado.':filtroCpfData?'Nenhum CPF autorizado para esta data.':'Nenhum resultado encontrado.'}</p>}
               {cpfsPaginados.map(c=>{
-                const selecionado=cpfsSelecionados.includes(c.cpf);const datas=cpfDatas[c.cpf]||[]
+                const selecionado=cpfsSelecionados.includes(c.cpf)
+                const datas=cpfDatas[c.cpf]||[]
+                const expandido=cpfsExpandidos.has(c.cpf)
                 return (
                   <div key={c.id} style={{background:selecionado?'#eff3ff':'#f8f9ff',borderRadius:'12px',border:selecionado?'1px solid #a5b4fc':'1px solid #e0e5f5',overflow:'hidden'}}>
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px'}}>
-                      <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
-                        <input type="checkbox" checked={selecionado} onChange={e=>setCpfsSelecionados(prev=>e.target.checked?[...prev,c.cpf]:prev.filter(x=>x!==c.cpf))} style={{width:'16px',height:'16px',cursor:'pointer',accentColor:AZUL}}/>
-                        <div style={{width:'36px',height:'36px',borderRadius:'10px',background:AZUL,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:'14px',fontWeight:'700',flexShrink:0}}>{(c.nome||'?').charAt(0).toUpperCase()}</div>
-                        <div>{c.nome&&<div style={{fontSize:'13px',fontWeight:'600',color:AZUL,marginBottom:'2px'}}>{c.nome}</div>}<div style={{fontSize:'13px',color:'#374151',fontFamily:'monospace'}}>{c.cpf?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4')}</div></div>
+                    <div style={{display:'flex',alignItems:'center',gap:'10px',padding:'12px 14px',flexWrap:'wrap'}}>
+                      <input type="checkbox" checked={selecionado} onChange={e=>setCpfsSelecionados(prev=>e.target.checked?[...prev,c.cpf]:prev.filter(x=>x!==c.cpf))} style={{width:'16px',height:'16px',cursor:'pointer',accentColor:AZUL,flexShrink:0}}/>
+                      <div style={{width:'36px',height:'36px',borderRadius:'10px',background:AZUL,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:'14px',fontWeight:'700',flexShrink:0}}>{(c.nome||'?').charAt(0).toUpperCase()}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        {c.nome&&<div style={{fontSize:'13px',fontWeight:'700',color:AZUL}}>{c.nome}</div>}
+                        <div style={{fontSize:'12px',color:'#374151',fontFamily:'monospace'}}>{c.cpf?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4')}</div>
+                        {c.unidade&&<div style={{fontSize:'11px',color:'#6b7280',marginTop:'2px'}}>🏠 {c.unidade}</div>}
                       </div>
-                      <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
-                        <span style={{fontSize:'10px',padding:'3px 10px',borderRadius:'20px',background:datas.length>0?'#dbeafe':'#dcfce7',color:datas.length>0?'#1d4ed8':'#16a34a',fontWeight:'700'}}>{datas.length>0?datas.length+' DATA(S)':'TODAS AS DATAS'}</span>
-                        <button onClick={()=>{setEditandoCpf(editandoCpf===c.cpf?null:c.cpf);setNomeEditando(c.nome||'')}} style={{padding:'5px 14px',background:'none',border:'1px solid #bfdbfe',borderRadius:'6px',fontSize:'12px',color:'#1d4ed8',cursor:'pointer',fontWeight:'600'}}>✏ EDITAR</button>
-                        <button onClick={()=>removerCpf(c.cpf)} style={{padding:'5px 14px',background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'12px',color:'#dc2626',cursor:'pointer',fontWeight:'600'}}>REMOVER</button>
+                      <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap'}}>
+                        <span style={{fontSize:'10px',padding:'3px 8px',borderRadius:'20px',background:datas.length>0?'#dbeafe':'#dcfce7',color:datas.length>0?'#1d4ed8':'#16a34a',fontWeight:'700',whiteSpace:'nowrap'}}>{datas.length>0?datas.length+' DATA(S)':'LIVRE'}</span>
+                        <button onClick={()=>toggleCpfExpandido(c.cpf)} style={{padding:'5px 12px',background:expandido?AZUL:'#f0f7ff',border:'1px solid '+(expandido?AZUL:'#bfdbfe'),borderRadius:'8px',fontSize:'11px',color:expandido?'#fff':AZUL,cursor:'pointer',fontWeight:'700',whiteSpace:'nowrap'}}>{expandido?'▲ Fechar':'📅 Datas'}</button>
+                        <button onClick={()=>{setEditandoCpf(editandoCpf===c.cpf?null:c.cpf);setNomeEditando(c.nome||'');setUnidadeEditando(c.unidade||'')}} style={{padding:'5px 12px',background:'none',border:'1px solid #bfdbfe',borderRadius:'6px',fontSize:'11px',color:'#1d4ed8',cursor:'pointer',fontWeight:'600'}}>✏</button>
+                        <button onClick={()=>removerCpf(c.cpf)} style={{padding:'5px 12px',background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'11px',color:'#dc2626',cursor:'pointer',fontWeight:'600'}}>✕</button>
                       </div>
                     </div>
-                    {editandoCpf===c.cpf&&(<div style={{padding:'10px 16px 14px',borderTop:'1px solid #e0e5f5',background:'#f0f7ff'}}><p style={{fontSize:'12px',fontWeight:'700',color:AZUL,margin:'0 0 8px'}}>✏ Editar nome</p><div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}><input value={nomeEditando} onChange={e=>setNomeEditando(e.target.value)} placeholder="Nome do proprietario" style={{flex:1,minWidth:'160px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/><button onClick={salvarEdicaoCpf} disabled={salvandoEdicao} style={{padding:'8px 16px',background:salvandoEdicao?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>{salvandoEdicao?'SALVANDO...':'✓ SALVAR'}</button><button onClick={()=>setEditandoCpf(null)} style={{padding:'8px 14px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>CANCELAR</button></div></div>)}
-                    <div style={{padding:'0 16px 12px 16px',borderTop:'1px solid #e0e5f5'}}>
-                      <p style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',textTransform:'uppercase',letterSpacing:'0.05em',margin:'10px 0 8px'}}>📅 Datas e horarios liberados {datas.length===0&&<span style={{fontWeight:'400',color:'#9ca3af'}}>(nenhuma = todas as datas disponiveis)</span>}</p>
-                      <div style={{display:'flex',flexDirection:'column',gap:'8px',marginBottom:'10px'}}>
-                        {datas.map(entrada=>(
-                          <div key={entrada.data} style={{background:filtroCpfData&&entrada.data===filtroCpfData?'#eff3ff':'#fff',border:'1px solid '+(filtroCpfData&&entrada.data===filtroCpfData?'#bfdbfe':'#e0e5f5'),borderRadius:'10px',padding:'10px 12px'}}>
-                            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'8px'}}>
-                              <span style={{fontSize:'13px',fontWeight:'700',color:AZUL}}>📅 {new Date(entrada.data+'T12:00:00').toLocaleDateString('pt-BR')}{filtroCpfData&&entrada.data===filtroCpfData&&<span style={{fontSize:'10px',marginLeft:'6px',padding:'2px 6px',background:AZUL,color:'#fff',borderRadius:'4px',fontWeight:'700'}}>FILTRADA</span>}</span>
-                              <button onClick={()=>removerDataCpf(c.cpf,entrada.data)} style={{background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'11px',color:'#dc2626',cursor:'pointer',padding:'3px 10px',fontWeight:'600'}}>remover data</button>
-                            </div>
-                            <p style={{fontSize:'11px',fontWeight:'600',color:'#6b7280',textTransform:'uppercase',margin:'0 0 6px',letterSpacing:'0.05em'}}>Horarios liberados</p>
-                            <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginBottom:'8px'}}>
-                              {(entrada.horarios||[]).map(h=>(<div key={h} style={{display:'inline-flex',alignItems:'center',gap:'4px',padding:'3px 10px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'20px'}}><span style={{fontSize:'12px',color:'#16a34a',fontWeight:'600'}}>{h}</span><button onClick={()=>removerHorarioCpf(c.cpf,entrada.data,h)} style={{background:'none',border:'none',cursor:'pointer',color:'#86efac',fontSize:'14px',padding:'0',lineHeight:'1',marginLeft:'2px'}}>×</button></div>))}
-                              {(entrada.horarios||[]).length===0&&<span style={{fontSize:'12px',color:'#9ca3af',fontStyle:'italic'}}>Todos os horarios disponiveis</span>}
-                            </div>
-                            <div style={{display:'flex',gap:'6px',alignItems:'center',flexWrap:'wrap'}}>
-                              <div style={{display:'flex',alignItems:'center',gap:'4px'}}><label style={{fontSize:'11px',color:'#6b7280',fontWeight:'600'}}>De:</label><select value={horarioSelecionado[c.cpf+'_'+entrada.data]||''} onChange={e=>setHorarioSelecionado(prev=>({...prev,[c.cpf+'_'+entrada.data]:e.target.value}))} style={{padding:'6px 10px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff'}}><option value="">--:--</option>{HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}</select></div>
-                              <div style={{display:'flex',alignItems:'center',gap:'4px'}}><label style={{fontSize:'11px',color:'#6b7280',fontWeight:'600'}}>Ate:</label><select value={horarioSelecionado[c.cpf+'_'+entrada.data+'_fim']||''} onChange={e=>setHorarioSelecionado(prev=>({...prev,[c.cpf+'_'+entrada.data+'_fim']:e.target.value}))} style={{padding:'6px 10px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff'}}><option value="">--:--</option>{HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}</select></div>
-                              <button onClick={()=>adicionarHorarioCpf(c.cpf,entrada.data,horarioSelecionado[c.cpf+'_'+entrada.data],horarioSelecionado[c.cpf+'_'+entrada.data+'_fim'])} disabled={!horarioSelecionado[c.cpf+'_'+entrada.data]} style={{padding:'6px 14px',background:!horarioSelecionado[c.cpf+'_'+entrada.data]?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:!horarioSelecionado[c.cpf+'_'+entrada.data]?'not-allowed':'pointer'}}>+ Adicionar</button>
-                            </div>
+
+                    {editandoCpf===c.cpf&&(
+                      <div style={{padding:'10px 14px 14px',borderTop:'1px solid #e0e5f5',background:'#f0f7ff'}}>
+                        <p style={{fontSize:'12px',fontWeight:'700',color:AZUL,margin:'0 0 8px'}}>✏ Editar dados</p>
+                        <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
+                          <input value={nomeEditando} onChange={e=>setNomeEditando(e.target.value)} placeholder="Nome" style={{flex:2,minWidth:'140px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
+                          <input value={unidadeEditando} onChange={e=>setUnidadeEditando(e.target.value)} placeholder="Unidade (ex: Apto 301)" style={{flex:1,minWidth:'120px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
+                          <button onClick={salvarEdicaoCpf} disabled={salvandoEdicao} style={{padding:'8px 16px',background:salvandoEdicao?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>{salvandoEdicao?'SALVANDO...':'✓ SALVAR'}</button>
+                          <button onClick={()=>setEditandoCpf(null)} style={{padding:'8px 12px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>✕</button>
+                        </div>
+                      </div>
+                    )}
+
+                    {expandido&&(
+                      <div style={{borderTop:'1px solid #e0e5f5',padding:'12px 14px',background:'#fff'}}>
+                        <div style={{background:'#f0f7ff',border:'1px solid #bfdbfe',borderRadius:'10px',padding:'12px',marginBottom:'12px'}}>
+                          <p style={{fontSize:'11px',fontWeight:'700',color:AZUL,textTransform:'uppercase',margin:'0 0 8px',letterSpacing:'0.05em'}}>+ Adicionar nova data</p>
+                          <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
+                            <input type="date" value={novaDataCpf[c.cpf]||''} onChange={e=>setNovaDataCpf(prev=>({...prev,[c.cpf]:e.target.value}))} style={{padding:'7px 10px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',flex:1,minWidth:'140px'}}/>
+                            <button onClick={()=>adicionarDataCpf(c.cpf)} disabled={!novaDataCpf[c.cpf]} style={{padding:'7px 16px',background:!novaDataCpf[c.cpf]?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:!novaDataCpf[c.cpf]?'not-allowed':'pointer',whiteSpace:'nowrap'}}>+ Adicionar</button>
                           </div>
-                        ))}
-                        {datas.length===0&&<span style={{fontSize:'12px',color:'#9ca3af',fontStyle:'italic'}}>Sem restricao de data — pode agendar qualquer dia disponivel</span>}
+                        </div>
+                        {datas.length===0&&<p style={{fontSize:'12px',color:'#9ca3af',fontStyle:'italic',textAlign:'center',padding:'8px 0'}}>Nenhuma data cadastrada — acesso livre a todos os dias.</p>}
+                        <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                          {datas.map(entrada=>(
+                            <div key={entrada.data} style={{background:filtroCpfData&&entrada.data===filtroCpfData?'#eff3ff':'#f8f9ff',border:'1px solid '+(filtroCpfData&&entrada.data===filtroCpfData?'#bfdbfe':'#e0e5f5'),borderRadius:'10px',padding:'10px 12px'}}>
+                              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'8px'}}>
+                                <span style={{fontSize:'13px',fontWeight:'700',color:AZUL}}>📅 {new Date(entrada.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'})}{filtroCpfData&&entrada.data===filtroCpfData&&<span style={{fontSize:'10px',marginLeft:'6px',padding:'2px 6px',background:AZUL,color:'#fff',borderRadius:'4px',fontWeight:'700'}}>FILTRADA</span>}</span>
+                                <button onClick={()=>removerDataCpf(c.cpf,entrada.data)} style={{background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'11px',color:'#dc2626',cursor:'pointer',padding:'3px 10px',fontWeight:'600'}}>remover</button>
+                              </div>
+                              <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginBottom:'8px'}}>
+                                {(entrada.horarios||[]).map(h=>(<div key={h} style={{display:'inline-flex',alignItems:'center',gap:'4px',padding:'3px 10px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'20px'}}><span style={{fontSize:'12px',color:'#16a34a',fontWeight:'600'}}>{h}</span><button onClick={()=>removerHorarioCpf(c.cpf,entrada.data,h)} style={{background:'none',border:'none',cursor:'pointer',color:'#86efac',fontSize:'14px',padding:'0',lineHeight:'1',marginLeft:'2px'}}>×</button></div>))}
+                                {(entrada.horarios||[]).length===0&&<span style={{fontSize:'12px',color:'#9ca3af',fontStyle:'italic'}}>Todos os horarios disponiveis</span>}
+                              </div>
+                              <div style={{display:'flex',gap:'6px',alignItems:'center',flexWrap:'wrap'}}>
+                                <div style={{display:'flex',alignItems:'center',gap:'4px'}}><label style={{fontSize:'11px',color:'#6b7280',fontWeight:'600'}}>De:</label><select value={horarioSelecionado[c.cpf+'_'+entrada.data]||''} onChange={e=>setHorarioSelecionado(prev=>({...prev,[c.cpf+'_'+entrada.data]:e.target.value}))} style={{padding:'6px 8px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'12px',outline:'none',background:'#fff'}}><option value="">--:--</option>{HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}</select></div>
+                                <div style={{display:'flex',alignItems:'center',gap:'4px'}}><label style={{fontSize:'11px',color:'#6b7280',fontWeight:'600'}}>Ate:</label><select value={horarioSelecionado[c.cpf+'_'+entrada.data+'_fim']||''} onChange={e=>setHorarioSelecionado(prev=>({...prev,[c.cpf+'_'+entrada.data+'_fim']:e.target.value}))} style={{padding:'6px 8px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'12px',outline:'none',background:'#fff'}}><option value="">--:--</option>{HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}</select></div>
+                                <button onClick={()=>adicionarHorarioCpf(c.cpf,entrada.data,horarioSelecionado[c.cpf+'_'+entrada.data],horarioSelecionado[c.cpf+'_'+entrada.data+'_fim'])} disabled={!horarioSelecionado[c.cpf+'_'+entrada.data]} style={{padding:'6px 12px',background:!horarioSelecionado[c.cpf+'_'+entrada.data]?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:!horarioSelecionado[c.cpf+'_'+entrada.data]?'not-allowed':'pointer'}}>+ Horario</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
-                        <input type="date" value={novaDataCpf[c.cpf]||''} onChange={e=>setNovaDataCpf(prev=>({...prev,[c.cpf]:e.target.value}))} style={{padding:'6px 10px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
-                        <button onClick={()=>adicionarDataCpf(c.cpf)} disabled={!novaDataCpf[c.cpf]} style={{padding:'6px 14px',background:!novaDataCpf[c.cpf]?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:!novaDataCpf[c.cpf]?'not-allowed':'pointer'}}>+ Adicionar data</button>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )
               })}
             </div>
+
             {totalPaginasCpf>1&&(
               <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',marginTop:'1.5rem',flexWrap:'wrap'}}>
                 <button onClick={()=>setPaginaCpf(p=>Math.max(1,p-1))} disabled={paginaCpf===1} style={{padding:'6px 14px',background:paginaCpf===1?'#f3f4f6':'#fff',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'13px',fontWeight:'600',cursor:paginaCpf===1?'not-allowed':'pointer',color:paginaCpf===1?'#9ca3af':'#374151'}}>&#8249; Anterior</button>
@@ -866,14 +876,8 @@ export default function Admin() {
               <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 6px'}}>📧 Email Customizado</h2>
               <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 20px'}}>Selecione destinatarios da lista ou adicione emails manualmente.</p>
               <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'12px',padding:'12px',background:'#f8f9ff',borderRadius:'12px',border:'1px solid #e0e5f5'}}>
-                <select value={emailFiltroEmp} onChange={e=>setEmailFiltroEmp(e.target.value)} style={{padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
-                  <option value="">Todos os empreendimentos</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
-                </select>
-                <select value={emailFiltroStatus} onChange={e=>setEmailFiltroStatus(e.target.value)} style={{padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
-                  <option value="todos">Todos os status</option>
-                  <option value="confirmado">Confirmados</option>
-                  <option value="cancelado">Cancelados</option>
-                </select>
+                <select value={emailFiltroEmp} onChange={e=>setEmailFiltroEmp(e.target.value)} style={{padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}><option value="">Todos os empreendimentos</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select>
+                <select value={emailFiltroStatus} onChange={e=>setEmailFiltroStatus(e.target.value)} style={{padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}><option value="todos">Todos os status</option><option value="confirmado">Confirmados</option><option value="cancelado">Cancelados</option></select>
                 <button onClick={()=>{const lista=agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>emailFiltroStatus==='todos'||a.status===emailFiltroStatus).filter(a=>!emailFiltroEmp||a.apartamento?.toLowerCase().includes(emailFiltroEmp.toLowerCase())).map(a=>a.email).filter(Boolean);setEmailDestinatarios([...new Set(lista)])}} style={{padding:'8px 16px',background:AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>Selecionar todos filtrados</button>
                 {emailDestinatarios.length>0&&<button onClick={()=>setEmailDestinatarios([])} style={{padding:'8px 16px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>Limpar ({emailDestinatarios.length})</button>}
               </div>
@@ -976,20 +980,14 @@ export default function Admin() {
             <div style={{background:'#fff',borderRadius:'16px',padding:'1rem 1.25rem',marginBottom:'1rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
               <div style={{display:'flex',gap:'10px',flexWrap:'wrap',alignItems:'center',marginBottom:'10px'}}>
                 <div style={{display:'flex',gap:'4px',background:'#f4f6fb',borderRadius:'10px',padding:'4px'}}>
-                  {['todos','confirmado','cancelado'].map(f=>(
-                    <button key={f} onClick={()=>setFiltro(f)} style={{padding:'6px 16px',borderRadius:'8px',border:'none',background:filtro===f?(f==='cancelado'?VERMELHO:f==='confirmado'?VERDE:AZUL):'transparent',color:filtro===f?'#fff':'#9ca3af',fontSize:'12px',fontWeight:'700',cursor:'pointer',textTransform:'uppercase'}}>{f}</button>
-                  ))}
+                  {['todos','confirmado','cancelado'].map(f=>(<button key={f} onClick={()=>setFiltro(f)} style={{padding:'6px 16px',borderRadius:'8px',border:'none',background:filtro===f?(f==='cancelado'?VERMELHO:f==='confirmado'?VERDE:AZUL):'transparent',color:filtro===f?'#fff':'#9ca3af',fontSize:'12px',fontWeight:'700',cursor:'pointer',textTransform:'uppercase'}}>{f}</button>))}
                 </div>
                 <div style={{flex:1,position:'relative',minWidth:'180px'}}>
                   <span style={{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)',fontSize:'13px'}}>🔍</span>
                   <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar nome, email, CPF..." style={{width:'100%',padding:'8px 12px 8px 34px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',boxSizing:'border-box'}}/>
                 </div>
-                <select value={filtroEmp} onChange={e=>setFiltroEmp(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}>
-                  <option value="">Todos os empreendimentos</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
-                </select>
-                <select value={ordem} onChange={e=>setOrdem(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}>
-                  <option value="mais-antigo">Mais antigo primeiro</option><option value="mais-novo">Mais novo primeiro</option>
-                </select>
+                <select value={filtroEmp} onChange={e=>setFiltroEmp(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}><option value="">Todos os empreendimentos</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select>
+                <select value={ordem} onChange={e=>setOrdem(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}><option value="mais-antigo">Mais antigo primeiro</option><option value="mais-novo">Mais novo primeiro</option></select>
               </div>
               <div style={{display:'flex',gap:'10px',flexWrap:'wrap',alignItems:'center',marginBottom:'10px'}}>
                 <span style={{fontSize:'12px',fontWeight:'600',color:'#6b7280'}}>Filtrar por data:</span>
