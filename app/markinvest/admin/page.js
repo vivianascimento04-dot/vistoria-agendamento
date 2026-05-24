@@ -123,12 +123,20 @@ export default function Admin() {
     } catch(e) { setErroRev('Erro ao salvar. Tente novamente.') }
     setSalvandoRev(false)
   }
-  async function removerRevistoria(id) {
+   async function removerRevistoria(id) {
     if (!confirm('Remover esta revistoria?')) return
     try {
-      await fetch('/api/agendamentos/'+id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'cancelado',motivo_cancelamento:'Removido pelo admin'}) })
-      buscarRevistorias(); buscarAgendamentos()
-    } catch(e) {}
+      const res = await fetch('/api/agendamentos/' + id, { method: 'DELETE' })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        alert('Erro ao remover: ' + (err.error || 'tente novamente'))
+        return
+      }
+      buscarRevistorias()
+      buscarAgendamentos()
+    } catch(e) {
+      alert('Erro de conexao.')
+    }
   }
   async function salvarEdicaoRevistoria(ids, novaData, novoHorario) {
     if (!novaData||!novoHorario) return

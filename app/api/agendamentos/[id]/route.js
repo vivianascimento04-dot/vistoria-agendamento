@@ -8,7 +8,8 @@ const supabase = createClient(
 
 export async function PATCH(request, { params }) {
   try {
-    const { id } = params
+    const resolvedParams = await Promise.resolve(params)
+    const id = resolvedParams.id
     const body = await request.json()
     const campos = {}
     if (body.status !== undefined) campos.status = body.status
@@ -24,6 +25,21 @@ export async function PATCH(request, { params }) {
       .single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true, agendamento: data })
+  } catch(e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
+}
+
+export async function DELETE(request, { params }) {
+  try {
+    const resolvedParams = await Promise.resolve(params)
+    const id = resolvedParams.id
+    const { error } = await supabase
+      .from('agendamentos')
+      .delete()
+      .eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
   } catch(e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
