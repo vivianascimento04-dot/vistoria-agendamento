@@ -83,6 +83,14 @@ export default function Admin() {
   const [diaSelecionado, setDiaSelecionado] = useState(null)
   const [anoRev, setAnoRev] = useState(new Date().getFullYear())
   const [mesRev, setMesRev] = useState(new Date().getMonth())
+  const [emailAssunto, setEmailAssunto] = useState('')
+  const [emailMensagem, setEmailMensagem] = useState('')
+  const [emailDestinatarios, setEmailDestinatarios] = useState([])
+  const [emailManual, setEmailManual] = useState('')
+  const [enviandoEmail, setEnviandoEmail] = useState(false)
+  const [emailResultado, setEmailResultado] = useState(null)
+  const [emailFiltroEmp, setEmailFiltroEmp] = useState('')
+  const [emailFiltroStatus, setEmailFiltroStatus] = useState('confirmado')
   const [editandoRevGrupo, setEditandoRevGrupo] = useState(null)
   const [editRevData, setEditRevData] = useState('')
   const [editRevHorario, setEditRevHorario] = useState('')
@@ -123,27 +131,33 @@ export default function Admin() {
     } catch(e) { setErroRev('Erro ao salvar. Tente novamente.') }
     setSalvandoRev(false)
   }
-   async function removerRevistoria(id) {
+  async function enviarEmailCustomizado() {
+    if (emailDestinatarios.length === 0 && !emailManual.trim()) { alert('Adicione ao menos um destinatario.'); return }
+    if (!emailAssunto.trim() || !emailMensagem.trim()) { alert('Preencha o assunto e a mensagem.'); return }
+    setEnviandoEmail(true); setEmailResultado(null)
+    try {
+      const extras = emailManual.trim() ? emailManual.split(',').map(e=>e.trim()).filter(e=>e.includes('@')) : []
+      const todos = [...new Set([...emailDestinatarios,...extras])]
+      const res = await fetch('/api/enviar-email', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({destinatarios:todos,assunto:emailAssunto,mensagem:emailMensagem}) })
+      const data = await res.json()
+      setEmailResultado(data)
+    } catch(e) { setEmailResultado({error:'Erro de conexao.'}) }
+    setEnviandoEmail(false)
+  }
+  async function removerRevistoria(id) {
     if (!confirm('Remover esta revistoria?')) return
     try {
-      const res = await fetch('/api/agendamentos/' + id, { method: 'DELETE' })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        alert('Erro ao remover: ' + (err.error || 'tente novamente'))
-        return
-      }
-      buscarRevistorias()
-      buscarAgendamentos()
-    } catch(e) {
-      alert('Erro de conexao.')
-    }
+      const res = await fetch('/api/agendamentos/'+id, { method:'DELETE' })
+      if (!res.ok) { const err = await res.json().catch(()=>({})); alert('Erro ao remover: '+(err.error||'tente novamente')); return }
+      buscarRevistorias(); buscarAgendamentos()
+    } catch(e) { alert('Erro de conexao.') }
   }
   async function salvarEdicaoRevistoria(ids, novaData, novoHorario) {
     if (!novaData||!novoHorario) return
     setSalvandoEditRev(true)
     try {
       for (const id of ids) {
-        await fetch('/api/agendamentos/'+id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:novaData, horario:novoHorario}) })
+        await fetch('/api/agendamentos/'+id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:novaData,horario:novoHorario}) })
       }
       setEditandoRevGrupo(null); setEditRevData(''); setEditRevHorario('')
       buscarRevistorias(); buscarAgendamentos()
@@ -305,7 +319,6 @@ export default function Admin() {
 
   if(status==='loading'||loading)return(<main style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#f0f3fa'}}><p style={{color:'#6b7280'}}>Carregando...</p></main>)
 
-  // Renderiza painel de edicao inline
   function renderPainelEdicao(chave, ids) {
     if (editandoRevGrupo !== chave) return null
     return (
@@ -321,7 +334,7 @@ export default function Admin() {
             {HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}
           </select>
         </div>
-        <button onClick={()=>salvarEdicaoRevistoria(ids, editRevData, editRevHorario)} disabled={!editRevData||!editRevHorario||salvandoEditRev}
+        <button onClick={()=>salvarEdicaoRevistoria(ids,editRevData,editRevHorario)} disabled={!editRevData||!editRevHorario||salvandoEditRev}
           style={{padding:'8px 18px',background:!editRevData||!editRevHorario?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:!editRevData||!editRevHorario?'not-allowed':'pointer'}}>
           {salvandoEditRev?'SALVANDO...':'✓ SALVAR'}
         </button>
@@ -386,7 +399,7 @@ export default function Admin() {
       </div>
 
       <div style={{background:'#fff',borderBottom:'2px solid #e8ecf5',display:'flex',padding:'0 2rem',gap:'4px',overflowX:'auto'}}>
-        {[{id:'agendamentos',label:'📋 Agendamentos'},{id:'revistorias',label:'🔄 Revistorias'},{id:'empreendimentos',label:'🏢 Empreendimentos'},{id:'cpfs',label:'🔐 CPFs Autorizados'},{id:'configuracoes',label:'⚙️ Configuracoes'}].map(a=>(
+        {[{id:'agendamentos',label:'📋 Agendamentos'},{id:'revistorias',label:'🔄 Revistorias'},{id:'empreendimentos',label:'🏢 Empreendimentos'},{id:'cpfs',label:'🔐 CPFs Autorizados'},{id:'configuracoes',label:'⚙️ Configuracoes'},{id:'emails',label:'📧 Emails'}].map(a=>(
           <button key={a.id} onClick={()=>setAbaAtiva(a.id)} style={{padding:'14px 20px',background:'none',border:'none',borderBottom:abaAtiva===a.id?'3px solid '+AZUL:'3px solid transparent',fontSize:'13px',fontWeight:'700',cursor:'pointer',color:abaAtiva===a.id?AZUL:'#9ca3af',transition:'all 0.15s',marginBottom:'-2px',whiteSpace:'nowrap'}}>{a.label}</button>
         ))}
       </div>
@@ -511,9 +524,9 @@ export default function Admin() {
                                   <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'6px',flexWrap:'wrap'}}>
                                     <span style={{fontSize:'13px',fontWeight:'700',color:corEmp,background:corEmp+'20',padding:'3px 12px',borderRadius:'20px',border:'1px solid '+corEmp+'40'}}>{(g.horario||'').slice(0,5)}</span>
                                     <span style={{fontSize:'12px',color:'#6b7280'}}>{g.emp} · {g.unidades.length} unidade(s)</span>
-                                    {renderBotaoEditar(chave, g.data, g.horario)}
+                                    {renderBotaoEditar(chave,g.data,g.horario)}
                                   </div>
-                                  {renderPainelEdicao(chave, ids)}
+                                  {renderPainelEdicao(chave,ids)}
                                   <div style={{paddingLeft:'8px',borderLeft:'3px solid '+corEmp,display:'flex',flexDirection:'column',gap:'4px'}}>
                                     {g.unidades.map((u,ui)=>(
                                       <div key={ui} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 12px',background:ui%2===0?'#f8f9ff':'#fff',borderRadius:'8px',border:'1px solid #eef0f8'}}>
@@ -556,10 +569,10 @@ export default function Admin() {
                               </div>
                               <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
                                 <span style={{fontSize:'12px',padding:'4px 12px',borderRadius:'20px',background:corEmp,color:'#fff',fontWeight:'700'}}>{g.unidades.length} unidade(s)</span>
-                                {renderBotaoEditar(chave, g.data, g.horario)}
+                                {renderBotaoEditar(chave,g.data,g.horario)}
                               </div>
                             </div>
-                            {renderPainelEdicao(chave, ids)}
+                            {renderPainelEdicao(chave,ids)}
                             <div style={{padding:'10px 16px',display:'flex',flexDirection:'column',gap:'6px'}}>
                               {g.unidades.map((u,ui)=>(
                                 <div key={ui} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',background:ui%2===0?'#f8f9ff':'#fff',borderRadius:'10px',border:'1px solid #eef0f8'}}>
@@ -838,6 +851,82 @@ export default function Admin() {
                 </div>
               ))}
               {empreendimentos.length===0&&<p style={{color:'#9ca3af',fontSize:'13px',textAlign:'center',padding:'2rem'}}>Nenhum empreendimento cadastrado.</p>}
+            </div>
+          </div>
+        )}
+
+        {abaAtiva==='emails'&&(
+          <div style={{display:'flex',flexDirection:'column',gap:'1.5rem'}}>
+            <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
+              <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 6px'}}>📧 Email Customizado</h2>
+              <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 20px'}}>Selecione destinatarios da lista ou adicione emails manualmente.</p>
+              <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'12px',padding:'12px',background:'#f8f9ff',borderRadius:'12px',border:'1px solid #e0e5f5'}}>
+                <select value={emailFiltroEmp} onChange={e=>setEmailFiltroEmp(e.target.value)} style={{padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
+                  <option value="">Todos os empreendimentos</option>
+                  {empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
+                </select>
+                <select value={emailFiltroStatus} onChange={e=>setEmailFiltroStatus(e.target.value)} style={{padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
+                  <option value="todos">Todos os status</option>
+                  <option value="confirmado">Confirmados</option>
+                  <option value="cancelado">Cancelados</option>
+                </select>
+                <button onClick={()=>{
+                  const lista=agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>emailFiltroStatus==='todos'||a.status===emailFiltroStatus).filter(a=>!emailFiltroEmp||a.apartamento?.toLowerCase().includes(emailFiltroEmp.toLowerCase())).map(a=>a.email).filter(Boolean)
+                  setEmailDestinatarios([...new Set(lista)])
+                }} style={{padding:'8px 16px',background:AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>Selecionar todos filtrados</button>
+                {emailDestinatarios.length>0&&(
+                  <button onClick={()=>setEmailDestinatarios([])} style={{padding:'8px 16px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>Limpar ({emailDestinatarios.length})</button>
+                )}
+              </div>
+              <div style={{maxHeight:'280px',overflowY:'auto',border:'1px solid #e0e5f5',borderRadius:'10px',marginBottom:'16px'}}>
+                {agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>emailFiltroStatus==='todos'||a.status===emailFiltroStatus).filter(a=>!emailFiltroEmp||a.apartamento?.toLowerCase().includes(emailFiltroEmp.toLowerCase())).filter((a,i,arr)=>arr.findIndex(b=>b.email===a.email)===i).map((a,i)=>{
+                  const selecionado=emailDestinatarios.includes(a.email)
+                  return (
+                    <div key={i} onClick={()=>{if(selecionado)setEmailDestinatarios(prev=>prev.filter(e=>e!==a.email));else setEmailDestinatarios(prev=>[...prev,a.email])}}
+                      style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',borderBottom:'1px solid #f0f3fa',cursor:'pointer',background:selecionado?'#eff3ff':'#fff'}}>
+                      <input type="checkbox" checked={selecionado} onChange={()=>{}} style={{width:'16px',height:'16px',accentColor:AZUL,flexShrink:0}}/>
+                      <div style={{width:'32px',height:'32px',borderRadius:'8px',background:selecionado?AZUL:'#e8ecf5',display:'flex',alignItems:'center',justifyContent:'center',color:selecionado?'#fff':'#6b7280',fontSize:'13px',fontWeight:'700',flexShrink:0}}>{(a.nome||'?').charAt(0).toUpperCase()}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{a.nome}</div>
+                        <div style={{fontSize:'11px',color:'#6b7280'}}>{a.email} · {(a.apartamento||'').split(' - ')[0]}</div>
+                      </div>
+                      <span style={{fontSize:'10px',padding:'2px 8px',borderRadius:'20px',background:a.status==='confirmado'?'#dcfce7':'#fee2e2',color:a.status==='confirmado'?'#16a34a':VERMELHO,fontWeight:'700'}}>{a.status}</span>
+                    </div>
+                  )
+                })}
+                {agendamentos.filter(a=>a.tipo!=='revistoria').length===0&&(<p style={{textAlign:'center',color:'#9ca3af',fontSize:'13px',padding:'2rem'}}>Nenhum agendamento encontrado.</p>)}
+              </div>
+              <div style={{marginBottom:'16px'}}>
+                <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'6px',textTransform:'uppercase'}}>Emails adicionais (separados por virgula)</label>
+                <input value={emailManual} onChange={e=>setEmailManual(e.target.value)} placeholder="email1@exemplo.com, email2@exemplo.com" style={{width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/>
+              </div>
+              {(emailDestinatarios.length>0||emailManual.trim())&&(
+                <div style={{background:'#eff3ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'10px 14px',marginBottom:'16px'}}>
+                  <p style={{fontSize:'12px',color:AZUL,margin:0,fontWeight:'600'}}>📨 {emailDestinatarios.length} da lista{emailManual.trim()&&' + '+emailManual.split(',').filter(e=>e.trim().includes('@')).length+' manual(is)'}</p>
+                </div>
+              )}
+              <div style={{marginBottom:'12px'}}>
+                <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'6px',textTransform:'uppercase'}}>Assunto *</label>
+                <input value={emailAssunto} onChange={e=>setEmailAssunto(e.target.value)} placeholder="Ex: Lembrete de vistoria - Markinvest" style={{width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/>
+              </div>
+              <div style={{marginBottom:'16px'}}>
+                <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'6px',textTransform:'uppercase'}}>Mensagem *</label>
+                <textarea value={emailMensagem} onChange={e=>setEmailMensagem(e.target.value)} placeholder="Escreva sua mensagem aqui..." rows={8} style={{width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',resize:'vertical',boxSizing:'border-box',fontFamily:'inherit',lineHeight:'1.6'}}/>
+                <p style={{fontSize:'11px',color:'#9ca3af',margin:'4px 0 0'}}>A mensagem sera enviada com o template visual da Markinvest.</p>
+              </div>
+              {emailResultado&&(
+                <div style={{background:emailResultado.error?'#fff5f5':emailResultado.erros?.length>0?'#fffbeb':'#f0fdf4',border:'1px solid '+(emailResultado.error?'#fca5a5':emailResultado.erros?.length>0?'#fde68a':'#86efac'),borderRadius:'10px',padding:'12px 16px',marginBottom:'16px'}}>
+                  {emailResultado.error?(<p style={{color:VERMELHO,fontSize:'13px',fontWeight:'600',margin:0}}>⚠ {emailResultado.error}</p>):(
+                    <div>
+                      <p style={{color:'#15803d',fontSize:'13px',fontWeight:'700',margin:'0 0 4px'}}>✅ {emailResultado.enviados} email(s) enviado(s) com sucesso!</p>
+                      {emailResultado.erros?.length>0&&<p style={{color:'#92400e',fontSize:'12px',margin:0}}>⚠ Falha: {emailResultado.erros.join(', ')}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
+              <button onClick={enviarEmailCustomizado} disabled={enviandoEmail} style={{width:'100%',padding:'14px',background:enviandoEmail?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'10px',fontSize:'14px',fontWeight:'700',cursor:enviandoEmail?'not-allowed':'pointer'}}>
+                {enviandoEmail?'ENVIANDO...':'📧 ENVIAR EMAIL'}
+              </button>
             </div>
           </div>
         )}
