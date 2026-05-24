@@ -132,6 +132,7 @@ export default function Admin() {
     setSalvandoRev(false)
   }
   async function enviarEmailCustomizado() {
+    async function enviarEmailCustomizado() {
     if (emailDestinatarios.length === 0 && !emailManual.trim()) { alert('Adicione ao menos um destinatario.'); return }
     if (!emailAssunto.trim() || !emailMensagem.trim()) { alert('Preencha o assunto e a mensagem.'); return }
     setEnviandoEmail(true); setEmailResultado(null)
@@ -141,8 +142,15 @@ export default function Admin() {
       const res = await fetch('/api/enviar-email', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({destinatarios:todos,assunto:emailAssunto,mensagem:emailMensagem}) })
       const data = await res.json()
       setEmailResultado(data)
+      if (data.success) {
+        setEmailDestinatarios([])
+        setEmailManual('')
+        setEmailAssunto('')
+        setEmailMensagem('')
+      }
     } catch(e) { setEmailResultado({error:'Erro de conexao.'}) }
     setEnviandoEmail(false)
+  }
   }
   async function removerRevistoria(id) {
     if (!confirm('Remover esta revistoria?')) return
