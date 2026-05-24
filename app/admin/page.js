@@ -63,6 +63,7 @@ export default function Admin() {
   const [salvandoCpf, setSalvandoCpf] = useState(false)
   const [erroCpf, setErroCpf] = useState('')
   const [buscaCpf, setBuscaCpf] = useState('')
+  const [filtroCpfData, setFiltroCpfData] = useState('')
   const [cpfsSelecionados, setCpfsSelecionados] = useState([])
   const [cpfDatas, setCpfDatas] = useState({})
   const [novaDataCpf, setNovaDataCpf] = useState({})
@@ -107,7 +108,7 @@ export default function Admin() {
     }
   }, [status])
   useEffect(() => { setPagina(1) }, [filtro, busca, ordem, dataInicio, dataFim, filtroEmp])
-  useEffect(() => { setPaginaCpf(1) }, [buscaCpf])
+  useEffect(() => { setPaginaCpf(1) }, [buscaCpf, filtroCpfData])
   useEffect(() => { if (abaAtiva === 'revistorias') buscarRevistorias() }, [abaAtiva])
 
   async function buscarAgendamentos() {
@@ -142,35 +143,7 @@ export default function Admin() {
     const diasSemana = ['Domingo','Segunda-feira','Terca-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sabado']
     const diaSemana = diasSemana[dataObj.getDay()]
     setEmailAssunto('Sua unidade foi liberada para Vistoria - '+templateEmp)
-    setEmailMensagem(`Prezado(a) Cliente,
-
-
-Temos uma excelente noticia: SUA UNIDADE no ${templateEmp} acaba de ser LIBERADA pela Engenharia para a fase de VISTORIA
-
-Como estamos trabalhando para antecipar a entrega do empreendimento as vistorias estao ocorrendo em ritmo acelerado.
-
-Por isso, a agenda foi aberta agora para voce realizar o seu agendamento direto, conforme sua conveniencia.
-
-IMPORTANTE: As vagas sao limitadas e preenchidas por ordem de acesso. Recomendamos que realize o seu agendamento imediatamente para garantir os horarios disponiveis no cronograma atual.
-
-COMO AGENDAR?
-Clique no link abaixo e escolha o melhor horario para voce no dia ${dataFmt} (${diaSemana}).
-https://vistoria-agendamento.vercel.app/markinvest
-
-ORIENTACOES:
-Para que possamos realizar sua vistoria sem imprevistos, observe as regras obrigatorias de obra:
-· Documentacao: Apresentacao indispensavel de documento oficial com foto (RG ou CNH).
-· Participacao: Restrita aos titulares do contrato ou representantes legais (munidos de procuracao com poderes expressos para acompanhamento da vistoria e firma reconhecida ou copia autenticada de procuracao publica com amplos poderes). E permitido apenas 01 acompanhante maior de idade. Profissionais tecnicos (Engenheiro/Arquiteto) devem apresentar a carteira do conselho (CREA/CAU) e a ART, de forma indispensavel.
-· Trajes e Seguranca: Por estarmos em um canteiro de obras, e obrigatorio o uso de calcados fechados e sem salto. O acesso sera impedido caso o calcado seja inadequado. Recomendamos calca comprida e roupas confartaveis.
-· Restricoes: Nao sera permitida a entrada de criancas menores de 12 anos ou animais domesticos.
-· Pontualidade: A vistoria tem duracao de 50 minutos. Solicitamos chegada com 10 minutos de antecedencia. Atrasos serao descontados do tempo total de vistoria de modo a nao impactar o cronograma e, atrasos superiores a 30 minutos implicarao no cancelamento com novo agendamento para o final do cronograma geral.
-
-
-Localizacao: Avenida Francisco de Paula Leite, n.o 466 (entrada principal - acesso de pedestres).
-
-Corra e garanta seu horario! Estamos ansiosos para te mostrar cada detalhe do seu novo imovel
-
-Em caso de duvidas, nossa Central de Relacionamento permanece a disposicao.`)
+    setEmailMensagem('Prezado(a) Cliente,\n\n\nTemos uma excelente noticia: SUA UNIDADE no '+templateEmp+' acaba de ser LIBERADA pela Engenharia para a fase de VISTORIA\n\nComo estamos trabalhando para antecipar a entrega do empreendimento as vistorias estao ocorrendo em ritmo acelerado.\n\nPor isso, a agenda foi aberta agora para voce realizar o seu agendamento direto, conforme sua conveniencia.\n\nIMPORTANTE: As vagas sao limitadas e preenchidas por ordem de acesso. Recomendamos que realize o seu agendamento imediatamente para garantir os horarios disponiveis no cronograma atual.\n\nCOMO AGENDAR?\nClique no link abaixo e escolha o melhor horario para voce no dia '+dataFmt+' ('+diaSemana+').\nhttps://vistoria-agendamento.vercel.app/markinvest\n\nORIENTACOES:\nPara que possamos realizar sua vistoria sem imprevistos, observe as regras obrigatorias de obra:\n· Documentacao: Apresentacao indispensavel de documento oficial com foto (RG ou CNH).\n· Participacao: Restrita aos titulares do contrato ou representantes legais (munidos de procuracao com poderes expressos). E permitido apenas 01 acompanhante maior de idade.\n· Trajes e Seguranca: E obrigatorio o uso de calcados fechados e sem salto.\n· Restricoes: Nao sera permitida a entrada de criancas menores de 12 anos ou animais domesticos.\n· Pontualidade: A vistoria tem duracao de 50 minutos. Solicitamos chegada com 10 minutos de antecedencia.\n\n\nLocalizacao: Avenida Francisco de Paula Leite, n.o 466 (entrada principal - acesso de pedestres).\n\nCorra e garanta seu horario! Estamos ansiosos para te mostrar cada detalhe do seu novo imovel\n\nEm caso de duvidas, nossa Central de Relacionamento permanece a disposicao.')
     setTemplateMostrar(false)
   }
 
@@ -354,8 +327,18 @@ Em caso de duvidas, nossa Central de Relacionamento permanece a disposicao.`)
   const hoje=new Date();const mesesGrid=[]
   for(let i=0;i<12;i++){const d=new Date(hoje.getFullYear(),hoje.getMonth()+i,1);const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');mesesGrid.push({key,nomeMes:MESES_NOMES[d.getMonth()],anoMes:d.getFullYear(),bloqueado:mesesBloqueados.includes(key)})}
   const horariosAtivos=horariosConfig.filter(h=>h.ativo).length
-  const cpfsFiltrados=cpfsAutorizados.filter(c=>{if(!buscaCpf)return true;const bL=buscaCpf.toLowerCase();const bD=buscaCpf.replace(/\D/g,'');return c.nome?.toLowerCase().includes(bL)||(bD.length>0&&c.cpf?.includes(bD))})
+
+  // CPFs com filtro de busca + filtro de data
+  const cpfsFiltrados=cpfsAutorizados.filter(c=>{
+    const bL=buscaCpf.toLowerCase(); const bD=buscaCpf.replace(/\D/g,'')
+    const passaBusca=!buscaCpf||(c.nome?.toLowerCase().includes(bL)||(bD.length>0&&c.cpf?.includes(bD)))
+    if(!passaBusca)return false
+    if(!filtroCpfData)return true
+    const datas=cpfDatas[c.cpf]||[]
+    return datas.some(d=>d.data===filtroCpfData)
+  })
   const totalPaginasCpf=Math.ceil(cpfsFiltrados.length/POR_PAGINA_CPF);const cpfsPaginados=cpfsFiltrados.slice((paginaCpf-1)*POR_PAGINA_CPF,paginaCpf*POR_PAGINA_CPF)
+
   const revFiltradas=revistorias.filter(a=>a.status==='confirmado'&&(!filtroRevEmp||a.apartamento?.toLowerCase().includes(filtroRevEmp.toLowerCase())))
   const revAgrupadas={}
   for(const r of revFiltradas){const emp=(r.apartamento||'').split(' - ')[0];const chave=emp+'||'+r.data+'||'+r.horario;if(!revAgrupadas[chave])revAgrupadas[chave]={emp,data:r.data,horario:r.horario,unidades:[]};revAgrupadas[chave].unidades.push({id:r.id,unidade:(r.apartamento||'').split(' - ').slice(1).join(' - '),nome:r.nome})}
@@ -673,6 +656,30 @@ Em caso de duvidas, nossa Central de Relacionamento permanece a disposicao.`)
               </div>
               {erroCpf&&<p style={{color:'#dc2626',fontSize:'12px',margin:'8px 0 0',fontWeight:'600'}}>{erroCpf}</p>}
             </div>
+
+            {/* FILTROS CPF */}
+            <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'12px 14px',marginBottom:'12px',display:'flex',gap:'10px',alignItems:'center',flexWrap:'wrap'}}>
+              <div style={{flex:1,position:'relative',minWidth:'180px'}}>
+                <span style={{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)',fontSize:'13px'}}>🔍</span>
+                <input value={buscaCpf} onChange={e=>setBuscaCpf(e.target.value)} placeholder="Buscar por CPF ou nome..." style={{width:'100%',padding:'8px 12px 8px 34px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#fff',boxSizing:'border-box'}}/>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                <label style={{fontSize:'12px',fontWeight:'600',color:'#6b7280',whiteSpace:'nowrap'}}>📅 Filtrar por data:</label>
+                <input type="date" value={filtroCpfData} onChange={e=>setFiltroCpfData(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#fff'}}/>
+                {filtroCpfData&&(
+                  <button onClick={()=>setFiltroCpfData('')} style={{padding:'6px 12px',background:'#f3f4f6',border:'none',borderRadius:'8px',fontSize:'12px',cursor:'pointer',color:'#6b7280',fontWeight:'600',whiteSpace:'nowrap'}}>✕ Limpar</button>
+                )}
+              </div>
+              <span style={{fontSize:'12px',color:'#9ca3af',whiteSpace:'nowrap'}}>{cpfsFiltrados.length} de {cpfsAutorizados.length} CPFs</span>
+            </div>
+
+            {filtroCpfData&&(
+              <div style={{background:'#eff3ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'8px 14px',marginBottom:'12px',display:'flex',alignItems:'center',gap:'8px'}}>
+                <span style={{fontSize:'13px',color:AZUL,fontWeight:'600'}}>📅 Mostrando CPFs autorizados para: {new Date(filtroCpfData+'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                <span style={{fontSize:'12px',padding:'2px 8px',borderRadius:'20px',background:AZUL,color:'#fff',fontWeight:'700'}}>{cpfsFiltrados.length} CPF(s)</span>
+              </div>
+            )}
+
             {cpfsAutorizados.length>0&&(
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px',flexWrap:'wrap',gap:'8px',padding:'10px 14px',background:'#f4f6fb',borderRadius:'10px'}}>
                 <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
@@ -686,15 +693,9 @@ Em caso de duvidas, nossa Central de Relacionamento permanece a disposicao.`)
                 </div>
               </div>
             )}
-            <div style={{display:'flex',gap:'10px',alignItems:'center',marginBottom:'12px'}}>
-              <div style={{flex:1,position:'relative'}}>
-                <span style={{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)',fontSize:'13px'}}>🔍</span>
-                <input value={buscaCpf} onChange={e=>setBuscaCpf(e.target.value)} placeholder="Buscar por CPF ou nome..." style={{width:'100%',padding:'8px 12px 8px 34px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',boxSizing:'border-box'}}/>
-              </div>
-              <span style={{fontSize:'12px',color:'#9ca3af',whiteSpace:'nowrap'}}>{cpfsFiltrados.length} de {cpfsAutorizados.length} CPFs</span>
-            </div>
+
             <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
-              {cpfsPaginados.length===0&&<p style={{color:'#9ca3af',fontSize:'13px',textAlign:'center',padding:'2rem'}}>{cpfsAutorizados.length===0?'Nenhum CPF cadastrado.':'Nenhum resultado encontrado.'}</p>}
+              {cpfsPaginados.length===0&&<p style={{color:'#9ca3af',fontSize:'13px',textAlign:'center',padding:'2rem'}}>{cpfsAutorizados.length===0?'Nenhum CPF cadastrado.':filtroCpfData?'Nenhum CPF autorizado para esta data.':'Nenhum resultado encontrado.'}</p>}
               {cpfsPaginados.map(c=>{
                 const selecionado=cpfsSelecionados.includes(c.cpf);const datas=cpfDatas[c.cpf]||[]
                 return (
@@ -725,9 +726,9 @@ Em caso de duvidas, nossa Central de Relacionamento permanece a disposicao.`)
                       <p style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',textTransform:'uppercase',letterSpacing:'0.05em',margin:'10px 0 8px'}}>📅 Datas e horarios liberados {datas.length===0&&<span style={{fontWeight:'400',color:'#9ca3af'}}>(nenhuma = todas as datas disponiveis)</span>}</p>
                       <div style={{display:'flex',flexDirection:'column',gap:'8px',marginBottom:'10px'}}>
                         {datas.map(entrada=>(
-                          <div key={entrada.data} style={{background:'#fff',border:'1px solid #e0e5f5',borderRadius:'10px',padding:'10px 12px'}}>
+                          <div key={entrada.data} style={{background: filtroCpfData&&entrada.data===filtroCpfData?'#eff3ff':'#fff',border:'1px solid '+(filtroCpfData&&entrada.data===filtroCpfData?'#bfdbfe':'#e0e5f5'),borderRadius:'10px',padding:'10px 12px'}}>
                             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'8px'}}>
-                              <span style={{fontSize:'13px',fontWeight:'700',color:AZUL}}>📅 {new Date(entrada.data+'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                              <span style={{fontSize:'13px',fontWeight:'700',color:filtroCpfData&&entrada.data===filtroCpfData?AZUL:AZUL}}>📅 {new Date(entrada.data+'T12:00:00').toLocaleDateString('pt-BR')}{filtroCpfData&&entrada.data===filtroCpfData&&<span style={{fontSize:'10px',marginLeft:'6px',padding:'2px 6px',background:AZUL,color:'#fff',borderRadius:'4px',fontWeight:'700'}}>FILTRADA</span>}</span>
                               <button onClick={()=>removerDataCpf(c.cpf,entrada.data)} style={{background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'11px',color:'#dc2626',cursor:'pointer',padding:'3px 10px',fontWeight:'600'}}>remover data</button>
                             </div>
                             <p style={{fontSize:'11px',fontWeight:'600',color:'#6b7280',textTransform:'uppercase',margin:'0 0 6px',letterSpacing:'0.05em'}}>Horarios liberados</p>
@@ -909,6 +910,7 @@ Em caso de duvidas, nossa Central de Relacionamento permanece a disposicao.`)
             <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
               <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 6px'}}>📧 Email Customizado</h2>
               <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 20px'}}>Selecione destinatarios da lista ou adicione emails manualmente.</p>
+
               <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'12px',padding:'12px',background:'#f8f9ff',borderRadius:'12px',border:'1px solid #e0e5f5'}}>
                 <select value={emailFiltroEmp} onChange={e=>setEmailFiltroEmp(e.target.value)} style={{padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
                   <option value="">Todos os empreendimentos</option>
@@ -927,6 +929,7 @@ Em caso de duvidas, nossa Central de Relacionamento permanece a disposicao.`)
                   <button onClick={()=>setEmailDestinatarios([])} style={{padding:'8px 16px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>Limpar ({emailDestinatarios.length})</button>
                 )}
               </div>
+
               <div style={{maxHeight:'280px',overflowY:'auto',border:'1px solid #e0e5f5',borderRadius:'10px',marginBottom:'16px'}}>
                 {agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>emailFiltroStatus==='todos'||a.status===emailFiltroStatus).filter(a=>!emailFiltroEmp||a.apartamento?.toLowerCase().includes(emailFiltroEmp.toLowerCase())).filter((a,i,arr)=>arr.findIndex(b=>b.email===a.email)===i).map((a,i)=>{
                   const selecionado=emailDestinatarios.includes(a.email)
@@ -945,48 +948,51 @@ Em caso de duvidas, nossa Central de Relacionamento permanece a disposicao.`)
                 })}
                 {agendamentos.filter(a=>a.tipo!=='revistoria').length===0&&(<p style={{textAlign:'center',color:'#9ca3af',fontSize:'13px',padding:'2rem'}}>Nenhum agendamento encontrado.</p>)}
               </div>
+
               <div style={{marginBottom:'16px'}}>
                 <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'6px',textTransform:'uppercase'}}>Emails adicionais (separados por virgula)</label>
                 <input value={emailManual} onChange={e=>setEmailManual(e.target.value)} placeholder="email1@exemplo.com, email2@exemplo.com" style={{width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/>
               </div>
+
               {(emailDestinatarios.length>0||emailManual.trim())&&(
                 <div style={{background:'#eff3ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'10px 14px',marginBottom:'16px'}}>
                   <p style={{fontSize:'12px',color:AZUL,margin:0,fontWeight:'600'}}>📨 {emailDestinatarios.length} da lista{emailManual.trim()&&' + '+emailManual.split(',').filter(e=>e.trim().includes('@')).length+' manual(is)'}</p>
                 </div>
               )}
 
-              {/* TEMPLATE */}
-              <div style={{marginBottom:'16px',background:'#f0f7ff',border:'1px solid #bfdbfe',borderRadius:'12px',overflow:'hidden'}}>
-                <button onClick={()=>setTemplateMostrar(t=>!t)} style={{width:'100%',padding:'12px 16px',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:'13px',fontWeight:'700',color:AZUL}}>
+              <div style={{marginBottom:'16px',border:'2px solid '+AZUL,borderRadius:'12px',overflow:'hidden'}}>
+                <button onClick={()=>setTemplateMostrar(t=>!t)} style={{width:'100%',padding:'14px 16px',background:templateMostrar?AZUL:'#f0f7ff',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:'14px',fontWeight:'700',color:templateMostrar?'#fff':AZUL}}>
                   <span>📝 Usar template padrao de vistoria</span>
-                  <span style={{fontSize:'16px'}}>{templateMostrar?'▲':'▼'}</span>
+                  <span style={{fontSize:'18px',fontWeight:'900'}}>{templateMostrar?'▲':'▼'}</span>
                 </button>
                 {templateMostrar&&(
-                  <div style={{padding:'0 16px 16px',borderTop:'1px solid #bfdbfe'}}>
-                    <p style={{fontSize:'12px',color:'#6b7280',margin:'12px 0 10px'}}>Preencha os campos abaixo para gerar o email automaticamente:</p>
+                  <div style={{padding:'16px',background:'#f0f7ff',borderTop:'1px solid #bfdbfe'}}>
+                    <p style={{fontSize:'12px',color:'#374151',margin:'0 0 12px',fontWeight:'500'}}>Preencha os campos abaixo e clique em <strong>APLICAR</strong> para gerar o email automaticamente:</p>
                     <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'12px'}}>
                       <div style={{flex:2,minWidth:'160px'}}>
-                        <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento</label>
-                        <select value={templateEmp} onChange={e=>setTemplateEmp(e.target.value)} style={{width:'100%',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer',boxSizing:'border-box'}}>
+                        <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento *</label>
+                        <select value={templateEmp} onChange={e=>setTemplateEmp(e.target.value)} style={{width:'100%',padding:'9px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer',boxSizing:'border-box'}}>
                           <option value="">Selecione...</option>
                           {empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
                         </select>
                       </div>
                       <div style={{flex:1,minWidth:'140px'}}>
-                        <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Data de agendamento</label>
-                        <input type="date" value={templateData} onChange={e=>setTemplateData(e.target.value)} style={{width:'100%',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/>
+                        <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Data de agendamento *</label>
+                        <input type="date" value={templateData} onChange={e=>setTemplateData(e.target.value)} style={{width:'100%',padding:'9px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/>
                       </div>
                     </div>
                     {templateData&&(
-                      <div style={{background:'#fff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'8px 12px',marginBottom:'10px',fontSize:'12px',color:'#1d4ed8'}}>
-                        📅 {new Date(templateData+'T12:00:00').toLocaleDateString('pt-BR')} — {['Domingo','Segunda-feira','Terca-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sabado'][new Date(templateData+'T12:00:00').getDay()]}
+                      <div style={{background:'#fff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'8px 14px',marginBottom:'12px'}}>
+                        <span style={{fontSize:'13px',color:AZUL,fontWeight:'700'}}>📅 {new Date(templateData+'T12:00:00').toLocaleDateString('pt-BR')} — {['Domingo','Segunda-feira','Terca-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sabado'][new Date(templateData+'T12:00:00').getDay()]}</span>
                       </div>
                     )}
-                    <button onClick={aplicarTemplate} disabled={!templateEmp||!templateData}
-                      style={{padding:'9px 20px',background:!templateEmp||!templateData?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:!templateEmp||!templateData?'not-allowed':'pointer'}}>
-                      ✓ APLICAR TEMPLATE
-                    </button>
-                    <p style={{fontSize:'11px',color:'#6b7280',margin:'8px 0 0'}}>O assunto e a mensagem serao preenchidos automaticamente. Voce pode editar depois.</p>
+                    <div style={{display:'flex',gap:'10px',alignItems:'center'}}>
+                      <button onClick={aplicarTemplate} disabled={!templateEmp||!templateData}
+                        style={{padding:'10px 24px',background:!templateEmp||!templateData?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:!templateEmp||!templateData?'not-allowed':'pointer'}}>
+                        ✓ APLICAR TEMPLATE
+                      </button>
+                      <p style={{fontSize:'11px',color:'#6b7280',margin:0}}>O assunto e a mensagem serao preenchidos automaticamente.</p>
+                    </div>
                   </div>
                 )}
               </div>
