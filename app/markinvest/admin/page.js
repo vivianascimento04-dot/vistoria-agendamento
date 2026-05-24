@@ -91,6 +91,9 @@ export default function Admin() {
   const [emailResultado, setEmailResultado] = useState(null)
   const [emailFiltroEmp, setEmailFiltroEmp] = useState('')
   const [emailFiltroStatus, setEmailFiltroStatus] = useState('confirmado')
+  const [templateEmp, setTemplateEmp] = useState('')
+  const [templateData, setTemplateData] = useState('')
+  const [templateMostrar, setTemplateMostrar] = useState(false)
   const [editandoRevGrupo, setEditandoRevGrupo] = useState(null)
   const [editRevData, setEditRevData] = useState('')
   const [editRevHorario, setEditRevHorario] = useState('')
@@ -131,8 +134,47 @@ export default function Admin() {
     } catch(e) { setErroRev('Erro ao salvar. Tente novamente.') }
     setSalvandoRev(false)
   }
+
+  function aplicarTemplate() {
+    if (!templateEmp||!templateData) { alert('Preencha o empreendimento e a data.'); return }
+    const dataObj = new Date(templateData+'T12:00:00')
+    const dataFmt = dataObj.toLocaleDateString('pt-BR')
+    const diasSemana = ['Domingo','Segunda-feira','Terca-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sabado']
+    const diaSemana = diasSemana[dataObj.getDay()]
+    setEmailAssunto('Sua unidade foi liberada para Vistoria - '+templateEmp)
+    setEmailMensagem(`Prezado(a) Cliente,
+
+
+Temos uma excelente noticia: SUA UNIDADE no ${templateEmp} acaba de ser LIBERADA pela Engenharia para a fase de VISTORIA
+
+Como estamos trabalhando para antecipar a entrega do empreendimento as vistorias estao ocorrendo em ritmo acelerado.
+
+Por isso, a agenda foi aberta agora para voce realizar o seu agendamento direto, conforme sua conveniencia.
+
+IMPORTANTE: As vagas sao limitadas e preenchidas por ordem de acesso. Recomendamos que realize o seu agendamento imediatamente para garantir os horarios disponiveis no cronograma atual.
+
+COMO AGENDAR?
+Clique no link abaixo e escolha o melhor horario para voce no dia ${dataFmt} (${diaSemana}).
+https://vistoria-agendamento.vercel.app/markinvest
+
+ORIENTACOES:
+Para que possamos realizar sua vistoria sem imprevistos, observe as regras obrigatorias de obra:
+· Documentacao: Apresentacao indispensavel de documento oficial com foto (RG ou CNH).
+· Participacao: Restrita aos titulares do contrato ou representantes legais (munidos de procuracao com poderes expressos para acompanhamento da vistoria e firma reconhecida ou copia autenticada de procuracao publica com amplos poderes). E permitido apenas 01 acompanhante maior de idade. Profissionais tecnicos (Engenheiro/Arquiteto) devem apresentar a carteira do conselho (CREA/CAU) e a ART, de forma indispensavel.
+· Trajes e Seguranca: Por estarmos em um canteiro de obras, e obrigatorio o uso de calcados fechados e sem salto. O acesso sera impedido caso o calcado seja inadequado. Recomendamos calca comprida e roupas confartaveis.
+· Restricoes: Nao sera permitida a entrada de criancas menores de 12 anos ou animais domesticos.
+· Pontualidade: A vistoria tem duracao de 50 minutos. Solicitamos chegada com 10 minutos de antecedencia. Atrasos serao descontados do tempo total de vistoria de modo a nao impactar o cronograma e, atrasos superiores a 30 minutos implicarao no cancelamento com novo agendamento para o final do cronograma geral.
+
+
+Localizacao: Avenida Francisco de Paula Leite, n.o 466 (entrada principal - acesso de pedestres).
+
+Corra e garanta seu horario! Estamos ansiosos para te mostrar cada detalhe do seu novo imovel
+
+Em caso de duvidas, nossa Central de Relacionamento permanece a disposicao.`)
+    setTemplateMostrar(false)
+  }
+
   async function enviarEmailCustomizado() {
-    async function enviarEmailCustomizado() {
     if (emailDestinatarios.length === 0 && !emailManual.trim()) { alert('Adicione ao menos um destinatario.'); return }
     if (!emailAssunto.trim() || !emailMensagem.trim()) { alert('Preencha o assunto e a mensagem.'); return }
     setEnviandoEmail(true); setEmailResultado(null)
@@ -143,15 +185,14 @@ export default function Admin() {
       const data = await res.json()
       setEmailResultado(data)
       if (data.success) {
-        setEmailDestinatarios([])
-        setEmailManual('')
-        setEmailAssunto('')
-        setEmailMensagem('')
+        setEmailDestinatarios([]); setEmailManual('')
+        setEmailAssunto(''); setEmailMensagem('')
+        setTemplateEmp(''); setTemplateData('')
       }
     } catch(e) { setEmailResultado({error:'Erro de conexao.'}) }
     setEnviandoEmail(false)
   }
-  }
+
   async function removerRevistoria(id) {
     if (!confirm('Remover esta revistoria?')) return
     try {
@@ -913,13 +954,50 @@ export default function Admin() {
                   <p style={{fontSize:'12px',color:AZUL,margin:0,fontWeight:'600'}}>📨 {emailDestinatarios.length} da lista{emailManual.trim()&&' + '+emailManual.split(',').filter(e=>e.trim().includes('@')).length+' manual(is)'}</p>
                 </div>
               )}
+
+              {/* TEMPLATE */}
+              <div style={{marginBottom:'16px',background:'#f0f7ff',border:'1px solid #bfdbfe',borderRadius:'12px',overflow:'hidden'}}>
+                <button onClick={()=>setTemplateMostrar(t=>!t)} style={{width:'100%',padding:'12px 16px',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:'13px',fontWeight:'700',color:AZUL}}>
+                  <span>📝 Usar template padrao de vistoria</span>
+                  <span style={{fontSize:'16px'}}>{templateMostrar?'▲':'▼'}</span>
+                </button>
+                {templateMostrar&&(
+                  <div style={{padding:'0 16px 16px',borderTop:'1px solid #bfdbfe'}}>
+                    <p style={{fontSize:'12px',color:'#6b7280',margin:'12px 0 10px'}}>Preencha os campos abaixo para gerar o email automaticamente:</p>
+                    <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'12px'}}>
+                      <div style={{flex:2,minWidth:'160px'}}>
+                        <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento</label>
+                        <select value={templateEmp} onChange={e=>setTemplateEmp(e.target.value)} style={{width:'100%',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer',boxSizing:'border-box'}}>
+                          <option value="">Selecione...</option>
+                          {empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
+                        </select>
+                      </div>
+                      <div style={{flex:1,minWidth:'140px'}}>
+                        <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Data de agendamento</label>
+                        <input type="date" value={templateData} onChange={e=>setTemplateData(e.target.value)} style={{width:'100%',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/>
+                      </div>
+                    </div>
+                    {templateData&&(
+                      <div style={{background:'#fff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'8px 12px',marginBottom:'10px',fontSize:'12px',color:'#1d4ed8'}}>
+                        📅 {new Date(templateData+'T12:00:00').toLocaleDateString('pt-BR')} — {['Domingo','Segunda-feira','Terca-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sabado'][new Date(templateData+'T12:00:00').getDay()]}
+                      </div>
+                    )}
+                    <button onClick={aplicarTemplate} disabled={!templateEmp||!templateData}
+                      style={{padding:'9px 20px',background:!templateEmp||!templateData?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:!templateEmp||!templateData?'not-allowed':'pointer'}}>
+                      ✓ APLICAR TEMPLATE
+                    </button>
+                    <p style={{fontSize:'11px',color:'#6b7280',margin:'8px 0 0'}}>O assunto e a mensagem serao preenchidos automaticamente. Voce pode editar depois.</p>
+                  </div>
+                )}
+              </div>
+
               <div style={{marginBottom:'12px'}}>
                 <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'6px',textTransform:'uppercase'}}>Assunto *</label>
                 <input value={emailAssunto} onChange={e=>setEmailAssunto(e.target.value)} placeholder="Ex: Lembrete de vistoria - Markinvest" style={{width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/>
               </div>
               <div style={{marginBottom:'16px'}}>
                 <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'6px',textTransform:'uppercase'}}>Mensagem *</label>
-                <textarea value={emailMensagem} onChange={e=>setEmailMensagem(e.target.value)} placeholder="Escreva sua mensagem aqui..." rows={8} style={{width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',resize:'vertical',boxSizing:'border-box',fontFamily:'inherit',lineHeight:'1.6'}}/>
+                <textarea value={emailMensagem} onChange={e=>setEmailMensagem(e.target.value)} placeholder="Escreva sua mensagem aqui..." rows={10} style={{width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',resize:'vertical',boxSizing:'border-box',fontFamily:'inherit',lineHeight:'1.6'}}/>
                 <p style={{fontSize:'11px',color:'#9ca3af',margin:'4px 0 0'}}>A mensagem sera enviada com o template visual da Markinvest.</p>
               </div>
               {emailResultado&&(
