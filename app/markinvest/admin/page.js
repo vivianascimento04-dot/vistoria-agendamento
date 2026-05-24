@@ -95,6 +95,9 @@ export default function Admin() {
   const [templateEmp, setTemplateEmp] = useState('')
   const [templateData, setTemplateData] = useState('')
   const [templateMostrar, setTemplateMostrar] = useState(false)
+  const [emailsLog, setEmailsLog] = useState([])
+  const [loadingLog, setLoadingLog] = useState(false)
+  const [mostrarLog, setMostrarLog] = useState(false)
   const [editandoRevGrupo, setEditandoRevGrupo] = useState(null)
   const [editRevData, setEditRevData] = useState('')
   const [editRevHorario, setEditRevHorario] = useState('')
@@ -134,6 +137,16 @@ export default function Admin() {
       buscarRevistorias(); buscarAgendamentos()
     } catch(e) { setErroRev('Erro ao salvar. Tente novamente.') }
     setSalvandoRev(false)
+  }
+
+  async function buscarEmailsLog() {
+    setLoadingLog(true)
+    try {
+      const res = await fetch('/api/enviar-email')
+      const data = await res.json()
+      setEmailsLog(Array.isArray(data) ? data : [])
+    } catch(e) { setEmailsLog([]) }
+    setLoadingLog(false)
   }
 
   function aplicarTemplate() {
@@ -289,6 +302,16 @@ export default function Admin() {
     setPopup(null)
   }
   async function atualizarStatus(id,novoStatus){try{const res=await fetch('/api/agendamentos/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:novoStatus})});if(res.ok)buscarAgendamentos();else alert('Erro ao atualizar.')}catch(e){alert('Erro de conexao.')}}
+
+  function exportarRelatorioGeral() {
+    const cab=['Tipo','Nome','Unidade','Empreendimento','Data','Horario','Status','Email','Telefone','Criado Em']
+    const linhasNormais=agendamentos.filter(a=>a.tipo!=='revistoria').map(a=>{const partes=(a.apartamento||'').split(' - ');return['Vistoria',a.nome,partes.slice(1).join(' - ')||'',partes[0]||'',new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'),(a.horario||'').slice(0,5),a.status,a.email||'',a.telefone||'',a.criado_em?new Date(a.criado_em).toLocaleString('pt-BR'):'']})
+    const linhasRev=revistorias.filter(r=>r.status==='confirmado').map(r=>{const partes=(r.apartamento||'').split(' - ');return['Revistoria',r.nome,partes.slice(1).join(' - ')||'',partes[0]||'',new Date(r.data+'T12:00:00').toLocaleDateString('pt-BR'),(r.horario||'').slice(0,5),r.status,'-','-',r.criado_em?new Date(r.criado_em).toLocaleString('pt-BR'):'']})
+    const todas=[...linhasNormais,...linhasRev].sort((a,b)=>a[4]<b[4]?-1:1)
+    const csv=[cab,...todas].map(l=>l.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n')
+    const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='relatorio-geral-'+new Date().toISOString().split('T')[0]+'.csv';link.click();URL.revokeObjectURL(url)
+  }
+
   function exportarCSV(){
     const cab=['Nome','CPF','Email','Telefone','Apartamento','Data Vistoria','Horario','Status','Motivo Cancelamento','Obs Cancelamento','Criado Em','Acompanhante','CPF Acompanhante']
     const linhas=filtrados.map(a=>[a.nome,a.cpf||'',a.email,a.telefone,a.apartamento,new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'),a.horario?.slice(0,5),a.status,a.motivo_cancelamento||'',a.obs_cancelamento||'',a.criado_em?new Date(a.criado_em).toLocaleString('pt-BR'):'',a.nome_acompanhante||'',a.cpf_acompanhante||''])
@@ -327,8 +350,6 @@ export default function Admin() {
   const hoje=new Date();const mesesGrid=[]
   for(let i=0;i<12;i++){const d=new Date(hoje.getFullYear(),hoje.getMonth()+i,1);const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');mesesGrid.push({key,nomeMes:MESES_NOMES[d.getMonth()],anoMes:d.getFullYear(),bloqueado:mesesBloqueados.includes(key)})}
   const horariosAtivos=horariosConfig.filter(h=>h.ativo).length
-
-  // CPFs com filtro de busca + filtro de data
   const cpfsFiltrados=cpfsAutorizados.filter(c=>{
     const bL=buscaCpf.toLowerCase(); const bD=buscaCpf.replace(/\D/g,'')
     const passaBusca=!buscaCpf||(c.nome?.toLowerCase().includes(bL)||(bD.length>0&&c.cpf?.includes(bD)))
@@ -338,7 +359,6 @@ export default function Admin() {
     return datas.some(d=>d.data===filtroCpfData)
   })
   const totalPaginasCpf=Math.ceil(cpfsFiltrados.length/POR_PAGINA_CPF);const cpfsPaginados=cpfsFiltrados.slice((paginaCpf-1)*POR_PAGINA_CPF,paginaCpf*POR_PAGINA_CPF)
-
   const revFiltradas=revistorias.filter(a=>a.status==='confirmado'&&(!filtroRevEmp||a.apartamento?.toLowerCase().includes(filtroRevEmp.toLowerCase())))
   const revAgrupadas={}
   for(const r of revFiltradas){const emp=(r.apartamento||'').split(' - ')[0];const chave=emp+'||'+r.data+'||'+r.horario;if(!revAgrupadas[chave])revAgrupadas[chave]={emp,data:r.data,horario:r.horario,unidades:[]};revAgrupadas[chave].unidades.push({id:r.id,unidade:(r.apartamento||'').split(' - ').slice(1).join(' - '),nome:r.nome})}
@@ -355,21 +375,13 @@ export default function Admin() {
     if (editandoRevGrupo !== chave) return null
     return (
       <div style={{padding:'12px 16px',background:'#f0f7ff',borderBottom:'1px solid #bfdbfe',display:'flex',gap:'10px',alignItems:'flex-end',flexWrap:'wrap'}}>
-        <div>
-          <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Nova data</label>
-          <input type="date" value={editRevData} onChange={e=>setEditRevData(e.target.value)} style={{padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
-        </div>
-        <div>
-          <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Novo horario</label>
+        <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Nova data</label><input type="date" value={editRevData} onChange={e=>setEditRevData(e.target.value)} style={{padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/></div>
+        <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Novo horario</label>
           <select value={editRevHorario} onChange={e=>setEditRevHorario(e.target.value)} style={{padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
-            <option value="">Selecione...</option>
-            {HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}
+            <option value="">Selecione...</option>{HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}
           </select>
         </div>
-        <button onClick={()=>salvarEdicaoRevistoria(ids,editRevData,editRevHorario)} disabled={!editRevData||!editRevHorario||salvandoEditRev}
-          style={{padding:'8px 18px',background:!editRevData||!editRevHorario?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:!editRevData||!editRevHorario?'not-allowed':'pointer'}}>
-          {salvandoEditRev?'SALVANDO...':'✓ SALVAR'}
-        </button>
+        <button onClick={()=>salvarEdicaoRevistoria(ids,editRevData,editRevHorario)} disabled={!editRevData||!editRevHorario||salvandoEditRev} style={{padding:'8px 18px',background:!editRevData||!editRevHorario?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:!editRevData||!editRevHorario?'not-allowed':'pointer'}}>{salvandoEditRev?'SALVANDO...':'✓ SALVAR'}</button>
         <button onClick={()=>setEditandoRevGrupo(null)} style={{padding:'8px 14px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>CANCELAR</button>
       </div>
     )
@@ -446,18 +458,13 @@ export default function Admin() {
                 <div><h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:0}}>Nova Revistoria</h2><p style={{fontSize:'12px',color:'#9ca3af',margin:0}}>Multiplas unidades podem compartilhar o mesmo horario</p></div>
               </div>
               <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'16px',padding:'14px',background:'#f8f9ff',borderRadius:'12px',border:'1px solid #e0e5f5'}}>
-                <div>
-                  <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento *</label>
+                <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento *</label>
                   <select value={revEmp} onChange={e=>setRevEmp(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer',minWidth:'180px'}}>
                     <option value="">Selecione...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Data *</label>
-                  <input type="date" value={revData} onChange={e=>setRevData(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
-                </div>
-                <div>
-                  <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Horario *</label>
+                <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Data *</label><input type="date" value={revData} onChange={e=>setRevData(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none'}}/></div>
+                <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Horario *</label>
                   <select value={revHorario} onChange={e=>setRevHorario(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
                     <option value="">Selecione...</option>{HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}
                   </select>
@@ -489,10 +496,7 @@ export default function Admin() {
 
             <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px',flexWrap:'wrap',gap:'10px'}}>
-                <div>
-                  <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 2px'}}>Revistorias Cadastradas</h2>
-                  <p style={{fontSize:'12px',color:'#9ca3af',margin:0}}>{revGrupos.length} grupo(s) · {revFiltradas.length} unidade(s)</p>
-                </div>
+                <div><h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 2px'}}>Revistorias Cadastradas</h2><p style={{fontSize:'12px',color:'#9ca3af',margin:0}}>{revGrupos.length} grupo(s) · {revFiltradas.length} unidade(s)</p></div>
                 <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
                   <select value={filtroRevEmp} onChange={e=>{setFiltroRevEmp(e.target.value);setPaginaRev(1)}} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}>
                     <option value="">Todos os empreendimentos</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
@@ -548,9 +552,7 @@ export default function Admin() {
                         {revDiaSelecionado.length===0?(<div style={{padding:'2rem',textAlign:'center',color:'#9ca3af',fontSize:'13px'}}>Nenhuma revistoria neste dia.</div>):(
                           <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:'12px'}}>
                             {revDiaSelecionado.map((g,gi)=>{
-                              const corEmp=empCoresMap[g.emp]||AZUL
-                              const chave=g.emp+'||'+g.data+'||'+g.horario
-                              const ids=g.unidades.map(u=>u.id)
+                              const corEmp=empCoresMap[g.emp]||AZUL;const chave=g.emp+'||'+g.data+'||'+g.horario;const ids=g.unidades.map(u=>u.id)
                               return (
                                 <div key={gi}>
                                   <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'6px',flexWrap:'wrap'}}>
@@ -586,18 +588,13 @@ export default function Admin() {
                   {revGruposPaginados.length===0?<div style={{textAlign:'center',padding:'3rem',color:'#9ca3af',fontSize:'14px',background:'#f9fafb',borderRadius:'12px'}}>Nenhuma revistoria cadastrada.</div>:(
                     <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
                       {revGruposPaginados.map((g,gi)=>{
-                        const corEmp=empCoresMap[g.emp]||AZUL
-                        const chave=g.emp+'||'+g.data+'||'+g.horario
-                        const ids=g.unidades.map(u=>u.id)
+                        const corEmp=empCoresMap[g.emp]||AZUL;const chave=g.emp+'||'+g.data+'||'+g.horario;const ids=g.unidades.map(u=>u.id)
                         return (
                           <div key={gi} style={{border:'1px solid #e0e5f5',borderRadius:'14px',overflow:'hidden',boxShadow:'0 2px 8px rgba(27,47,126,0.05)'}}>
                             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',background:'linear-gradient(135deg,#eff3ff,#e8edff)',borderBottom:'1px solid #e0e5f5'}}>
                               <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
                                 <div style={{width:'40px',height:'40px',borderRadius:'10px',background:corEmp,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',color:'#fff',flexShrink:0}}>🔄</div>
-                                <div>
-                                  <div style={{fontSize:'14px',fontWeight:'700',color:AZUL}}>{g.emp}</div>
-                                  <div style={{fontSize:'12px',color:'#6b7280',marginTop:'2px'}}>📅 {new Date(g.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}<span style={{fontWeight:'700',color:AZUL,marginLeft:'8px'}}>🕐 {(g.horario||'').slice(0,5)}</span></div>
-                                </div>
+                                <div><div style={{fontSize:'14px',fontWeight:'700',color:AZUL}}>{g.emp}</div><div style={{fontSize:'12px',color:'#6b7280',marginTop:'2px'}}>📅 {new Date(g.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}<span style={{fontWeight:'700',color:AZUL,marginLeft:'8px'}}>🕐 {(g.horario||'').slice(0,5)}</span></div></div>
                               </div>
                               <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
                                 <span style={{fontSize:'12px',padding:'4px 12px',borderRadius:'20px',background:corEmp,color:'#fff',fontWeight:'700'}}>{g.unidades.length} unidade(s)</span>
@@ -642,22 +639,12 @@ export default function Admin() {
             <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'1.25rem',marginBottom:'1.5rem'}}>
               <p style={{fontSize:'13px',fontWeight:'700',color:AZUL,margin:'0 0 12px'}}>Adicionar CPF autorizado</p>
               <div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}>
-                <div style={{flex:1,minWidth:'140px'}}>
-                  <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>CPF *</label>
-                  <input value={novoCpf} onChange={e=>{setNovoCpf(mascaraCPF(e.target.value));setErroCpf('')}} placeholder="000.000.000-00" maxLength={14} style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/>
-                </div>
-                <div style={{flex:2,minWidth:'180px'}}>
-                  <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Nome (opcional)</label>
-                  <input value={nomeNovoCpf} onChange={e=>setNomeNovoCpf(e.target.value)} placeholder="Nome do proprietario" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/>
-                </div>
-                <div style={{display:'flex',alignItems:'flex-end'}}>
-                  <button onClick={adicionarCpf} disabled={salvandoCpf||!novoCpf.trim()} style={{padding:'9px 20px',background:salvandoCpf||!novoCpf.trim()?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:'pointer',whiteSpace:'nowrap'}}>{salvandoCpf?'SALVANDO...':'+ ADICIONAR'}</button>
-                </div>
+                <div style={{flex:1,minWidth:'140px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>CPF *</label><input value={novoCpf} onChange={e=>{setNovoCpf(mascaraCPF(e.target.value));setErroCpf('')}} placeholder="000.000.000-00" maxLength={14} style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/></div>
+                <div style={{flex:2,minWidth:'180px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Nome (opcional)</label><input value={nomeNovoCpf} onChange={e=>setNomeNovoCpf(e.target.value)} placeholder="Nome do proprietario" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/></div>
+                <div style={{display:'flex',alignItems:'flex-end'}}><button onClick={adicionarCpf} disabled={salvandoCpf||!novoCpf.trim()} style={{padding:'9px 20px',background:salvandoCpf||!novoCpf.trim()?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:'pointer',whiteSpace:'nowrap'}}>{salvandoCpf?'SALVANDO...':'+ ADICIONAR'}</button></div>
               </div>
               {erroCpf&&<p style={{color:'#dc2626',fontSize:'12px',margin:'8px 0 0',fontWeight:'600'}}>{erroCpf}</p>}
             </div>
-
-            {/* FILTROS CPF */}
             <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'12px 14px',marginBottom:'12px',display:'flex',gap:'10px',alignItems:'center',flexWrap:'wrap'}}>
               <div style={{flex:1,position:'relative',minWidth:'180px'}}>
                 <span style={{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)',fontSize:'13px'}}>🔍</span>
@@ -666,20 +653,11 @@ export default function Admin() {
               <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
                 <label style={{fontSize:'12px',fontWeight:'600',color:'#6b7280',whiteSpace:'nowrap'}}>📅 Filtrar por data:</label>
                 <input type="date" value={filtroCpfData} onChange={e=>setFiltroCpfData(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#fff'}}/>
-                {filtroCpfData&&(
-                  <button onClick={()=>setFiltroCpfData('')} style={{padding:'6px 12px',background:'#f3f4f6',border:'none',borderRadius:'8px',fontSize:'12px',cursor:'pointer',color:'#6b7280',fontWeight:'600',whiteSpace:'nowrap'}}>✕ Limpar</button>
-                )}
+                {filtroCpfData&&<button onClick={()=>setFiltroCpfData('')} style={{padding:'6px 12px',background:'#f3f4f6',border:'none',borderRadius:'8px',fontSize:'12px',cursor:'pointer',color:'#6b7280',fontWeight:'600',whiteSpace:'nowrap'}}>✕ Limpar</button>}
               </div>
               <span style={{fontSize:'12px',color:'#9ca3af',whiteSpace:'nowrap'}}>{cpfsFiltrados.length} de {cpfsAutorizados.length} CPFs</span>
             </div>
-
-            {filtroCpfData&&(
-              <div style={{background:'#eff3ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'8px 14px',marginBottom:'12px',display:'flex',alignItems:'center',gap:'8px'}}>
-                <span style={{fontSize:'13px',color:AZUL,fontWeight:'600'}}>📅 Mostrando CPFs autorizados para: {new Date(filtroCpfData+'T12:00:00').toLocaleDateString('pt-BR')}</span>
-                <span style={{fontSize:'12px',padding:'2px 8px',borderRadius:'20px',background:AZUL,color:'#fff',fontWeight:'700'}}>{cpfsFiltrados.length} CPF(s)</span>
-              </div>
-            )}
-
+            {filtroCpfData&&(<div style={{background:'#eff3ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'8px 14px',marginBottom:'12px',display:'flex',alignItems:'center',gap:'8px'}}><span style={{fontSize:'13px',color:AZUL,fontWeight:'600'}}>📅 Mostrando CPFs autorizados para: {new Date(filtroCpfData+'T12:00:00').toLocaleDateString('pt-BR')}</span><span style={{fontSize:'12px',padding:'2px 8px',borderRadius:'20px',background:AZUL,color:'#fff',fontWeight:'700'}}>{cpfsFiltrados.length} CPF(s)</span></div>)}
             {cpfsAutorizados.length>0&&(
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px',flexWrap:'wrap',gap:'8px',padding:'10px 14px',background:'#f4f6fb',borderRadius:'10px'}}>
                 <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
@@ -693,7 +671,6 @@ export default function Admin() {
                 </div>
               </div>
             )}
-
             <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
               {cpfsPaginados.length===0&&<p style={{color:'#9ca3af',fontSize:'13px',textAlign:'center',padding:'2rem'}}>{cpfsAutorizados.length===0?'Nenhum CPF cadastrado.':filtroCpfData?'Nenhum CPF autorizado para esta data.':'Nenhum resultado encontrado.'}</p>}
               {cpfsPaginados.map(c=>{
@@ -712,23 +689,14 @@ export default function Admin() {
                         <button onClick={()=>removerCpf(c.cpf)} style={{padding:'5px 14px',background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'12px',color:'#dc2626',cursor:'pointer',fontWeight:'600'}}>REMOVER</button>
                       </div>
                     </div>
-                    {editandoCpf===c.cpf&&(
-                      <div style={{padding:'10px 16px 14px',borderTop:'1px solid #e0e5f5',background:'#f0f7ff'}}>
-                        <p style={{fontSize:'12px',fontWeight:'700',color:AZUL,margin:'0 0 8px'}}>✏ Editar nome</p>
-                        <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
-                          <input value={nomeEditando} onChange={e=>setNomeEditando(e.target.value)} placeholder="Nome do proprietario" style={{flex:1,minWidth:'160px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
-                          <button onClick={salvarEdicaoCpf} disabled={salvandoEdicao} style={{padding:'8px 16px',background:salvandoEdicao?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>{salvandoEdicao?'SALVANDO...':'✓ SALVAR'}</button>
-                          <button onClick={()=>setEditandoCpf(null)} style={{padding:'8px 14px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>CANCELAR</button>
-                        </div>
-                      </div>
-                    )}
+                    {editandoCpf===c.cpf&&(<div style={{padding:'10px 16px 14px',borderTop:'1px solid #e0e5f5',background:'#f0f7ff'}}><p style={{fontSize:'12px',fontWeight:'700',color:AZUL,margin:'0 0 8px'}}>✏ Editar nome</p><div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}><input value={nomeEditando} onChange={e=>setNomeEditando(e.target.value)} placeholder="Nome do proprietario" style={{flex:1,minWidth:'160px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/><button onClick={salvarEdicaoCpf} disabled={salvandoEdicao} style={{padding:'8px 16px',background:salvandoEdicao?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>{salvandoEdicao?'SALVANDO...':'✓ SALVAR'}</button><button onClick={()=>setEditandoCpf(null)} style={{padding:'8px 14px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>CANCELAR</button></div></div>)}
                     <div style={{padding:'0 16px 12px 16px',borderTop:'1px solid #e0e5f5'}}>
                       <p style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',textTransform:'uppercase',letterSpacing:'0.05em',margin:'10px 0 8px'}}>📅 Datas e horarios liberados {datas.length===0&&<span style={{fontWeight:'400',color:'#9ca3af'}}>(nenhuma = todas as datas disponiveis)</span>}</p>
                       <div style={{display:'flex',flexDirection:'column',gap:'8px',marginBottom:'10px'}}>
                         {datas.map(entrada=>(
-                          <div key={entrada.data} style={{background: filtroCpfData&&entrada.data===filtroCpfData?'#eff3ff':'#fff',border:'1px solid '+(filtroCpfData&&entrada.data===filtroCpfData?'#bfdbfe':'#e0e5f5'),borderRadius:'10px',padding:'10px 12px'}}>
+                          <div key={entrada.data} style={{background:filtroCpfData&&entrada.data===filtroCpfData?'#eff3ff':'#fff',border:'1px solid '+(filtroCpfData&&entrada.data===filtroCpfData?'#bfdbfe':'#e0e5f5'),borderRadius:'10px',padding:'10px 12px'}}>
                             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'8px'}}>
-                              <span style={{fontSize:'13px',fontWeight:'700',color:filtroCpfData&&entrada.data===filtroCpfData?AZUL:AZUL}}>📅 {new Date(entrada.data+'T12:00:00').toLocaleDateString('pt-BR')}{filtroCpfData&&entrada.data===filtroCpfData&&<span style={{fontSize:'10px',marginLeft:'6px',padding:'2px 6px',background:AZUL,color:'#fff',borderRadius:'4px',fontWeight:'700'}}>FILTRADA</span>}</span>
+                              <span style={{fontSize:'13px',fontWeight:'700',color:AZUL}}>📅 {new Date(entrada.data+'T12:00:00').toLocaleDateString('pt-BR')}{filtroCpfData&&entrada.data===filtroCpfData&&<span style={{fontSize:'10px',marginLeft:'6px',padding:'2px 6px',background:AZUL,color:'#fff',borderRadius:'4px',fontWeight:'700'}}>FILTRADA</span>}</span>
                               <button onClick={()=>removerDataCpf(c.cpf,entrada.data)} style={{background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'11px',color:'#dc2626',cursor:'pointer',padding:'3px 10px',fontWeight:'600'}}>remover data</button>
                             </div>
                             <p style={{fontSize:'11px',fontWeight:'600',color:'#6b7280',textTransform:'uppercase',margin:'0 0 6px',letterSpacing:'0.05em'}}>Horarios liberados</p>
@@ -737,18 +705,8 @@ export default function Admin() {
                               {(entrada.horarios||[]).length===0&&<span style={{fontSize:'12px',color:'#9ca3af',fontStyle:'italic'}}>Todos os horarios disponiveis</span>}
                             </div>
                             <div style={{display:'flex',gap:'6px',alignItems:'center',flexWrap:'wrap'}}>
-                              <div style={{display:'flex',alignItems:'center',gap:'4px'}}>
-                                <label style={{fontSize:'11px',color:'#6b7280',fontWeight:'600'}}>De:</label>
-                                <select value={horarioSelecionado[c.cpf+'_'+entrada.data]||''} onChange={e=>setHorarioSelecionado(prev=>({...prev,[c.cpf+'_'+entrada.data]:e.target.value}))} style={{padding:'6px 10px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff'}}>
-                                  <option value="">--:--</option>{HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}
-                                </select>
-                              </div>
-                              <div style={{display:'flex',alignItems:'center',gap:'4px'}}>
-                                <label style={{fontSize:'11px',color:'#6b7280',fontWeight:'600'}}>Ate:</label>
-                                <select value={horarioSelecionado[c.cpf+'_'+entrada.data+'_fim']||''} onChange={e=>setHorarioSelecionado(prev=>({...prev,[c.cpf+'_'+entrada.data+'_fim']:e.target.value}))} style={{padding:'6px 10px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff'}}>
-                                  <option value="">--:--</option>{HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}
-                                </select>
-                              </div>
+                              <div style={{display:'flex',alignItems:'center',gap:'4px'}}><label style={{fontSize:'11px',color:'#6b7280',fontWeight:'600'}}>De:</label><select value={horarioSelecionado[c.cpf+'_'+entrada.data]||''} onChange={e=>setHorarioSelecionado(prev=>({...prev,[c.cpf+'_'+entrada.data]:e.target.value}))} style={{padding:'6px 10px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff'}}><option value="">--:--</option>{HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}</select></div>
+                              <div style={{display:'flex',alignItems:'center',gap:'4px'}}><label style={{fontSize:'11px',color:'#6b7280',fontWeight:'600'}}>Ate:</label><select value={horarioSelecionado[c.cpf+'_'+entrada.data+'_fim']||''} onChange={e=>setHorarioSelecionado(prev=>({...prev,[c.cpf+'_'+entrada.data+'_fim']:e.target.value}))} style={{padding:'6px 10px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff'}}><option value="">--:--</option>{HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}</select></div>
                               <button onClick={()=>adicionarHorarioCpf(c.cpf,entrada.data,horarioSelecionado[c.cpf+'_'+entrada.data],horarioSelecionado[c.cpf+'_'+entrada.data+'_fim'])} disabled={!horarioSelecionado[c.cpf+'_'+entrada.data]} style={{padding:'6px 14px',background:!horarioSelecionado[c.cpf+'_'+entrada.data]?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:!horarioSelecionado[c.cpf+'_'+entrada.data]?'not-allowed':'pointer'}}>+ Adicionar</button>
                             </div>
                           </div>
@@ -834,10 +792,7 @@ export default function Admin() {
                     <div key={d.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 16px',background:d.tipo==='liberado'?'#f0fdf4':'#fff5f5',borderRadius:'10px',border:d.tipo==='liberado'?'1px solid #86efac':'1px solid #fca5a5'}}>
                       <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
                         <div style={{width:'36px',height:'36px',borderRadius:'10px',background:d.tipo==='liberado'?VERDE:VERMELHO,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',color:'#fff',fontWeight:'700',flexShrink:0}}>{d.tipo==='liberado'?'✓':'🔒'}</div>
-                        <div>
-                          <div style={{fontSize:'14px',fontWeight:'700',color:d.tipo==='liberado'?VERDE:VERMELHO}}>{new Date(d.data_inicio+'T12:00:00').toLocaleDateString('pt-BR')} ate {new Date(d.data_fim+'T12:00:00').toLocaleDateString('pt-BR')}</div>
-                          <div style={{fontSize:'12px',color:'#6b7280'}}>{d.tipo==='liberado'?'Periodo liberado':'Periodo bloqueado'}{d.observacao&&' — '+d.observacao}</div>
-                        </div>
+                        <div><div style={{fontSize:'14px',fontWeight:'700',color:d.tipo==='liberado'?VERDE:VERMELHO}}>{new Date(d.data_inicio+'T12:00:00').toLocaleDateString('pt-BR')} ate {new Date(d.data_fim+'T12:00:00').toLocaleDateString('pt-BR')}</div><div style={{fontSize:'12px',color:'#6b7280'}}>{d.tipo==='liberado'?'Periodo liberado':'Periodo bloqueado'}{d.observacao&&' — '+d.observacao}</div></div>
                       </div>
                       <button onClick={()=>removerDiaEspecial(d.id)} style={{padding:'6px 14px',background:'none',border:'1px solid #fca5a5',borderRadius:'8px',fontSize:'12px',color:VERMELHO,cursor:'pointer',fontWeight:'600'}}>REMOVER</button>
                     </div>
@@ -848,7 +803,7 @@ export default function Admin() {
             {subAbaConfig==='bloqueios'&&(
               <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 6px'}}>Horarios por Data e Empreendimento</h2>
-                <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 20px'}}>Defina o ultimo horario disponivel por data e empreendimento. Use "Todos" para aplicar a todos.</p>
+                <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 20px'}}>Defina o ultimo horario disponivel por data e empreendimento.</p>
                 <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'1.25rem',marginBottom:'1.5rem'}}>
                   <p style={{fontSize:'13px',fontWeight:'700',color:AZUL,margin:'0 0 12px'}}>Configurar bloqueio</p>
                   <div style={{display:'flex',gap:'10px',flexWrap:'wrap',alignItems:'flex-end'}}>
@@ -910,56 +865,37 @@ export default function Admin() {
             <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
               <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 6px'}}>📧 Email Customizado</h2>
               <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 20px'}}>Selecione destinatarios da lista ou adicione emails manualmente.</p>
-
               <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'12px',padding:'12px',background:'#f8f9ff',borderRadius:'12px',border:'1px solid #e0e5f5'}}>
                 <select value={emailFiltroEmp} onChange={e=>setEmailFiltroEmp(e.target.value)} style={{padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
-                  <option value="">Todos os empreendimentos</option>
-                  {empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
+                  <option value="">Todos os empreendimentos</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
                 </select>
                 <select value={emailFiltroStatus} onChange={e=>setEmailFiltroStatus(e.target.value)} style={{padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
                   <option value="todos">Todos os status</option>
                   <option value="confirmado">Confirmados</option>
                   <option value="cancelado">Cancelados</option>
                 </select>
-                <button onClick={()=>{
-                  const lista=agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>emailFiltroStatus==='todos'||a.status===emailFiltroStatus).filter(a=>!emailFiltroEmp||a.apartamento?.toLowerCase().includes(emailFiltroEmp.toLowerCase())).map(a=>a.email).filter(Boolean)
-                  setEmailDestinatarios([...new Set(lista)])
-                }} style={{padding:'8px 16px',background:AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>Selecionar todos filtrados</button>
-                {emailDestinatarios.length>0&&(
-                  <button onClick={()=>setEmailDestinatarios([])} style={{padding:'8px 16px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>Limpar ({emailDestinatarios.length})</button>
-                )}
+                <button onClick={()=>{const lista=agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>emailFiltroStatus==='todos'||a.status===emailFiltroStatus).filter(a=>!emailFiltroEmp||a.apartamento?.toLowerCase().includes(emailFiltroEmp.toLowerCase())).map(a=>a.email).filter(Boolean);setEmailDestinatarios([...new Set(lista)])}} style={{padding:'8px 16px',background:AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>Selecionar todos filtrados</button>
+                {emailDestinatarios.length>0&&<button onClick={()=>setEmailDestinatarios([])} style={{padding:'8px 16px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>Limpar ({emailDestinatarios.length})</button>}
               </div>
-
               <div style={{maxHeight:'280px',overflowY:'auto',border:'1px solid #e0e5f5',borderRadius:'10px',marginBottom:'16px'}}>
                 {agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>emailFiltroStatus==='todos'||a.status===emailFiltroStatus).filter(a=>!emailFiltroEmp||a.apartamento?.toLowerCase().includes(emailFiltroEmp.toLowerCase())).filter((a,i,arr)=>arr.findIndex(b=>b.email===a.email)===i).map((a,i)=>{
                   const selecionado=emailDestinatarios.includes(a.email)
                   return (
-                    <div key={i} onClick={()=>{if(selecionado)setEmailDestinatarios(prev=>prev.filter(e=>e!==a.email));else setEmailDestinatarios(prev=>[...prev,a.email])}}
-                      style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',borderBottom:'1px solid #f0f3fa',cursor:'pointer',background:selecionado?'#eff3ff':'#fff'}}>
+                    <div key={i} onClick={()=>{if(selecionado)setEmailDestinatarios(prev=>prev.filter(e=>e!==a.email));else setEmailDestinatarios(prev=>[...prev,a.email])}} style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',borderBottom:'1px solid #f0f3fa',cursor:'pointer',background:selecionado?'#eff3ff':'#fff'}}>
                       <input type="checkbox" checked={selecionado} onChange={()=>{}} style={{width:'16px',height:'16px',accentColor:AZUL,flexShrink:0}}/>
                       <div style={{width:'32px',height:'32px',borderRadius:'8px',background:selecionado?AZUL:'#e8ecf5',display:'flex',alignItems:'center',justifyContent:'center',color:selecionado?'#fff':'#6b7280',fontSize:'13px',fontWeight:'700',flexShrink:0}}>{(a.nome||'?').charAt(0).toUpperCase()}</div>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{a.nome}</div>
-                        <div style={{fontSize:'11px',color:'#6b7280'}}>{a.email} · {(a.apartamento||'').split(' - ')[0]}</div>
-                      </div>
+                      <div style={{flex:1,minWidth:0}}><div style={{fontSize:'13px',fontWeight:'600',color:'#111'}}>{a.nome}</div><div style={{fontSize:'11px',color:'#6b7280'}}>{a.email} · {(a.apartamento||'').split(' - ')[0]}</div></div>
                       <span style={{fontSize:'10px',padding:'2px 8px',borderRadius:'20px',background:a.status==='confirmado'?'#dcfce7':'#fee2e2',color:a.status==='confirmado'?'#16a34a':VERMELHO,fontWeight:'700'}}>{a.status}</span>
                     </div>
                   )
                 })}
-                {agendamentos.filter(a=>a.tipo!=='revistoria').length===0&&(<p style={{textAlign:'center',color:'#9ca3af',fontSize:'13px',padding:'2rem'}}>Nenhum agendamento encontrado.</p>)}
+                {agendamentos.filter(a=>a.tipo!=='revistoria').length===0&&<p style={{textAlign:'center',color:'#9ca3af',fontSize:'13px',padding:'2rem'}}>Nenhum agendamento encontrado.</p>}
               </div>
-
               <div style={{marginBottom:'16px'}}>
                 <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'6px',textTransform:'uppercase'}}>Emails adicionais (separados por virgula)</label>
                 <input value={emailManual} onChange={e=>setEmailManual(e.target.value)} placeholder="email1@exemplo.com, email2@exemplo.com" style={{width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/>
               </div>
-
-              {(emailDestinatarios.length>0||emailManual.trim())&&(
-                <div style={{background:'#eff3ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'10px 14px',marginBottom:'16px'}}>
-                  <p style={{fontSize:'12px',color:AZUL,margin:0,fontWeight:'600'}}>📨 {emailDestinatarios.length} da lista{emailManual.trim()&&' + '+emailManual.split(',').filter(e=>e.trim().includes('@')).length+' manual(is)'}</p>
-                </div>
-              )}
-
+              {(emailDestinatarios.length>0||emailManual.trim())&&(<div style={{background:'#eff3ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'10px 14px',marginBottom:'16px'}}><p style={{fontSize:'12px',color:AZUL,margin:0,fontWeight:'600'}}>📨 {emailDestinatarios.length} da lista{emailManual.trim()&&' + '+emailManual.split(',').filter(e=>e.trim().includes('@')).length+' manual(is)'}</p></div>)}
               <div style={{marginBottom:'16px',border:'2px solid '+AZUL,borderRadius:'12px',overflow:'hidden'}}>
                 <button onClick={()=>setTemplateMostrar(t=>!t)} style={{width:'100%',padding:'14px 16px',background:templateMostrar?AZUL:'#f0f7ff',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:'14px',fontWeight:'700',color:templateMostrar?'#fff':AZUL}}>
                   <span>📝 Usar template padrao de vistoria</span>
@@ -969,34 +905,17 @@ export default function Admin() {
                   <div style={{padding:'16px',background:'#f0f7ff',borderTop:'1px solid #bfdbfe'}}>
                     <p style={{fontSize:'12px',color:'#374151',margin:'0 0 12px',fontWeight:'500'}}>Preencha os campos abaixo e clique em <strong>APLICAR</strong> para gerar o email automaticamente:</p>
                     <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'12px'}}>
-                      <div style={{flex:2,minWidth:'160px'}}>
-                        <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento *</label>
-                        <select value={templateEmp} onChange={e=>setTemplateEmp(e.target.value)} style={{width:'100%',padding:'9px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer',boxSizing:'border-box'}}>
-                          <option value="">Selecione...</option>
-                          {empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
-                        </select>
-                      </div>
-                      <div style={{flex:1,minWidth:'140px'}}>
-                        <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Data de agendamento *</label>
-                        <input type="date" value={templateData} onChange={e=>setTemplateData(e.target.value)} style={{width:'100%',padding:'9px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/>
-                      </div>
+                      <div style={{flex:2,minWidth:'160px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento *</label><select value={templateEmp} onChange={e=>setTemplateEmp(e.target.value)} style={{width:'100%',padding:'9px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer',boxSizing:'border-box'}}><option value="">Selecione...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select></div>
+                      <div style={{flex:1,minWidth:'140px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Data de agendamento *</label><input type="date" value={templateData} onChange={e=>setTemplateData(e.target.value)} style={{width:'100%',padding:'9px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/></div>
                     </div>
-                    {templateData&&(
-                      <div style={{background:'#fff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'8px 14px',marginBottom:'12px'}}>
-                        <span style={{fontSize:'13px',color:AZUL,fontWeight:'700'}}>📅 {new Date(templateData+'T12:00:00').toLocaleDateString('pt-BR')} — {['Domingo','Segunda-feira','Terca-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sabado'][new Date(templateData+'T12:00:00').getDay()]}</span>
-                      </div>
-                    )}
+                    {templateData&&(<div style={{background:'#fff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'8px 14px',marginBottom:'12px'}}><span style={{fontSize:'13px',color:AZUL,fontWeight:'700'}}>📅 {new Date(templateData+'T12:00:00').toLocaleDateString('pt-BR')} — {['Domingo','Segunda-feira','Terca-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sabado'][new Date(templateData+'T12:00:00').getDay()]}</span></div>)}
                     <div style={{display:'flex',gap:'10px',alignItems:'center'}}>
-                      <button onClick={aplicarTemplate} disabled={!templateEmp||!templateData}
-                        style={{padding:'10px 24px',background:!templateEmp||!templateData?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:!templateEmp||!templateData?'not-allowed':'pointer'}}>
-                        ✓ APLICAR TEMPLATE
-                      </button>
+                      <button onClick={aplicarTemplate} disabled={!templateEmp||!templateData} style={{padding:'10px 24px',background:!templateEmp||!templateData?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:!templateEmp||!templateData?'not-allowed':'pointer'}}>✓ APLICAR TEMPLATE</button>
                       <p style={{fontSize:'11px',color:'#6b7280',margin:0}}>O assunto e a mensagem serao preenchidos automaticamente.</p>
                     </div>
                   </div>
                 )}
               </div>
-
               <div style={{marginBottom:'12px'}}>
                 <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'6px',textTransform:'uppercase'}}>Assunto *</label>
                 <input value={emailAssunto} onChange={e=>setEmailAssunto(e.target.value)} placeholder="Ex: Lembrete de vistoria - Markinvest" style={{width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/>
@@ -1008,17 +927,38 @@ export default function Admin() {
               </div>
               {emailResultado&&(
                 <div style={{background:emailResultado.error?'#fff5f5':emailResultado.erros?.length>0?'#fffbeb':'#f0fdf4',border:'1px solid '+(emailResultado.error?'#fca5a5':emailResultado.erros?.length>0?'#fde68a':'#86efac'),borderRadius:'10px',padding:'12px 16px',marginBottom:'16px'}}>
-                  {emailResultado.error?(<p style={{color:VERMELHO,fontSize:'13px',fontWeight:'600',margin:0}}>⚠ {emailResultado.error}</p>):(
-                    <div>
-                      <p style={{color:'#15803d',fontSize:'13px',fontWeight:'700',margin:'0 0 4px'}}>✅ {emailResultado.enviados} email(s) enviado(s) com sucesso!</p>
-                      {emailResultado.erros?.length>0&&<p style={{color:'#92400e',fontSize:'12px',margin:0}}>⚠ Falha: {emailResultado.erros.join(', ')}</p>}
-                    </div>
-                  )}
+                  {emailResultado.error?<p style={{color:VERMELHO,fontSize:'13px',fontWeight:'600',margin:0}}>⚠ {emailResultado.error}</p>:<div><p style={{color:'#15803d',fontSize:'13px',fontWeight:'700',margin:'0 0 4px'}}>✅ {emailResultado.enviados} email(s) enviado(s) com sucesso!</p>{emailResultado.erros?.length>0&&<p style={{color:'#92400e',fontSize:'12px',margin:0}}>⚠ Falha: {emailResultado.erros.join(', ')}</p>}</div>}
                 </div>
               )}
               <button onClick={enviarEmailCustomizado} disabled={enviandoEmail} style={{width:'100%',padding:'14px',background:enviandoEmail?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'10px',fontSize:'14px',fontWeight:'700',cursor:enviandoEmail?'not-allowed':'pointer'}}>
                 {enviandoEmail?'ENVIANDO...':'📧 ENVIAR EMAIL'}
               </button>
+              <div style={{marginTop:'24px',borderTop:'2px solid #e8ecf5',paddingTop:'20px'}}>
+                <button onClick={()=>{setMostrarLog(t=>!t);if(!mostrarLog)buscarEmailsLog()}} style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 18px',background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'10px',fontSize:'13px',fontWeight:'700',color:AZUL,cursor:'pointer',marginBottom:'12px'}}>
+                  📋 {mostrarLog?'Ocultar':'Ver'} historico de emails enviados
+                </button>
+                {mostrarLog&&(
+                  <div>
+                    {loadingLog?<p style={{color:'#9ca3af',fontSize:'13px',textAlign:'center',padding:'1rem'}}>Carregando...</p>:emailsLog.length===0?<p style={{color:'#9ca3af',fontSize:'13px',textAlign:'center',padding:'1rem'}}>Nenhum email enviado ainda.</p>:(
+                      <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                        {emailsLog.map((log,i)=>(
+                          <div key={i} style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'10px',padding:'12px 16px'}}>
+                            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'8px',marginBottom:'6px'}}>
+                              <span style={{fontSize:'13px',fontWeight:'700',color:'#111'}}>{log.assunto}</span>
+                              <span style={{fontSize:'11px',color:'#9ca3af'}}>{log.criado_em?new Date(log.criado_em).toLocaleString('pt-BR'):''}</span>
+                            </div>
+                            <div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}>
+                              <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:'#eff3ff',color:AZUL,fontWeight:'700'}}>📨 {log.total_destinatarios} destinatario(s)</span>
+                              <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:'#f0fdf4',color:'#16a34a',fontWeight:'700'}}>✅ {log.total_enviados} enviado(s)</span>
+                              {log.total_erros>0&&<span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:'#fff5f5',color:VERMELHO,fontWeight:'700'}}>⚠ {log.total_erros} falha(s)</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -1060,6 +1000,7 @@ export default function Admin() {
               <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
                 <button onClick={exportarCSV} style={{padding:'8px 18px',background:AZUL,color:'#fff',border:'none',borderRadius:'10px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>⬇ EXPORTAR CSV</button>
                 <button onClick={gerarPDF} disabled={gerandoPDF} style={{padding:'8px 18px',background:gerandoPDF?'#9ca3af':'#C0392B',color:'#fff',border:'none',borderRadius:'10px',fontSize:'12px',fontWeight:'700',cursor:gerandoPDF?'not-allowed':'pointer'}}>📄 {gerandoPDF?'GERANDO...':'EXPORTAR PDF'}</button>
+                <button onClick={exportarRelatorioGeral} style={{padding:'8px 18px',background:VERDE,color:'#fff',border:'none',borderRadius:'10px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>📊 RELATORIO GERAL</button>
               </div>
             </div>
             {paginados.length===0?(<div style={{textAlign:'center',padding:'3rem',color:'#9ca3af',fontSize:'14px',background:'#fff',borderRadius:'16px'}}>Nenhum agendamento encontrado</div>):(

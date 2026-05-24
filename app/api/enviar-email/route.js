@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+)
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -9,16 +15,28 @@ const transporter = nodemailer.createTransport({
   },
 })
 
+export async function GET() {
+  try {
+    const { data, error } = await supabase
+      .from('emails_log')
+      .select('*')
+      .order('criado_em', { ascending: false })
+      .limit(50)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json(data || [])
+  } catch(e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
+}
+
 export async function POST(request) {
   try {
     const { destinatarios, assunto, mensagem } = await request.json()
 
-    if (!destinatarios || destinatarios.length === 0) {
+    if (!destinatarios || destinatarios.length === 0)
       return NextResponse.json({ error: 'Nenhum destinatario informado.' }, { status: 400 })
-    }
-    if (!assunto || !mensagem) {
+    if (!assunto || !mensagem)
       return NextResponse.json({ error: 'Assunto e mensagem sao obrigatorios.' }, { status: 400 })
-    }
 
     const html = `<!DOCTYPE html>
 <html>
@@ -60,6 +78,14 @@ export async function POST(request) {
         erros.push(email)
       }
     }
+
+    await supabase.from('emails_log').insert([{
+      assunto,
+      total_destinatarios: destinatarios.length,
+      total_enviados: enviados,
+      total_erros: erros.length,
+      destinatarios: destinatarios
+    }])
 
     return NextResponse.json({ success: true, enviados, erros })
   } catch(e) {
