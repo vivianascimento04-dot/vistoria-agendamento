@@ -39,11 +39,12 @@ export async function POST(request) {
 
 export async function PATCH(request) {
   try {
-    const { cpf, nome, unidade } = await request.json()
+    const { cpf, nome, unidade, empreendimento } = await request.json()
     if (!cpf) return NextResponse.json({ error: 'CPF obrigatorio' }, { status: 400 })
     const cpfLimpo = cpf.replace(/\D/g, '')
     const updates = { nome: nome || '' }
     if (unidade !== undefined) updates.unidade = unidade
+    if (empreendimento !== undefined) updates.empreendimento = empreendimento
     const { error } = await supabase
       .from('cpfs_autorizados')
       .update(updates)
@@ -54,7 +55,6 @@ export async function PATCH(request) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }
-
 export async function DELETE(request) {
   try {
     const body = await request.json()

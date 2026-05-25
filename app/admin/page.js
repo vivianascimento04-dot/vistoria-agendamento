@@ -61,16 +61,19 @@ export default function Admin() {
   const [novoCpf, setNovoCpf] = useState('')
   const [nomeNovoCpf, setNomeNovoCpf] = useState('')
   const [unidadeNovoCpf, setUnidadeNovoCpf] = useState('')
+  const [empNovoCpf, setEmpNovoCpf] = useState('')
   const [salvandoCpf, setSalvandoCpf] = useState(false)
   const [erroCpf, setErroCpf] = useState('')
   const [buscaCpf, setBuscaCpf] = useState('')
   const [filtroCpfData, setFiltroCpfData] = useState('')
+  const [filtroCpfEmp, setFiltroCpfEmp] = useState('')
   const [cpfsSelecionados, setCpfsSelecionados] = useState([])
   const [cpfDatas, setCpfDatas] = useState({})
   const [novaDataCpf, setNovaDataCpf] = useState({})
   const [editandoCpf, setEditandoCpf] = useState(null)
   const [nomeEditando, setNomeEditando] = useState('')
   const [unidadeEditando, setUnidadeEditando] = useState('')
+  const [empEditando, setEmpEditando] = useState('')
   const [salvandoEdicao, setSalvandoEdicao] = useState(false)
   const [horarioSelecionado, setHorarioSelecionado] = useState({})
   const [cpfsExpandidos, setCpfsExpandidos] = useState(new Set())
@@ -114,7 +117,7 @@ export default function Admin() {
     }
   }, [status])
   useEffect(() => { setPagina(1) }, [filtro, busca, ordem, dataInicio, dataFim, filtroEmp])
-  useEffect(() => { setPaginaCpf(1) }, [buscaCpf, filtroCpfData])
+  useEffect(() => { setPaginaCpf(1) }, [buscaCpf, filtroCpfData, filtroCpfEmp])
   useEffect(() => { if (abaAtiva === 'revistorias') buscarRevistorias() }, [abaAtiva])
 
   async function buscarAgendamentos() {
@@ -263,10 +266,10 @@ export default function Admin() {
     try{await fetch('/api/cpf-datas',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf,data,horarios:novosHorarios})});setHorarioSelecionado(prev=>({...prev,[cpf+'_'+data]:'',[cpf+'_'+data+'_fim']:''}));buscarCpfsAutorizados()}catch(e){}
   }
   async function removerHorarioCpf(cpf,data,horario){const entrada=cpfDatas[cpf]?.find(d=>d.data===data);try{await fetch('/api/cpf-datas',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf,data,horarios:(entrada?.horarios||[]).filter(h=>h!==horario)})});buscarCpfsAutorizados()}catch(e){}}
-  async function salvarEdicaoCpf(){if(!editandoCpf)return;setSalvandoEdicao(true);try{await fetch('/api/cpfs-autorizados',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:editandoCpf,nome:nomeEditando,unidade:unidadeEditando})});setEditandoCpf(null);setNomeEditando('');setUnidadeEditando('');buscarCpfsAutorizados()}catch(e){};setSalvandoEdicao(false)}
+  async function salvarEdicaoCpf(){if(!editandoCpf)return;setSalvandoEdicao(true);try{await fetch('/api/cpfs-autorizados',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:editandoCpf,nome:nomeEditando,unidade:unidadeEditando,empreendimento:empEditando})});setEditandoCpf(null);setNomeEditando('');setUnidadeEditando('');setEmpEditando('');buscarCpfsAutorizados()}catch(e){};setSalvandoEdicao(false)}
   async function adicionarCpf(){
     if(!novoCpf.trim())return;setSalvandoCpf(true);setErroCpf('')
-    try{const res=await fetch('/api/cpfs-autorizados',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:novoCpf,nome:nomeNovoCpf,unidade:unidadeNovoCpf})});if(res.ok){setNovoCpf('');setNomeNovoCpf('');setUnidadeNovoCpf('');buscarCpfsAutorizados()}else{const d=await res.json();setErroCpf(d.error||'Erro ao salvar.')}}catch(e){setErroCpf('Erro de conexao.')}
+    try{const res=await fetch('/api/cpfs-autorizados',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:novoCpf,nome:nomeNovoCpf,unidade:unidadeNovoCpf,empreendimento:empNovoCpf})});if(res.ok){setNovoCpf('');setNomeNovoCpf('');setUnidadeNovoCpf('');setEmpNovoCpf('');buscarCpfsAutorizados()}else{const d=await res.json();setErroCpf(d.error||'Erro ao salvar.')}}catch(e){setErroCpf('Erro de conexao.')}
     setSalvandoCpf(false)
   }
   async function removerCpf(cpf){if(!confirm('Remover CPF '+cpf+'?'))return;try{await fetch('/api/cpfs-autorizados',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf})});await fetch('/api/cpf-datas',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf,todos_cpf:true})});buscarCpfsAutorizados()}catch(e){}}
@@ -346,8 +349,9 @@ export default function Admin() {
   const horariosAtivos=horariosConfig.filter(h=>h.ativo).length
   const cpfsFiltrados=cpfsAutorizados.filter(c=>{
     const bL=buscaCpf.toLowerCase(); const bD=buscaCpf.replace(/\D/g,'')
-    const passaBusca=!buscaCpf||(c.nome?.toLowerCase().includes(bL)||c.unidade?.toLowerCase().includes(bL)||(bD.length>0&&c.cpf?.includes(bD)))
+    const passaBusca=!buscaCpf||(c.nome?.toLowerCase().includes(bL)||c.unidade?.toLowerCase().includes(bL)||c.empreendimento?.toLowerCase().includes(bL)||(bD.length>0&&c.cpf?.includes(bD)))
     if(!passaBusca)return false
+    if(filtroCpfEmp&&c.empreendimento!==filtroCpfEmp)return false
     if(!filtroCpfData)return true
     const datas=cpfDatas[c.cpf]||[]
     return datas.some(d=>d.data===filtroCpfData)
@@ -620,29 +624,37 @@ export default function Admin() {
           <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
             <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 6px'}}>CPFs Autorizados</h2>
             <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 20px',lineHeight:'1.6'}}>Somente CPFs cadastrados aqui conseguem acessar a agenda. URL de acesso:<span style={{display:'block',marginTop:'4px',fontWeight:'600',color:AZUL,fontSize:'12px'}}>https://vistoria-agendamento.vercel.app/markinvest/verificar</span></p>
+
             <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'1.25rem',marginBottom:'1.5rem'}}>
               <p style={{fontSize:'13px',fontWeight:'700',color:AZUL,margin:'0 0 12px'}}>Adicionar CPF autorizado</p>
               <div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}>
                 <div style={{flex:1,minWidth:'130px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>CPF *</label><input value={novoCpf} onChange={e=>{setNovoCpf(mascaraCPF(e.target.value));setErroCpf('')}} placeholder="000.000.000-00" maxLength={14} style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/></div>
                 <div style={{flex:2,minWidth:'150px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Nome (opcional)</label><input value={nomeNovoCpf} onChange={e=>setNomeNovoCpf(e.target.value)} placeholder="Nome do proprietario" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/></div>
-                <div style={{flex:1,minWidth:'120px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Unidade (opcional)</label><input value={unidadeNovoCpf} onChange={e=>setUnidadeNovoCpf(e.target.value)} placeholder="Ex: Apto 301" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/></div>
+                <div style={{flex:1,minWidth:'110px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Unidade</label><input value={unidadeNovoCpf} onChange={e=>setUnidadeNovoCpf(e.target.value)} placeholder="Ex: Apto 301" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/></div>
+                <div style={{flex:2,minWidth:'150px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento</label><select value={empNovoCpf} onChange={e=>setEmpNovoCpf(e.target.value)} style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer',boxSizing:'border-box'}}><option value="">Selecione...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select></div>
                 <div style={{display:'flex',alignItems:'flex-end'}}><button onClick={adicionarCpf} disabled={salvandoCpf||!novoCpf.trim()} style={{padding:'9px 20px',background:salvandoCpf||!novoCpf.trim()?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:'pointer',whiteSpace:'nowrap'}}>{salvandoCpf?'SALVANDO...':'+ ADICIONAR'}</button></div>
               </div>
               {erroCpf&&<p style={{color:'#dc2626',fontSize:'12px',margin:'8px 0 0',fontWeight:'600'}}>{erroCpf}</p>}
             </div>
+
             <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'12px 14px',marginBottom:'12px',display:'flex',gap:'10px',alignItems:'center',flexWrap:'wrap'}}>
               <div style={{flex:1,position:'relative',minWidth:'180px'}}>
                 <span style={{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)',fontSize:'13px'}}>🔍</span>
-                <input value={buscaCpf} onChange={e=>setBuscaCpf(e.target.value)} placeholder="Buscar por CPF, nome ou unidade..." style={{width:'100%',padding:'8px 12px 8px 34px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#fff',boxSizing:'border-box'}}/>
+                <input value={buscaCpf} onChange={e=>setBuscaCpf(e.target.value)} placeholder="Buscar por CPF, nome, unidade..." style={{width:'100%',padding:'8px 12px 8px 34px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#fff',boxSizing:'border-box'}}/>
               </div>
+              <select value={filtroCpfEmp} onChange={e=>{setFiltroCpfEmp(e.target.value);setPaginaCpf(1)}} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
+                <option value="">Todos os empreendimentos</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
+              </select>
               <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
-                <label style={{fontSize:'12px',fontWeight:'600',color:'#6b7280',whiteSpace:'nowrap'}}>📅 Filtrar por data:</label>
+                <label style={{fontSize:'12px',fontWeight:'600',color:'#6b7280',whiteSpace:'nowrap'}}>📅 Por data:</label>
                 <input type="date" value={filtroCpfData} onChange={e=>setFiltroCpfData(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#fff'}}/>
-                {filtroCpfData&&<button onClick={()=>setFiltroCpfData('')} style={{padding:'6px 12px',background:'#f3f4f6',border:'none',borderRadius:'8px',fontSize:'12px',cursor:'pointer',color:'#6b7280',fontWeight:'600',whiteSpace:'nowrap'}}>✕ Limpar</button>}
+                {filtroCpfData&&<button onClick={()=>setFiltroCpfData('')} style={{padding:'6px 10px',background:'#f3f4f6',border:'none',borderRadius:'8px',fontSize:'12px',cursor:'pointer',color:'#6b7280',fontWeight:'600'}}>✕</button>}
               </div>
-              <span style={{fontSize:'12px',color:'#9ca3af',whiteSpace:'nowrap'}}>{cpfsFiltrados.length} de {cpfsAutorizados.length} CPFs</span>
+              <span style={{fontSize:'12px',color:'#9ca3af',whiteSpace:'nowrap'}}>{cpfsFiltrados.length} de {cpfsAutorizados.length}</span>
             </div>
-            {filtroCpfData&&(<div style={{background:'#eff3ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'8px 14px',marginBottom:'12px',display:'flex',alignItems:'center',gap:'8px'}}><span style={{fontSize:'13px',color:AZUL,fontWeight:'600'}}>📅 Mostrando CPFs para: {new Date(filtroCpfData+'T12:00:00').toLocaleDateString('pt-BR')}</span><span style={{fontSize:'12px',padding:'2px 8px',borderRadius:'20px',background:AZUL,color:'#fff',fontWeight:'700'}}>{cpfsFiltrados.length} CPF(s)</span></div>)}
+
+            {filtroCpfData&&(<div style={{background:'#eff3ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'8px 14px',marginBottom:'12px',display:'flex',alignItems:'center',gap:'8px'}}><span style={{fontSize:'13px',color:AZUL,fontWeight:'600'}}>📅 Data: {new Date(filtroCpfData+'T12:00:00').toLocaleDateString('pt-BR')}</span><span style={{fontSize:'12px',padding:'2px 8px',borderRadius:'20px',background:AZUL,color:'#fff',fontWeight:'700'}}>{cpfsFiltrados.length} CPF(s)</span></div>)}
+
             {cpfsAutorizados.length>0&&(
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px',flexWrap:'wrap',gap:'8px',padding:'10px 14px',background:'#f4f6fb',borderRadius:'10px'}}>
                 <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
@@ -656,8 +668,9 @@ export default function Admin() {
                 </div>
               </div>
             )}
+
             <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-              {cpfsPaginados.length===0&&<p style={{color:'#9ca3af',fontSize:'13px',textAlign:'center',padding:'2rem'}}>{cpfsAutorizados.length===0?'Nenhum CPF cadastrado.':filtroCpfData?'Nenhum CPF autorizado para esta data.':'Nenhum resultado encontrado.'}</p>}
+              {cpfsPaginados.length===0&&<p style={{color:'#9ca3af',fontSize:'13px',textAlign:'center',padding:'2rem'}}>{cpfsAutorizados.length===0?'Nenhum CPF cadastrado.':filtroCpfData?'Nenhum CPF para esta data.':'Nenhum resultado.'}</p>}
               {cpfsPaginados.map(c=>{
                 const selecionado=cpfsSelecionados.includes(c.cpf);const datas=cpfDatas[c.cpf]||[];const expandido=cpfsExpandidos.has(c.cpf)
                 return (
@@ -668,16 +681,34 @@ export default function Admin() {
                       <div style={{flex:1,minWidth:0}}>
                         {c.nome&&<div style={{fontSize:'13px',fontWeight:'700',color:AZUL}}>{c.nome}</div>}
                         <div style={{fontSize:'12px',color:'#374151',fontFamily:'monospace'}}>{c.cpf?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4')}</div>
-                        {c.unidade&&<div style={{fontSize:'11px',color:'#6b7280',marginTop:'2px'}}>🏠 {c.unidade}</div>}
+                        <div style={{display:'flex',gap:'8px',marginTop:'2px',flexWrap:'wrap'}}>
+                          {c.unidade&&<span style={{fontSize:'11px',color:'#6b7280'}}>🏠 {c.unidade}</span>}
+                          {c.empreendimento&&<span style={{fontSize:'11px',color:'#6b7280'}}>🏢 {c.empreendimento}</span>}
+                        </div>
                       </div>
                       <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap'}}>
                         <span style={{fontSize:'10px',padding:'3px 8px',borderRadius:'20px',background:datas.length>0?'#dbeafe':'#dcfce7',color:datas.length>0?'#1d4ed8':'#16a34a',fontWeight:'700',whiteSpace:'nowrap'}}>{datas.length>0?datas.length+' DATA(S)':'LIVRE'}</span>
                         <button onClick={()=>toggleCpfExpandido(c.cpf)} style={{padding:'5px 12px',background:expandido?AZUL:'#f0f7ff',border:'1px solid '+(expandido?AZUL:'#bfdbfe'),borderRadius:'8px',fontSize:'11px',color:expandido?'#fff':AZUL,cursor:'pointer',fontWeight:'700',whiteSpace:'nowrap'}}>{expandido?'▲ Fechar':'📅 Datas'}</button>
-                        <button onClick={()=>{setEditandoCpf(editandoCpf===c.cpf?null:c.cpf);setNomeEditando(c.nome||'');setUnidadeEditando(c.unidade||'')}} style={{padding:'5px 12px',background:'none',border:'1px solid #bfdbfe',borderRadius:'6px',fontSize:'11px',color:'#1d4ed8',cursor:'pointer',fontWeight:'600'}}>✏</button>
+                        <button onClick={()=>{setEditandoCpf(editandoCpf===c.cpf?null:c.cpf);setNomeEditando(c.nome||'');setUnidadeEditando(c.unidade||'');setEmpEditando(c.empreendimento||'')}} style={{padding:'5px 12px',background:'none',border:'1px solid #bfdbfe',borderRadius:'6px',fontSize:'11px',color:'#1d4ed8',cursor:'pointer',fontWeight:'600'}}>✏</button>
                         <button onClick={()=>removerCpf(c.cpf)} style={{padding:'5px 12px',background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'11px',color:'#dc2626',cursor:'pointer',fontWeight:'600'}}>✕</button>
                       </div>
                     </div>
-                    {editandoCpf===c.cpf&&(<div style={{padding:'10px 14px 14px',borderTop:'1px solid #e0e5f5',background:'#f0f7ff'}}><p style={{fontSize:'12px',fontWeight:'700',color:AZUL,margin:'0 0 8px'}}>✏ Editar dados</p><div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}><input value={nomeEditando} onChange={e=>setNomeEditando(e.target.value)} placeholder="Nome" style={{flex:2,minWidth:'140px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/><input value={unidadeEditando} onChange={e=>setUnidadeEditando(e.target.value)} placeholder="Unidade (ex: Apto 301)" style={{flex:1,minWidth:'120px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/><button onClick={salvarEdicaoCpf} disabled={salvandoEdicao} style={{padding:'8px 16px',background:salvandoEdicao?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>{salvandoEdicao?'SALVANDO...':'✓ SALVAR'}</button><button onClick={()=>setEditandoCpf(null)} style={{padding:'8px 12px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>✕</button></div></div>)}
+
+                    {editandoCpf===c.cpf&&(
+                      <div style={{padding:'10px 14px 14px',borderTop:'1px solid #e0e5f5',background:'#f0f7ff'}}>
+                        <p style={{fontSize:'12px',fontWeight:'700',color:AZUL,margin:'0 0 8px'}}>✏ Editar dados</p>
+                        <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
+                          <input value={nomeEditando} onChange={e=>setNomeEditando(e.target.value)} placeholder="Nome" style={{flex:2,minWidth:'140px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
+                          <input value={unidadeEditando} onChange={e=>setUnidadeEditando(e.target.value)} placeholder="Unidade" style={{flex:1,minWidth:'100px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
+                          <select value={empEditando} onChange={e=>setEmpEditando(e.target.value)} style={{flex:2,minWidth:'140px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
+                            <option value="">Empreendimento...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
+                          </select>
+                          <button onClick={salvarEdicaoCpf} disabled={salvandoEdicao} style={{padding:'8px 16px',background:salvandoEdicao?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>{salvandoEdicao?'SALVANDO...':'✓ SALVAR'}</button>
+                          <button onClick={()=>setEditandoCpf(null)} style={{padding:'8px 12px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>✕</button>
+                        </div>
+                      </div>
+                    )}
+
                     {expandido&&(
                       <div style={{borderTop:'1px solid #e0e5f5',padding:'12px 14px',background:'#fff'}}>
                         <div style={{background:'#f0f7ff',border:'1px solid #bfdbfe',borderRadius:'10px',padding:'12px',marginBottom:'12px'}}>
@@ -713,6 +744,7 @@ export default function Admin() {
                 )
               })}
             </div>
+
             {totalPaginasCpf>1&&(
               <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',marginTop:'1.5rem',flexWrap:'wrap'}}>
                 <button onClick={()=>setPaginaCpf(p=>Math.max(1,p-1))} disabled={paginaCpf===1} style={{padding:'6px 14px',background:paginaCpf===1?'#f3f4f6':'#fff',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'13px',fontWeight:'600',cursor:paginaCpf===1?'not-allowed':'pointer',color:paginaCpf===1?'#9ca3af':'#374151'}}>&#8249; Anterior</button>
