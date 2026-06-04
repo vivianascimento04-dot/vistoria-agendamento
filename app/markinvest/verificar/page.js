@@ -34,12 +34,11 @@ export default function Verificar() {
       const data = await res.json()
 
       if (data.autorizado) {
-        // Verificar se ja tem agendamento ativo
         const resAgend = await fetch('/api/agendamentos')
-        const agendamentos = await res.ok ? await resAgend.json() : []
+        const agendamentos = resAgend.ok ? await resAgend.json() : []
         const cpfLimpo = cpf.replace(/\D/g,'')
         const jaAgendado = Array.isArray(agendamentos) && agendamentos.some(
-          a => a.cpf && a.cpf.replace(/\D/g,'') === cpfLimpo && a.status === 'confirmado'
+          a => a.cpf && a.cpf.replace(/\D/g,'') === cpfLimpo && a.status === 'confirmado' && a.tipo !== 'revistoria'
         )
         if (jaAgendado) {
           setStatus('ja-agendado')

@@ -50,16 +50,29 @@ export default function Home() {
   useEffect(() => {
     async function init() {
       try {
-        const resCpfs = await fetch('/api/cpfs-autorizados')
-        const cpfs = await resCpfs.json()
-        if (Array.isArray(cpfs) && cpfs.length > 0) {
-          const cpfAutorizado = sessionStorage.getItem('cpf_autorizado')
-          if (!cpfAutorizado) { router.push('/markinvest/verificar'); return }
-          const resDatas = await fetch('/api/cpf-datas?cpf=' + cpfAutorizado.replace(/\D/g,''))
-          const datas = await resDatas.json()
-          if (Array.isArray(datas) && datas.length > 0) setDatasLiberadasCpf(datas)
+        const cpfAutorizado = sessionStorage.getItem('cpf_autorizado')
+        if (!cpfAutorizado) {
+          router.push('/markinvest/verificar')
+          return
         }
-      } catch(e) {}
+        const resVerif = await fetch('/api/cpfs-autorizados', {
+          method: 'PUT',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ cpf: cpfAutorizado })
+        })
+        const dataVerif = await resVerif.json()
+        if (!dataVerif.autorizado) {
+          sessionStorage.removeItem('cpf_autorizado')
+          router.push('/markinvest/verificar')
+          return
+        }
+        const resDatas = await fetch('/api/cpf-datas?cpf=' + cpfAutorizado.replace(/\D/g,''))
+        const datas = await resDatas.json()
+        if (Array.isArray(datas) && datas.length > 0) setDatasLiberadasCpf(datas)
+      } catch(e) {
+        router.push('/markinvest/verificar')
+        return
+      }
       setVerificando(false)
       fetch('/api/empreendimentos').then(r=>r.json()).then(d=>{ if(Array.isArray(d)&&d.length) setEmpreendimentos(d) }).catch(()=>{})
       fetch('/api/meses-bloqueados').then(r=>r.json()).then(d=>{ if(Array.isArray(d)) setMesesBloqueados(d) }).catch(()=>{})
