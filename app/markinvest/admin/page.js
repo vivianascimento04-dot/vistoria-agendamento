@@ -369,7 +369,7 @@ export default function Admin() {
     const bL=buscaCpf.toLowerCase(); const bD=buscaCpf.replace(/\D/g,'')
     const passaBusca=!buscaCpf||(c.nome?.toLowerCase().includes(bL)||c.unidade?.toLowerCase().includes(bL)||c.empreendimento?.toLowerCase().includes(bL)||(bD.length>0&&c.cpf?.includes(bD)))
     if(!passaBusca)return false
-    if(filtroCpfEmp&&c.empreendimento!==filtroCpfEmp)return false
+   if(filtroCpfEmp&&c.empreendimento&&c.empreendimento!==filtroCpfEmp)return false
     if(!filtroCpfData)return true
     const datas=cpfDatas[c.cpf]||[]
     return datas.some(d=>d.data===filtroCpfData)
