@@ -786,12 +786,34 @@ export default function Admin() {
                         </div>
                         {datas.length===0&&<p style={{fontSize:'12px',color:'#9ca3af',fontStyle:'italic',textAlign:'center',padding:'8px 0'}}>Nenhuma data cadastrada — acesso livre a todos os dias.</p>}
                         <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-                          {datas.map(entrada=>(
+                          {datas.map(entrada=>{
+                            const cpfLimpo=c.cpf.replace(/\D/g,'')
+                            const agendDaData=agendamentos.filter(a=>a.tipo!=='revistoria'&&a.cpf?.replace(/\D/g,'')===cpfLimpo&&a.data===entrada.data)
+                            return(
                             <div key={entrada.data} style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'10px',padding:'10px 12px'}}>
                               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'8px'}}>
                                 <span style={{fontSize:'13px',fontWeight:'700',color:AZUL}}>{new Date(entrada.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'})}</span>
                                 <button onClick={()=>removerDataCpf(c.cpf,entrada.data)} style={{background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'11px',color:'#dc2626',cursor:'pointer',padding:'3px 10px',fontWeight:'600'}}>remover</button>
                               </div>
+                              {agendDaData.length>0?(
+                                <div style={{marginBottom:'8px',display:'flex',flexDirection:'column',gap:'4px'}}>
+                                  {agendDaData.map(ag=>{
+                                    const cancelado=ag.status==='cancelado'
+                                    return(
+                                      <div key={ag.id} style={{display:'flex',alignItems:'center',gap:'8px',padding:'6px 10px',background:cancelado?'#fff5f5':'#f0fdf4',borderRadius:'8px',border:'1px solid '+(cancelado?'#fca5a5':'#86efac')}}>
+                                        <span style={{fontSize:'13px',fontWeight:'800',color:cancelado?VERMELHO:VERDE,flexShrink:0}}>{ag.horario?.slice(0,5)}</span>
+                                        <span style={{fontSize:'12px',color:'#374151',fontWeight:'600',flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ag.nome}</span>
+                                        <span style={{fontSize:'11px',color:'#6b7280',flexShrink:0}}>{(ag.apartamento||'').split(' - ').slice(1).join(' - ')}</span>
+                                        <span style={{fontSize:'10px',padding:'2px 8px',borderRadius:'20px',background:cancelado?'#fee2e2':'#dcfce7',color:cancelado?VERMELHO:'#16a34a',fontWeight:'700',flexShrink:0}}>{ag.status}</span>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              ):(
+                                <div style={{marginBottom:'8px',padding:'5px 10px',background:'#f9fafb',borderRadius:'6px',border:'1px dashed #e5e7eb'}}>
+                                  <span style={{fontSize:'11px',color:'#9ca3af'}}>Nenhum agendamento nesta data ainda</span>
+                                </div>
+                              )}
                               <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginBottom:'8px'}}>
                                 {(entrada.horarios||[]).map(h=>(<div key={h} style={{display:'inline-flex',alignItems:'center',gap:'4px',padding:'3px 10px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'20px'}}><span style={{fontSize:'12px',color:'#16a34a',fontWeight:'600'}}>{h}</span><button onClick={()=>removerHorarioCpf(c.cpf,entrada.data,h)} style={{background:'none',border:'none',cursor:'pointer',color:'#86efac',fontSize:'14px',padding:'0',lineHeight:'1',marginLeft:'2px'}}>x</button></div>))}
                                 {(entrada.horarios||[]).length===0&&<span style={{fontSize:'12px',color:'#9ca3af',fontStyle:'italic'}}>Todos os horarios disponiveis</span>}
@@ -802,7 +824,8 @@ export default function Admin() {
                                 <button onClick={()=>adicionarHorarioCpf(c.cpf,entrada.data,horarioSelecionado[c.cpf+'_'+entrada.data],horarioSelecionado[c.cpf+'_'+entrada.data+'_fim'])} disabled={!horarioSelecionado[c.cpf+'_'+entrada.data]} style={{padding:'6px 12px',background:!horarioSelecionado[c.cpf+'_'+entrada.data]?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:!horarioSelecionado[c.cpf+'_'+entrada.data]?'not-allowed':'pointer'}}>+ Horario</button>
                               </div>
                             </div>
-                          ))}
+                            )
+                          })}
                         </div>
                       </div>
                     )}
