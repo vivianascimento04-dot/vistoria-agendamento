@@ -26,6 +26,22 @@ export async function POST(request) {
   const tipoAgendamento = body.tipo || 'normal'
   const cpfLimpo = cpf.replace(/\D/g, '')
 
+  // ✅ SEGURANÇA: Validar CPF autorizado antes de salvar
+  if (tipoAgendamento === 'normal') {
+    const { data: autorizado } = await supabase
+      .from('cpfs_autorizados')
+      .select('cpf')
+      .eq('cpf', cpfLimpo)
+      .maybeSingle()
+
+    if (!autorizado) {
+      return NextResponse.json(
+        { error: 'CPF nao autorizado. Acesso negado.' },
+        { status: 403 }
+      )
+    }
+  }
+
   // Verificar CPF duplicado apenas para agendamentos normais
   if (tipoAgendamento === 'normal') {
     const { data: todosAgends } = await supabase

@@ -66,6 +66,10 @@ export default function Home() {
           router.push('/markinvest/verificar')
           return
         }
+
+        // ✅ Preenche o CPF automaticamente a partir do sessionStorage
+        setForm(prev => ({ ...prev, cpf: mascaraCPF(cpfAutorizado) }))
+
         const resDatas = await fetch('/api/cpf-datas?cpf=' + cpfAutorizado.replace(/\D/g,''))
         const datas = await resDatas.json()
         if (Array.isArray(datas) && datas.length > 0) setDatasLiberadasCpf(datas)
@@ -131,6 +135,17 @@ export default function Home() {
       setErro('Preencha todos os campos obrigatorios.')
       return
     }
+
+    // ✅ Verificar se o CPF do formulario bate com o CPF autorizado da sessao
+    const cpfSessao = sessionStorage.getItem('cpf_autorizado')
+    const cpfFormulario = cpf.replace(/\D/g, '')
+    if (!cpfSessao || cpfSessao.replace(/\D/g, '') !== cpfFormulario) {
+      setErro('CPF invalido. Por favor, volte ao inicio e informe seu CPF novamente.')
+      sessionStorage.removeItem('cpf_autorizado')
+      setTimeout(() => router.push('/markinvest/verificar'), 2000)
+      return
+    }
+
     setLoading(true); setErro('')
     try {
       const aptoCompleto = empreendimentoSel + ' - Torre ' + torre + ', Apto ' + apartamento
@@ -144,6 +159,7 @@ export default function Home() {
       else {
         if (data.error?.includes('confirmado')) setErro('Nao e possivel realizar agendamento pois ja existe um agendamento ativo. Entre em contato com o Relacionamento.')
         else if (data.error === 'Horario ja ocupado') setErro('Este horario acabou de ser reservado. Escolha outro horario.')
+        else if (res.status === 403) setErro('CPF nao autorizado. Acesso negado.')
         else setErro(data.error || 'Erro ao agendar. Tente novamente.')
       }
     } catch(e) { setErro('Erro de conexao. Verifique sua internet e tente novamente.') }
@@ -161,6 +177,8 @@ export default function Home() {
   const dataFormatada = dataSel ? new Date(dataSel+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : ''
   const inp = {width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',boxSizing:'border-box',outline:'none',fontFamily:'inherit'}
   const erroBorda = {...inp,border:'2px solid '+VERMELHO,background:'#fff8f8'}
+  // ✅ Estilo para campo CPF travado
+  const inpReadOnly = {...inp,background:'#f3f4f6',color:'#6b7280',cursor:'not-allowed',border:'1px solid #e5e7eb'}
 
   const ETAPAS = [
     {n:1,label:isMobile?'EMPR.':'EMPREENDIMENTO'},
@@ -203,12 +221,12 @@ export default function Home() {
               <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 1.25rem',lineHeight:'1.6'}}>O calendario exibira apenas os horarios disponiveis para o empreendimento selecionado.</p>
               {datasLiberadasCpf.length > 0 && (
                 <div style={{background:'#eff6ff',border:'1px solid #bfdbfe',borderRadius:'10px',padding:'10px 14px',marginBottom:'1rem'}}>
-                  <p style={{fontSize:'12px',color:'#1d4ed8',margin:'0 0 6px',fontWeight:'700'}}>📅 Suas datas disponiveis:</p>
+                  <p style={{fontSize:'12px',color:'#1d4ed8',margin:'0 0 6px',fontWeight:'700'}}>Suas datas disponiveis:</p>
                   <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
                     {datasLiberadasCpf.map(d => (
                       <span key={d.data} style={{padding:'3px 10px',background:'#dbeafe',border:'1px solid #93c5fd',borderRadius:'20px',fontSize:'12px',color:'#1d4ed8',fontWeight:'600'}}>
                         {new Date(d.data+'T12:00:00').toLocaleDateString('pt-BR')}
-                        {d.horarios && d.horarios.length > 0 && ' · '+d.horarios[0]+' às '+d.horarios[d.horarios.length-1]}
+                        {d.horarios && d.horarios.length > 0 && ' · '+d.horarios[0]+' as '+d.horarios[d.horarios.length-1]}
                       </span>
                     ))}
                   </div>
@@ -255,14 +273,13 @@ export default function Home() {
                   <div style={{textAlign:'center'}}>
                     <div style={{color:'#fff',fontSize:'18px',fontWeight:'700',fontFamily:'Georgia,serif',textTransform:'uppercase'}}>{MESES[mes]}</div>
                     <div style={{color:'rgba(255,255,255,0.65)',fontSize:'13px',fontWeight:'600'}}>{ano}</div>
-                    {mesBloqueado && <div style={{fontSize:'10px',color:'#fca5a5',fontWeight:'700',marginTop:'2px'}}>🔒 MES INDISPONIVEL</div>}
+                    {mesBloqueado && <div style={{fontSize:'10px',color:'#fca5a5',fontWeight:'700',marginTop:'2px'}}>MES INDISPONIVEL</div>}
                   </div>
                   <button onClick={nextMes} style={{background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'10px',width:'36px',height:'36px',cursor:'pointer',fontSize:'18px',color:'#fff',fontWeight:'bold',display:'flex',alignItems:'center',justifyContent:'center'}}>&#8250;</button>
                 </div>
                 <div style={{background:'#fff',borderRadius:'0 0 16px 16px',padding:'1.25rem',boxShadow:'0 8px 32px rgba(27,47,126,0.10)'}}>
                   {mesBloqueado && (
                     <div style={{background:'#fff5f5',border:'1px solid #fca5a5',borderRadius:'10px',padding:'12px 16px',marginBottom:'14px',display:'flex',alignItems:'center',gap:'10px'}}>
-                      <span style={{fontSize:'18px'}}>🔒</span>
                       <div>
                         <p style={{fontSize:'13px',fontWeight:'700',color:'#dc2626',margin:'0 0 2px'}}>Mes indisponivel</p>
                         <p style={{fontSize:'11px',color:'#9ca3af',margin:0}}>Selecione outro mes para agendar.</p>
@@ -271,7 +288,7 @@ export default function Home() {
                   )}
                   {datasLiberadasCpf.length > 0 && (
                     <div style={{background:'#eff6ff',border:'1px solid #bfdbfe',borderRadius:'10px',padding:'10px 14px',marginBottom:'14px'}}>
-                      <p style={{fontSize:'12px',color:'#1d4ed8',margin:0,fontWeight:'600'}}>📅 Apenas as datas autorizadas estao disponiveis para voce.</p>
+                      <p style={{fontSize:'12px',color:'#1d4ed8',margin:0,fontWeight:'600'}}>Apenas as datas autorizadas estao disponiveis para voce.</p>
                     </div>
                   )}
                   <div style={{display:'flex',gap:'8px',marginBottom:'14px',justifyContent:'center',flexWrap:'wrap'}}>
@@ -372,9 +389,18 @@ export default function Home() {
                 {tentouEnviar&&!form.nome && <p style={{color:VERMELHO,fontSize:'11px',margin:'4px 0 0',fontWeight:'600'}}>Campo obrigatorio</p>}
               </div>
               <div>
-                <label style={{fontSize:'12px',fontWeight:'700',color:tentouEnviar&&!form.cpf?VERMELHO:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>CPF *</label>
-                <input value={form.cpf} onChange={e => setForm({...form,cpf:mascaraCPF(e.target.value)})} placeholder="000.000.000-00" maxLength={14} style={tentouEnviar&&!form.cpf?erroBorda:inp}/>
-                {tentouEnviar&&!form.cpf && <p style={{color:VERMELHO,fontSize:'11px',margin:'4px 0 0',fontWeight:'600'}}>Campo obrigatorio</p>}
+                <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>
+                  CPF *
+                  <span style={{fontSize:'10px',fontWeight:'500',color:'#9ca3af',marginLeft:'6px',textTransform:'none'}}>🔒 preenchido automaticamente</span>
+                </label>
+                {/* ✅ CPF travado — preenchido do sessionStorage, nao pode ser editado */}
+                <input
+                  value={form.cpf}
+                  readOnly
+                  tabIndex={-1}
+                  style={inpReadOnly}
+                />
+                <p style={{fontSize:'10px',color:'#9ca3af',margin:'3px 0 0'}}>Este CPF foi verificado na etapa anterior e nao pode ser alterado.</p>
               </div>
             </div>
             <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:'10px',marginBottom:'1rem'}}>
@@ -477,7 +503,7 @@ export default function Home() {
               <p style={{fontSize:'13px',color:'#15803d',margin:0,fontWeight:'500',textAlign:'left'}}>E-mail enviado! Verifique sua caixa de entrada e o spam.</p>
             </div>
             <p style={{fontSize:'10px',color:'#d1d5db',textAlign:'center',marginTop:'1.5rem',marginBottom:0}}>
-              © 2026 Markinvest. Todos os direitos reservados.
+              2026 Markinvest. Todos os direitos reservados.
             </p>
           </div>
         )}
