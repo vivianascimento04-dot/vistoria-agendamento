@@ -99,6 +99,7 @@ export async function POST(request) {
       await transporter.sendMail({
         from: '"Markinvest" <' + process.env.EMAIL_USER + '>',
         to: email,
+        replyTo: 'noreply@markinvest.com.br, relacionamento@markinvest.com.br',
         subject: 'Vistoria Confirmada - Markinvest',
         html: `<!DOCTYPE html>
 <html>
