@@ -16,22 +16,22 @@ export async function GET() {
 }
 
 export async function POST(request) {
-  const { cpf, nome, unidade, empreendimento, email } = await request.json()
+  const { cpf, nome, unidade, empreendimento, email, telefone } = await request.json()
   if (!cpf) return NextResponse.json({ error: 'CPF obrigatorio.' }, { status: 400 })
   const cpfLimpo = cpf.replace(/\D/g, '')
   const { error } = await supabase
     .from('entrega_cpfs_autorizados')
-    .insert([{ cpf: cpfLimpo, nome: nome||'', unidade: unidade||'', empreendimento: empreendimento||'', email: email||'' }])
+    .insert([{ cpf: cpfLimpo, nome: nome||'', unidade: unidade||'', empreendimento: empreendimento||'', email: email||'', telefone: telefone||'' }])
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }
 
 export async function PATCH(request) {
-  const { cpf, nome, unidade, empreendimento, email } = await request.json()
+  const { cpf, nome, unidade, empreendimento, email, telefone } = await request.json()
   const cpfLimpo = cpf.replace(/\D/g, '')
   const { error } = await supabase
     .from('entrega_cpfs_autorizados')
-    .update({ nome, unidade, empreendimento, email: email||'' })
+    .update({ nome, unidade, empreendimento, email: email||'', telefone: telefone||'' })
     .eq('cpf', cpfLimpo)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
