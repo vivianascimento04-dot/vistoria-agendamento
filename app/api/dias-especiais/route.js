@@ -21,13 +21,19 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    const { data_inicio, data_fim, tipo, observacao } = await request.json()
+    const { data_inicio, data_fim, tipo, observacao, empreendimento } = await request.json()
     if (!data_inicio || !data_fim || !tipo) {
       return NextResponse.json({ error: 'Campos obrigatorios faltando' }, { status: 400 })
     }
     const { error } = await supabase
       .from('dias_especiais')
-      .insert([{ data_inicio, data_fim, tipo, observacao: observacao || '' }])
+      .insert([{
+        data_inicio,
+        data_fim,
+        tipo,
+        observacao: observacao || '',
+        empreendimento: empreendimento || 'todos'
+      }])
     if (error) throw error
     return NextResponse.json({ success: true })
   } catch(e) {

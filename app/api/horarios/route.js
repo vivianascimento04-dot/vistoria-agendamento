@@ -19,17 +19,73 @@ export async function GET(request) {
     const mes = searchParams.get('mes')
     const empreendimento = searchParams.get('empreendimento') || ''
 
-    // Busca horarios ativos
+    // Horarios ativos globalmente
     const { data: horariosConfig } = await supabase
       .from('horarios_config')
       .select('*')
       .eq('ativo', true)
     const horariosAtivos = (horariosConfig || []).map(h => h.horario)
 
-    async function calcularDisponiveis(ds) {
-      let disponiveis = horariosAtivos.filter(h => HORARIOS_BASE.includes(h))
+    // Horarios bloqueados permanentemente por empreendimento
+    let horariosBloqEmp = []
+    if (empreendimento) {
+      const { data: bloqEmp } = await supabase
+        .from('horarios_bloqueados_empreendimento')
+        .select('horario')
+        .eq('empreendimento', empreendimento)
+      horariosBloqEmp = (bloqEmp || []).map(b => b.horario)
+    }
 
-      // Bloqueios por data — especifico tem prioridade sobre todos
+    // Dias especiais
+    const { data: diasEspeciais } = await supabase
+      .from('dias_especiais')
+      .select('*')
+
+    // Meses bloqueados
+    const { data: mesesBloq } = await supabase
+      .from('meses_bloqueados')
+      .select('ano_mes')
+    const mesesBloqueados = (mesesBloq || []).map(m => m.ano_mes)
+
+    // Verifica se uma data está bloqueada para o empreendimento
+    function isDiaBloqueado(ds) {
+      const especiaisNaData = (diasEspeciais || []).filter(
+        d => ds >= d.data_inicio && ds <= d.data_fim
+      )
+      if (especiaisNaData.length > 0) {
+        const regraEmp = empreendimento
+          ? especiaisNaData.find(d => d.empreendimento === empreendimento)
+          : null
+        const regraTodos = especiaisNaData.find(
+          d => !d.empreendimento || d.empreendimento === 'todos'
+        )
+        const regra = regraEmp || regraTodos
+        if (regra) return regra.tipo === 'bloqueado'
+      }
+      // Verifica mês bloqueado
+      const mesKey = ds.slice(0, 7)
+      if (mesesBloqueados.includes(mesKey)) {
+        const liberacaoEsp = (diasEspeciais || []).find(
+          d => ds >= d.data_inicio && ds <= d.data_fim &&
+               d.tipo === 'liberado' &&
+               (d.empreendimento === empreendimento || d.empreendimento === 'todos')
+        )
+        return !liberacaoEsp
+      }
+      return false
+    }
+
+    async function calcularDisponiveis(ds) {
+      if (isDiaBloqueado(ds)) {
+        return { disponiveis: [], ocupados: new Set() }
+      }
+
+      let disponiveis = horariosAtivos.filter(h =>
+        HORARIOS_BASE.includes(h) &&
+        !horariosBloqEmp.includes(h)
+      )
+
+      // Bloqueios de último horário por data
       const { data: bloqueios } = await supabase
         .from('horarios_bloqueados_data')
         .select('*')
@@ -53,8 +109,6 @@ export async function GET(request) {
         }
       }
 
-      // SOMENTE agendamentos normais ocupam horarios
-      // Revistorias NAO bloqueiam horarios para agendamentos normais
       const query = supabase
         .from('agendamentos')
         .select('horario')
@@ -74,7 +128,7 @@ export async function GET(request) {
       return { disponiveis, ocupados }
     }
 
-    // Retorna dias cheios do mes
+    // Retorna dias cheios do mês
     if (mes) {
       const partes = mes.split('-')
       const ano = parseInt(partes[0])
@@ -88,13 +142,13 @@ export async function GET(request) {
         if (dow === 0 || dow === 6) continue
         const { disponiveis, ocupados } = await calcularDisponiveis(ds)
         const livres = disponiveis.filter(h => !ocupados.has(h))
-        if (livres.length === 0 && disponiveis.length > 0) diasCheios.push(ds)
+        if (livres.length === 0) diasCheios.push(ds)
       }
 
       return NextResponse.json({ diasCheios })
     }
 
-    // Retorna horarios de uma data especifica
+    // Retorna horários de uma data específica
     if (data) {
       const { disponiveis, ocupados } = await calcularDisponiveis(data)
       const result = disponiveis.map(h => ({
