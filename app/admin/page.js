@@ -564,9 +564,36 @@ export default function Admin() {
           <button onClick={()=>signOut({callbackUrl:'/admin/login'})} style={{padding:'6px 14px',background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.25)',borderRadius:'8px',fontSize:'12px',cursor:'pointer',color:'#fff',fontWeight:'600'}}>SAIR</button>
         </div>
       </div>
-      <div style={{background:'#fff',borderBottom:'2px solid #e8ecf5',display:'flex',padding:'0 2rem',gap:'4px',overflowX:'auto'}}>
-        {[{id:'agendamentos',label:'Agendamentos'},{id:'revistorias',label:'Revistorias'},{id:'empreendimentos',label:'Empreendimentos'},{id:'cpfs',label:'CPFs Autorizados'},{id:'configuracoes',label:'Configuracoes'},{id:'entrega',label:'Entrega de Chaves'},{id:'emails',label:'Emails'}].map(a=>(
-          <button key={a.id} onClick={()=>setAbaAtiva(a.id)} style={{padding:'14px 20px',background:'none',border:'none',borderBottom:abaAtiva===a.id?'3px solid '+AZUL:'3px solid transparent',fontSize:'13px',fontWeight:'700',cursor:'pointer',color:abaAtiva===a.id?AZUL:'#9ca3af',transition:'all 0.15s',marginBottom:'-2px',whiteSpace:'nowrap'}}>{a.label}</button>
+      <div style={{background:'#fff',borderBottom:'2px solid #e8ecf5',display:'flex',padding:'0 1rem',gap:'2px',overflowX:'auto'}}>
+        {[
+          {id:'agendamentos',label:'Agendamentos',icon:'📋'},
+          {id:'revistorias',label:'Revistorias',icon:'🔄'},
+          {id:'empreendimentos',label:'Empreendimentos',icon:'🏢'},
+          {id:'cpfs',label:'CPFs Autorizados',icon:'🔐'},
+          {id:'configuracoes',label:'Configuracoes',icon:'⚙️'},
+          {id:'entrega',label:'Entrega de Chaves',icon:'🗝️'},
+          {id:'emails',label:'Emails',icon:'📧'}
+        ].map(a=>(
+          <button key={a.id} onClick={()=>setAbaAtiva(a.id)} style={{
+            padding:'12px 16px',
+            background:abaAtiva===a.id?'#eff3ff':'none',
+            border:'none',
+            borderBottom:abaAtiva===a.id?'3px solid '+AZUL:'3px solid transparent',
+            borderRadius:abaAtiva===a.id?'8px 8px 0 0':'0',
+            fontSize:'12px',
+            fontWeight:'700',
+            cursor:'pointer',
+            color:abaAtiva===a.id?AZUL:'#9ca3af',
+            transition:'all 0.15s',
+            marginBottom:'-2px',
+            whiteSpace:'nowrap',
+            display:'flex',
+            alignItems:'center',
+            gap:'6px'
+          }}>
+            <span style={{fontSize:'14px'}}>{a.icon}</span>
+            {a.label}
+          </button>
         ))}
       </div>
 
