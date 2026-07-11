@@ -139,6 +139,7 @@ export default function Admin() {
   const [entregaFormManual, setEntregaFormManual] = useState({nome:'',cpf:'',email:'',telefone:'',unidade:''})
   const [salvandoEntregaManual, setSalvandoEntregaManual] = useState(false)
   const [erroEntregaManual, setErroEntregaManual] = useState('')
+  const [ultimoAgendamentoManual, setUltimoAgendamentoManual] = useState(null)
   const [entregaCpfNovo, setEntregaCpfNovo] = useState('')
   const [entregaCpfNome, setEntregaCpfNome] = useState('')
   const [entregaCpfUnidade, setEntregaCpfUnidade] = useState('')
@@ -444,7 +445,11 @@ export default function Admin() {
     try{
       const res=await fetch('/api/entrega-agendamentos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome,cpf:cpf.replace(/\D/g,''),email,telefone,empreendimento:entregaFiltroEmp,unidade,data:entregaDataSel,horario:entregaHorarioSel})})
       const data=await res.json()
-      if(res.ok){setEntregaFormManual({nome:'',cpf:'',email:'',telefone:'',unidade:''});buscarEntregaAgendamentos();carregarEntregaHorarios(entregaDataSel,entregaFiltroEmp)}
+      if(res.ok){
+        setUltimoAgendamentoManual({nome:entregaFormManual.nome,telefone:entregaFormManual.telefone,empreendimento:entregaFiltroEmp,unidade:entregaFormManual.unidade,data:entregaDataSel,horario:entregaHorarioSel})
+        setEntregaFormManual({nome:'',cpf:'',email:'',telefone:'',unidade:''})
+        buscarEntregaAgendamentos();carregarEntregaHorarios(entregaDataSel,entregaFiltroEmp)
+      }
       else setErroEntregaManual(data.error||'Erro ao salvar.')
     }catch(e){setErroEntregaManual('Erro de conexao.')}
     setSalvandoEntregaManual(false)
@@ -1530,6 +1535,49 @@ Equipe Markinvest`)
                 </div>
                 <div style={{marginBottom:'16px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Unidade *</label><input value={entregaFormManual.unidade} onChange={e=>setEntregaFormManual(p=>({...p,unidade:e.target.value}))} placeholder="Ex: Torre A, Apto 301" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/></div>
                 {erroEntregaManual&&<div style={{background:'#fff5f5',border:'1px solid #fca5a5',borderRadius:'8px',padding:'10px 14px',marginBottom:'12px'}}><p style={{color:VERMELHO,fontSize:'13px',fontWeight:'600',margin:0}}>{erroEntregaManual}</p></div>}
+                {ultimoAgendamentoManual&&(
+                  <div style={{background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'12px',padding:'14px 16px',marginBottom:'14px'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'12px'}}>
+                      <div style={{width:'36px',height:'36px',borderRadius:'50%',background:'#dcfce7',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </div>
+                      <div>
+                        <div style={{fontSize:'13px',fontWeight:'700',color:'#15803d'}}>Agendamento confirmado!</div>
+                        <div style={{fontSize:'11px',color:'#6b7280'}}>{ultimoAgendamentoManual.empreendimento} · {ultimoAgendamentoManual.unidade} · {new Date(ultimoAgendamentoManual.data+'T12:00:00').toLocaleDateString('pt-BR')} às {ultimoAgendamentoManual.horario}</div>
+                      </div>
+                    </div>
+                    {ultimoAgendamentoManual.telefone&&(
+                      <>
+                        <p style={{fontSize:'12px',color:'#374151',margin:'0 0 10px',fontWeight:'500'}}>Notificar cliente via WhatsApp:</p>
+                        <div style={{display:'flex',gap:'8px',flexWrap:'wrap',marginBottom:'12px'}}>
+                          <button onClick={()=>{
+                            const a=ultimoAgendamentoManual
+                            const data=new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})
+                            const msg='Ola '+a.nome+'! Seu agendamento de entrega de chaves foi confirmado. Parque: '+a.empreendimento+' | Unidade: '+a.unidade+' | Data: '+data+' as '+a.horario+'. Lembre-se de trazer documento oficial com foto (RG ou CNH). Chegue com 10 minutos de antecedencia. Endereco: Av. Francisco de Paula Leite, 466. — Markinvest'
+                            window.open(gerarLinkWhatsApp(a.telefone,msg),'_blank')
+                          }} style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 18px',background:'#25D366',color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:'pointer'}}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.556 4.116 1.525 5.836L.057 23.998l6.304-1.456A11.947 11.947 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.884 9.884 0 01-5.031-1.378l-.36-.214-3.742.865.944-3.617-.235-.372A9.877 9.877 0 012.106 12c0-5.461 4.433-9.894 9.894-9.894 5.461 0 9.894 4.433 9.894 9.894 0 5.461-4.433 9.894-9.894 9.894z"/></svg>
+                            Confirmacao de entrega
+                          </button>
+                          <button onClick={()=>{
+                            const a=ultimoAgendamentoManual
+                            const msg='Ola '+a.nome+'! Lembrando da sua entrega de chaves no '+a.empreendimento+' — '+new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR')+' as '+a.horario+'. Traga documento com foto. — Markinvest'
+                            window.open(gerarLinkWhatsApp(a.telefone,msg),'_blank')
+                          }} style={{display:'flex',alignItems:'center',gap:'6px',padding:'9px 16px',background:'#f0fdf4',color:'#15803d',border:'1px solid #86efac',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:'pointer'}}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.556 4.116 1.525 5.836L.057 23.998l6.304-1.456A11.947 11.947 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.884 9.884 0 01-5.031-1.378l-.36-.214-3.742.865.944-3.617-.235-.372A9.877 9.877 0 012.106 12c0-5.461 4.433-9.894 9.894-9.894 5.461 0 9.894 4.433 9.894 9.894 0 5.461-4.433 9.894-9.894 9.894z"/></svg>
+                            Lembrete simples
+                          </button>
+                          <button onClick={()=>setUltimoAgendamentoManual(null)} style={{padding:'9px 14px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>Pular</button>
+                        </div>
+                        <div style={{background:'var(--surface-2)',border:'0.5px solid var(--border)',borderRadius:'8px',padding:'10px 12px'}}>
+                          <p style={{fontSize:'10px',color:'#9ca3af',margin:'0 0 4px',textTransform:'uppercase',letterSpacing:'0.05em'}}>Previa — Confirmacao</p>
+                          <p style={{fontSize:'11px',color:'#374151',margin:0,lineHeight:'1.6'}}>Ola {ultimoAgendamentoManual.nome}! Seu agendamento de entrega de chaves foi confirmado. Parque: {ultimoAgendamentoManual.empreendimento} | Unidade: {ultimoAgendamentoManual.unidade} | Data: {new Date(ultimoAgendamentoManual.data+'T12:00:00').toLocaleDateString('pt-BR')} as {ultimoAgendamentoManual.horario}. Lembre-se de trazer documento oficial com foto. — Markinvest</p>
+                        </div>
+                      </>
+                    )}
+                    {!ultimoAgendamentoManual.telefone&&<p style={{fontSize:'12px',color:'#9ca3af',fontStyle:'italic'}}>Telefone nao informado — nao e possivel enviar WhatsApp.</p>}
+                  </div>
+                )}
                 <button onClick={salvarEntregaManual} disabled={salvandoEntregaManual} style={{padding:'10px 24px',background:salvandoEntregaManual?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:salvandoEntregaManual?'not-allowed':'pointer'}}>{salvandoEntregaManual?'SALVANDO...':'CONFIRMAR AGENDAMENTO'}</button>
               </div>
             )}
