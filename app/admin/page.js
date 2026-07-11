@@ -152,6 +152,16 @@ export default function Admin() {
   const [entregaEditUnidade, setEntregaEditUnidade] = useState('')
   const [entregaEditEmp, setEntregaEditEmp] = useState('')
   const [enviandoTokens, setEnviandoTokens] = useState(false)
+  const [entregaTemplateEmp, setEntregaTemplateEmp] = useState('')
+  const [entregaTemplateData, setEntregaTemplateData] = useState('')
+  const [entregaTemplateMostrar, setEntregaTemplateMostrar] = useState(false)
+  const [entregaEmailAssunto, setEntregaEmailAssunto] = useState('')
+  const [entregaEmailMensagem, setEntregaEmailMensagem] = useState('')
+  const [entregaEmailDestinatarios, setEntregaEmailDestinatarios] = useState([])
+  const [entregaEmailManual, setEntregaEmailManual] = useState('')
+  const [enviandoEntregaEmail, setEnviandoEntregaEmail] = useState(false)
+  const [entregaEmailResultado, setEntregaEmailResultado] = useState(null)
+  const [mostrarEnvioEmail, setMostrarEnvioEmail] = useState(false)
   const [tokenResultado, setTokenResultado] = useState(null)
   const [entregaCpfsFiltroEmp, setEntregaCpfsFiltroEmp] = useState('')
 
@@ -461,6 +471,60 @@ export default function Admin() {
     setEnviandoTokens(true); setTokenResultado(null)
     try{const res=await fetch('/api/entrega-tokens',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpfs:entregaCpfsSel,empreendimento:entregaFiltroEmp})});const data=await res.json();setTokenResultado(data);setEntregaCpfsSel([])}catch(e){setTokenResultado({error:'Erro de conexao.'})}
     setEnviandoTokens(false)
+  }
+
+  function aplicarTemplateEntrega() {
+    if (!entregaTemplateEmp||!entregaTemplateData) { alert('Preencha o empreendimento e a data.'); return }
+    const dataObj = new Date(entregaTemplateData+'T12:00:00')
+    const dataFmt = dataObj.toLocaleDateString('pt-BR')
+    const diasSemana = ['Domingo','Segunda-feira','Terca-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sabado']
+    const diaSemana = diasSemana[dataObj.getDay()]
+    setEntregaEmailAssunto('Sua Entrega de Chaves foi Liberada - '+entregaTemplateEmp)
+    setEntregaEmailMensagem('Prezado(a) Cliente,
+
+
+Temos uma excelente noticia: SUA UNIDADE no '+entregaTemplateEmp+' esta PRONTA para a ENTREGA DE CHAVES!
+
+As entregas estao sendo realizadas de forma organizada e por agendamento previo, garantindo um atendimento exclusivo e tranquilo para voce.
+
+COMO AGENDAR?
+Clique no link abaixo e escolha o melhor horario para voce no dia '+dataFmt+' ('+diaSemana+').
+https://vistoria-agendamento.vercel.app/markinvest/entrega
+
+IMPORTANTE: As vagas sao limitadas e preenchidas por ordem de acesso. Recomendamos que realize o seu agendamento imediatamente.
+
+ORIENTACOES PARA O DIA DA ENTREGA:
+
+· Documentacao: Apresentacao indispensavel de documento oficial com foto (RG ou CNH).
+
+· Pontualidade: A entrega tem duracao de 15 minutos. Solicitamos chegada com 10 minutos de antecedencia. Atrasos superiores a 15 minutos implicarao no reagendamento para o final do cronograma.
+
+· Trajes: Por estarmos em um canteiro de obras, e obrigatorio o uso de calcados fechados e sem salto.
+
+· Restricoes: Nao sera permitida a entrada de criancas menores de 12 anos ou animais domesticos.
+
+
+Localizacao: Avenida Francisco de Paula Leite, n.o 466 (entrada principal - acesso de pedestres).
+
+Estamos ansiosos para entregar as chaves do seu novo lar!
+
+Em caso de duvidas, nossa Central de Relacionamento permanece a disposicao.')
+    setEntregaTemplateMostrar(false)
+  }
+
+  async function enviarEmailEntrega() {
+    if (entregaEmailDestinatarios.length===0 && !entregaEmailManual.trim()) { alert('Adicione ao menos um destinatario.'); return }
+    if (!entregaEmailAssunto.trim()||!entregaEmailMensagem.trim()) { alert('Preencha o assunto e a mensagem.'); return }
+    setEnviandoEntregaEmail(true); setEntregaEmailResultado(null)
+    try {
+      const extras = entregaEmailManual.trim() ? entregaEmailManual.split(',').map(e=>e.trim()).filter(e=>e.includes('@')) : []
+      const todos = [...new Set([...entregaEmailDestinatarios,...extras])]
+      const res = await fetch('/api/enviar-email', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({destinatarios:todos,assunto:entregaEmailAssunto,mensagem:entregaEmailMensagem}) })
+      const data = await res.json()
+      setEntregaEmailResultado(data)
+      if (data.success) { setEntregaEmailDestinatarios([]); setEntregaEmailManual(''); setEntregaEmailAssunto(''); setEntregaEmailMensagem('') }
+    } catch(e) { setEntregaEmailResultado({error:'Erro de conexao.'}) }
+    setEnviandoEntregaEmail(false)
   }
 
   const filtrados=agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>filtro==='todos'||a.status===filtro).filter(a=>!filtroEmp||a.apartamento?.toLowerCase().includes(filtroEmp.toLowerCase())).filter(a=>{if(!busca)return true;const b=busca.toLowerCase();return a.nome?.toLowerCase().includes(b)||a.email?.toLowerCase().includes(b)||a.apartamento?.toLowerCase().includes(b)||a.telefone?.includes(b)||a.cpf?.includes(b)}).filter(a=>{if(dataInicio&&a.data<dataInicio)return false;if(dataFim&&a.data>dataFim)return false;return true}).sort((a,b)=>{const da=new Date(a.criado_em||0),db=new Date(b.criado_em||0);return ordem==='mais-antigo'?da-db:db-da})
@@ -1443,6 +1507,58 @@ export default function Admin() {
                     {tokenResultado.error?<p style={{color:VERMELHO,fontSize:'13px',fontWeight:'600',margin:0}}>{tokenResultado.error}</p>:<p style={{color:'#15803d',fontSize:'13px',fontWeight:'600',margin:0}}>Links enviados para {tokenResultado.enviados} cliente(s)!{tokenResultado.erros?.length>0&&' Falha: '+tokenResultado.erros.join(', ')}</p>}
                   </div>
                 )}
+                <div style={{marginTop:'16px',borderTop:'2px solid #e8ecf5',paddingTop:'16px'}}>
+                  <button onClick={()=>setMostrarEnvioEmail(t=>!t)} style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 18px',background:mostrarEnvioEmail?AZUL:'#f8f9ff',border:'1px solid '+(mostrarEnvioEmail?AZUL:'#e0e5f5'),borderRadius:'10px',fontSize:'13px',fontWeight:'700',color:mostrarEnvioEmail?'#fff':AZUL,cursor:'pointer',marginBottom:'12px'}}>
+                    📧 {mostrarEnvioEmail?'Ocultar envio de email':'Enviar email para clientes'}
+                  </button>
+                  {mostrarEnvioEmail&&(
+                    <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'1.25rem'}}>
+                      <div style={{marginBottom:'16px',border:'2px solid '+AZUL,borderRadius:'12px',overflow:'hidden'}}>
+                        <button onClick={()=>setEntregaTemplateMostrar(t=>!t)} style={{width:'100%',padding:'14px 16px',background:entregaTemplateMostrar?AZUL:'#f0f7ff',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:'14px',fontWeight:'700',color:entregaTemplateMostrar?'#fff':AZUL}}>
+                          <span>📝 Usar template de entrega de chaves</span>
+                          <span>{entregaTemplateMostrar?'▲':'▼'}</span>
+                        </button>
+                        {entregaTemplateMostrar&&(
+                          <div style={{padding:'16px',background:'#f0f7ff',borderTop:'1px solid #bfdbfe'}}>
+                            <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'12px'}}>
+                              <div style={{flex:2,minWidth:'160px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento *</label><select value={entregaTemplateEmp} onChange={e=>setEntregaTemplateEmp(e.target.value)} style={{width:'100%',padding:'9px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer',boxSizing:'border-box'}}><option value="">Selecione...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select></div>
+                              <div style={{flex:1,minWidth:'140px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Data de entrega *</label><input type="date" value={entregaTemplateData} onChange={e=>setEntregaTemplateData(e.target.value)} style={{width:'100%',padding:'9px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/></div>
+                            </div>
+                            {entregaTemplateData&&(<div style={{background:'#fff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'8px 14px',marginBottom:'12px'}}><span style={{fontSize:'13px',color:AZUL,fontWeight:'700'}}>📅 {new Date(entregaTemplateData+'T12:00:00').toLocaleDateString('pt-BR')} — {['Domingo','Segunda-feira','Terca-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sabado'][new Date(entregaTemplateData+'T12:00:00').getDay()]}</span></div>)}
+                            <button onClick={aplicarTemplateEntrega} disabled={!entregaTemplateEmp||!entregaTemplateData} style={{padding:'10px 24px',background:!entregaTemplateEmp||!entregaTemplateData?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:!entregaTemplateEmp||!entregaTemplateData?'not-allowed':'pointer'}}>✓ APLICAR TEMPLATE</button>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{marginBottom:'12px'}}>
+                        <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'6px',textTransform:'uppercase'}}>Destinatarios</label>
+                        <div style={{display:'flex',gap:'8px',flexWrap:'wrap',marginBottom:'8px'}}>
+                          <button onClick={()=>{const lista=entregaCpfs.filter(c=>!entregaAgendamentos.some(a=>a.cpf===c.cpf&&a.status==='confirmado')).map(c=>c.email).filter(Boolean);setEntregaEmailDestinatarios([...new Set(lista)])}} style={{padding:'6px 14px',background:AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>Selecionar pendentes</button>
+                          <button onClick={()=>{const lista=entregaCpfs.map(c=>c.email).filter(Boolean);setEntregaEmailDestinatarios([...new Set(lista)])}} style={{padding:'6px 14px',background:'#6366f1',color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>Selecionar todos</button>
+                          {entregaEmailDestinatarios.length>0&&<button onClick={()=>setEntregaEmailDestinatarios([])} style={{padding:'6px 14px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>Limpar ({entregaEmailDestinatarios.length})</button>}
+                        </div>
+                        {entregaEmailDestinatarios.length>0&&<div style={{background:'#eff3ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'8px 14px',marginBottom:'8px'}}><p style={{fontSize:'12px',color:AZUL,margin:0,fontWeight:'600'}}>📨 {entregaEmailDestinatarios.length} destinatario(s) selecionado(s)</p></div>}
+                        <input value={entregaEmailManual} onChange={e=>setEntregaEmailManual(e.target.value)} placeholder="Ou adicione emails manualmente separados por virgula" style={{width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/>
+                      </div>
+                      <div style={{marginBottom:'12px'}}>
+                        <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'6px',textTransform:'uppercase'}}>Assunto *</label>
+                        <input value={entregaEmailAssunto} onChange={e=>setEntregaEmailAssunto(e.target.value)} placeholder="Ex: Sua entrega de chaves foi liberada" style={{width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/>
+                      </div>
+                      <div style={{marginBottom:'16px'}}>
+                        <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'6px',textTransform:'uppercase'}}>Mensagem *</label>
+                        <textarea value={entregaEmailMensagem} onChange={e=>setEntregaEmailMensagem(e.target.value)} placeholder="Escreva sua mensagem ou use o template acima..." rows={10} style={{width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',resize:'vertical',boxSizing:'border-box',fontFamily:'inherit',lineHeight:'1.6'}}/>
+                      </div>
+                      {entregaEmailResultado&&(
+                        <div style={{background:entregaEmailResultado.error?'#fff5f5':'#f0fdf4',border:'1px solid '+(entregaEmailResultado.error?'#fca5a5':'#86efac'),borderRadius:'10px',padding:'12px 16px',marginBottom:'16px'}}>
+                          {entregaEmailResultado.error?<p style={{color:VERMELHO,fontSize:'13px',fontWeight:'600',margin:0}}>{entregaEmailResultado.error}</p>:<p style={{color:'#15803d',fontSize:'13px',fontWeight:'700',margin:0}}>✅ {entregaEmailResultado.enviados} email(s) enviado(s) com sucesso!</p>}
+                        </div>
+                      )}
+                      <button onClick={enviarEmailEntrega} disabled={enviandoEntregaEmail} style={{width:'100%',padding:'14px',background:enviandoEntregaEmail?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'10px',fontSize:'14px',fontWeight:'700',cursor:enviandoEntregaEmail?'not-allowed':'pointer'}}>
+                        {enviandoEntregaEmail?'ENVIANDO...':'📧 ENVIAR EMAIL'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
                   {(()=>{
                     const filtrados=entregaCpfs.filter(c=>{
