@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 const AZUL = '#1B2F7E'
@@ -14,7 +14,7 @@ function mascaraTelefone(v) {
   return v.replace(/\D/g,'').replace(/(\d{2})(\d)/,'($1) $2').replace(/(\d{5})(\d{1,4})$/,'$1-$2').slice(0,15)
 }
 
-export default function EntregaPage() {
+function EntregaContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
@@ -457,5 +457,17 @@ export default function EntregaPage() {
         </>
       )}
     </main>
+  )
+}
+
+export default function EntregaPage() {
+  return (
+    <Suspense fallback={
+      <main style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#f0f3fa'}}>
+        <p style={{color:'#6b7280',fontSize:'14px'}}>Carregando...</p>
+      </main>
+    }>
+      <EntregaContent />
+    </Suspense>
   )
 }
