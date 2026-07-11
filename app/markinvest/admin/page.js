@@ -553,6 +553,37 @@ Equipe Markinvest`)
     setEnviandoEntregaEmail(false)
   }
 
+  function gerarLinkWhatsApp(telefone, mensagem) {
+    const tel = telefone.replace(/\D/g,'')
+    const telFormatado = tel.startsWith('55') ? tel : '55' + tel
+    return 'https://wa.me/' + telFormatado + '?text=' + encodeURIComponent(mensagem)
+  }
+
+  function abrirWhatsAppAgendamento(a) {
+    const data = new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})
+    const msg1 = `Ola ${a.nome}! Lembrando que sua entrega de chaves no ${a.empreendimento} esta agendada para ${data} as ${a.horario}. Nao se esqueca de trazer documento oficial com foto (RG ou CNH). Chegue com 10 minutos de antecedencia. Em caso de duvidas, entre em contato. — Markinvest`
+    const msg2 = `Ola ${a.nome}! Passando para confirmar sua entrega de chaves: ${a.empreendimento} | ${data} as ${a.horario} | Unidade: ${a.unidade}. Traga seu documento com foto. Ate logo! — Markinvest`
+    const opcao = window.confirm(
+      'Escolha a mensagem:\n\n' +
+      'OK = Mensagem completa com instrucoes\n' +
+      'CANCELAR = Mensagem curta de confirmacao'
+    )
+    const mensagem = opcao ? msg1 : msg2
+    window.open(gerarLinkWhatsApp(a.telefone, mensagem), '_blank')
+  }
+
+  function abrirWhatsAppCpf(c) {
+    const msg1 = `Ola ${c.nome}! Sua unidade ${c.unidade} no ${c.empreendimento} esta pronta para a ENTREGA DE CHAVES! Acesse o link abaixo para escolher seu horario: https://vistoria-agendamento.vercel.app/markinvest/entrega As vagas sao limitadas, agende ja! — Markinvest`
+    const msg2 = `Ola ${c.nome}! O grande dia chegou! Sua unidade no ${c.empreendimento} esta liberada para entrega de chaves. Clique para agendar: https://vistoria-agendamento.vercel.app/markinvest/entrega — Markinvest`
+    const opcao = window.confirm(
+      'Escolha a mensagem:\n\n' +
+      'OK = Mensagem detalhada com link\n' +
+      'CANCELAR = Mensagem curta com link'
+    )
+    const mensagem = opcao ? msg1 : msg2
+    window.open(gerarLinkWhatsApp(c.telefone || '', mensagem), '_blank')
+  }
+
   const filtrados=agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>filtro==='todos'||a.status===filtro).filter(a=>!filtroEmp||a.apartamento?.toLowerCase().includes(filtroEmp.toLowerCase())).filter(a=>{if(!busca)return true;const b=busca.toLowerCase();return a.nome?.toLowerCase().includes(b)||a.email?.toLowerCase().includes(b)||a.apartamento?.toLowerCase().includes(b)||a.telefone?.includes(b)||a.cpf?.includes(b)}).filter(a=>{if(dataInicio&&a.data<dataInicio)return false;if(dataFim&&a.data>dataFim)return false;return true}).sort((a,b)=>{const da=new Date(a.criado_em||0),db=new Date(b.criado_em||0);return ordem==='mais-antigo'?da-db:db-da})
   const totalPaginas=Math.ceil(filtrados.length/POR_PAGINA);const paginados=filtrados.slice((pagina-1)*POR_PAGINA,pagina*POR_PAGINA)
   const totalConf=agendamentos.filter(a=>a.status==='confirmado'&&a.tipo!=='revistoria').length
@@ -1403,7 +1434,8 @@ Equipe Markinvest`)
                                             <div style={{fontSize:'11px',color:'#6b7280'}}>{a.unidade} · {a.email} · {a.telefone}</div>
                                           </div>
                                           <span style={{fontSize:'10px',padding:'2px 8px',borderRadius:'20px',background:a.status==='cancelado'?'#fee2e2':'#dcfce7',color:a.status==='cancelado'?VERMELHO:'#16a34a',fontWeight:'700',flexShrink:0}}>{a.status}</span>
-                                          {a.status==='confirmado'?<button onClick={()=>cancelarEntrega(a.id)} style={{padding:'4px 10px',background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'11px',color:VERMELHO,cursor:'pointer',fontWeight:'600',flexShrink:0}}>Cancelar</button>:<button onClick={()=>reativarEntrega(a.id)} style={{padding:'4px 10px',background:'none',border:'1px solid #86efac',borderRadius:'6px',fontSize:'11px',color:VERDE,cursor:'pointer',fontWeight:'600',flexShrink:0}}>Reativar</button>}
+                                          {a.status==='confirmado'&&a.telefone&&<button onClick={()=>abrirWhatsAppAgendamento(a)} style={{padding:'4px 10px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'6px',fontSize:'11px',color:'#15803d',cursor:'pointer',fontWeight:'600',flexShrink:0,display:'flex',alignItems:'center',gap:'4px'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.556 4.116 1.525 5.836L.057 23.998l6.304-1.456A11.947 11.947 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.884 9.884 0 01-5.031-1.378l-.36-.214-3.742.865.944-3.617-.235-.372A9.877 9.877 0 012.106 12c0-5.461 4.433-9.894 9.894-9.894 5.461 0 9.894 4.433 9.894 9.894 0 5.461-4.433 9.894-9.894 9.894z"/></svg>WA</button>}
+                          {a.status==='confirmado'?<button onClick={()=>cancelarEntrega(a.id)} style={{padding:'4px 10px',background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'11px',color:VERMELHO,cursor:'pointer',fontWeight:'600',flexShrink:0}}>Cancelar</button>:<button onClick={()=>reativarEntrega(a.id)} style={{padding:'4px 10px',background:'none',border:'1px solid #86efac',borderRadius:'6px',fontSize:'11px',color:VERDE,cursor:'pointer',fontWeight:'600',flexShrink:0}}>Reativar</button>}
                                         </div>
                                       ))}
                                     </div>
@@ -1435,7 +1467,8 @@ Equipe Markinvest`)
                               <div style={{fontSize:'14px',fontWeight:'800',color:a.status==='cancelado'?'#d1d5db':AZUL}}>{new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</div>
                               <div style={{fontSize:'12px',fontWeight:'700',color:a.status==='cancelado'?'#d1d5db':AZUL,marginTop:'2px'}}>{a.horario}</div>
                             </div>
-                            {a.status==='confirmado'?<button onClick={()=>cancelarEntrega(a.id)} style={{padding:'5px 12px',background:'#fff0f0',border:'1px solid #fca5a5',borderRadius:'8px',fontSize:'11px',fontWeight:'700',color:VERMELHO,cursor:'pointer',flexShrink:0}}>CANCELAR</button>:<button onClick={()=>reativarEntrega(a.id)} style={{padding:'5px 12px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'8px',fontSize:'11px',fontWeight:'700',color:VERDE,cursor:'pointer',flexShrink:0}}>REATIVAR</button>}
+                            {a.status==='confirmado'&&a.telefone&&<button onClick={()=>abrirWhatsAppAgendamento(a)} style={{padding:'5px 10px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'8px',fontSize:'11px',fontWeight:'700',color:'#15803d',cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',gap:'4px'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.556 4.116 1.525 5.836L.057 23.998l6.304-1.456A11.947 11.947 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.884 9.884 0 01-5.031-1.378l-.36-.214-3.742.865.944-3.617-.235-.372A9.877 9.877 0 012.106 12c0-5.461 4.433-9.894 9.894-9.894 5.461 0 9.894 4.433 9.894 9.894 0 5.461-4.433 9.894-9.894 9.894z"/></svg>WA</button>}
+                          {a.status==='confirmado'?<button onClick={()=>cancelarEntrega(a.id)} style={{padding:'5px 12px',background:'#fff0f0',border:'1px solid #fca5a5',borderRadius:'8px',fontSize:'11px',fontWeight:'700',color:VERMELHO,cursor:'pointer',flexShrink:0}}>CANCELAR</button>:<button onClick={()=>reativarEntrega(a.id)} style={{padding:'5px 12px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'8px',fontSize:'11px',fontWeight:'700',color:VERDE,cursor:'pointer',flexShrink:0}}>REATIVAR</button>}
                           </div>
                         ))}
                       </div>
@@ -1526,6 +1559,22 @@ Equipe Markinvest`)
                     <span style={{fontSize:'12px',fontWeight:'600',color:AZUL}}>{entregaCpfsSel.length} selecionado(s)</span>
                     <select value={entregaFiltroEmp} onChange={e=>setEntregaFiltroEmp(e.target.value)} style={{padding:'6px 10px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'12px',outline:'none',background:'#fff',cursor:'pointer'}}><option value="">Empreendimento para link...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select>
                     <button onClick={enviarTokensEntrega} disabled={enviandoTokens} style={{padding:'6px 16px',background:enviandoTokens?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:enviandoTokens?'not-allowed':'pointer',whiteSpace:'nowrap'}}>{enviandoTokens?'ENVIANDO...':'Enviar link de entrega'}</button>
+                    <button onClick={()=>{
+                      if(!entregaCpfsSel.length)return
+                      const cpfsSel=entregaCpfs.filter(c=>entregaCpfsSel.includes(c.cpf)&&c.telefone)
+                      if(cpfsSel.length===0){alert('Nenhum CPF selecionado tem telefone cadastrado.');return}
+                      const opcao=window.confirm('Escolha a mensagem:\n\nOK = Mensagem detalhada com link\nCANCELAR = Mensagem curta com link')
+                      cpfsSel.forEach((c,i)=>{
+                        setTimeout(()=>{
+                          const msg1='Ola '+c.nome+'! Sua unidade '+c.unidade+' no '+c.empreendimento+' esta pronta para a ENTREGA DE CHAVES! Acesse o link abaixo para escolher seu horario: https://vistoria-agendamento.vercel.app/markinvest/entrega As vagas sao limitadas, agende ja! — Markinvest'
+                          const msg2='Ola '+c.nome+'! O grande dia chegou! Sua unidade no '+c.empreendimento+' esta liberada para entrega de chaves. Clique para agendar: https://vistoria-agendamento.vercel.app/markinvest/entrega — Markinvest'
+                          window.open(gerarLinkWhatsApp(c.telefone, opcao?msg1:msg2),'_blank')
+                        },i*1500)
+                      })
+                    }} style={{padding:'6px 14px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'8px',fontSize:'12px',color:'#15803d',cursor:'pointer',fontWeight:'700',whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:'6px'}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.556 4.116 1.525 5.836L.057 23.998l6.304-1.456A11.947 11.947 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.884 9.884 0 01-5.031-1.378l-.36-.214-3.742.865.944-3.617-.235-.372A9.877 9.877 0 012.106 12c0-5.461 4.433-9.894 9.894-9.894 5.461 0 9.894 4.433 9.894 9.894 0 5.461-4.433 9.894-9.894 9.894z"/></svg>
+                      WA em massa
+                    </button>
                     <button onClick={()=>setEntregaCpfsSel([])} style={{padding:'6px 12px',background:'none',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'12px',color:AZUL,cursor:'pointer',fontWeight:'600'}}>Limpar</button>
                   </div>
                 )}
@@ -1611,6 +1660,7 @@ Equipe Markinvest`)
                           </div>
                           <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
                             {(()=>{const jaAgendou=entregaAgendamentos.some(a=>a.cpf===c.cpf&&a.status==='confirmado');return jaAgendou?<span style={{fontSize:'10px',padding:'3px 8px',borderRadius:'20px',background:'#dcfce7',color:'#16a34a',fontWeight:'700'}}>AGENDADO</span>:<span style={{fontSize:'10px',padding:'3px 8px',borderRadius:'20px',background:'#fff3cd',color:'#92400e',fontWeight:'700'}}>PENDENTE</span>})()}
+                            {c.telefone&&<button onClick={()=>abrirWhatsAppCpf(c)} style={{padding:'5px 10px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'6px',fontSize:'11px',color:'#15803d',cursor:'pointer',fontWeight:'600',display:'flex',alignItems:'center',gap:'4px'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.556 4.116 1.525 5.836L.057 23.998l6.304-1.456A11.947 11.947 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.884 9.884 0 01-5.031-1.378l-.36-.214-3.742.865.944-3.617-.235-.372A9.877 9.877 0 012.106 12c0-5.461 4.433-9.894 9.894-9.894 5.461 0 9.894 4.433 9.894 9.894 0 5.461-4.433 9.894-9.894 9.894z"/></svg>WA</button>}
                             <button onClick={()=>{setEntregaEditandoCpf(entregaEditandoCpf===c.cpf?null:c.cpf);setEntregaEditNome(c.nome||'');setEntregaEditUnidade(c.unidade||'');setEntregaEditEmp(c.empreendimento||'');setEntregaEditEmail(c.email||'')}} style={{padding:'5px 12px',background:'none',border:'1px solid #bfdbfe',borderRadius:'6px',fontSize:'11px',color:AZUL,cursor:'pointer',fontWeight:'600'}}>Editar</button>
                             <button onClick={()=>removerEntregaCpf(c.cpf)} style={{padding:'5px 12px',background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'11px',color:VERMELHO,cursor:'pointer',fontWeight:'600'}}>Remover</button>
                           </div>
