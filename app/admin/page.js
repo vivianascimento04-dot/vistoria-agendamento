@@ -480,15 +480,15 @@ export default function Admin() {
     const diasSemana = ['Domingo','Segunda-feira','Terca-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sabado']
     const diaSemana = diasSemana[dataObj.getDay()]
     setEntregaEmailAssunto('Sua Entrega de Chaves foi Liberada - '+entregaTemplateEmp)
-    setEntregaEmailMensagem('Prezado(a) Cliente,
+    setEntregaEmailMensagem(`Prezado(a) Cliente,
 
 
-Temos uma excelente noticia: SUA UNIDADE no '+entregaTemplateEmp+' esta PRONTA para a ENTREGA DE CHAVES!
+Temos uma excelente noticia: SUA UNIDADE no ${entregaTemplateEmp} esta PRONTA para a ENTREGA DE CHAVES!
 
 As entregas estao sendo realizadas de forma organizada e por agendamento previo, garantindo um atendimento exclusivo e tranquilo para voce.
 
 COMO AGENDAR?
-Clique no link abaixo e escolha o melhor horario para voce no dia '+dataFmt+' ('+diaSemana+').
+Clique no link abaixo e escolha o melhor horario para voce no dia ${dataFmt} (${diaSemana}).
 https://vistoria-agendamento.vercel.app/markinvest/entrega
 
 IMPORTANTE: As vagas sao limitadas e preenchidas por ordem de acesso. Recomendamos que realize o seu agendamento imediatamente.
@@ -508,7 +508,7 @@ Localizacao: Avenida Francisco de Paula Leite, n.o 466 (entrada principal - aces
 
 Estamos ansiosos para entregar as chaves do seu novo lar!
 
-Em caso de duvidas, nossa Central de Relacionamento permanece a disposicao.')
+Em caso de duvidas, nossa Central de Relacionamento permanece a disposicao.`)
     setEntregaTemplateMostrar(false)
   }
 
