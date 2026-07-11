@@ -118,6 +118,43 @@ export default function Admin() {
   const [editRevHorario, setEditRevHorario] = useState('')
   const [salvandoEditRev, setSalvandoEditRev] = useState(false)
 
+  // Estados Entrega de Chaves
+  const [entregaCpfs, setEntregaCpfs] = useState([])
+  const [entregaAgendamentos, setEntregaAgendamentos] = useState([])
+  const [entregaDias, setEntregaDias] = useState([])
+  const [entregaFiltroEmp, setEntregaFiltroEmp] = useState('')
+  const [entregaFiltroData, setEntregaFiltroData] = useState('')
+  const [entregaHorarios, setEntregaHorarios] = useState([])
+  const [entregaDataSel, setEntregaDataSel] = useState(null)
+  const [entregaHorarioSel, setEntregaHorarioSel] = useState(null)
+  const [entregaSlotSel, setEntregaSlotSel] = useState(null)
+  const [entregaAno, setEntregaAno] = useState(new Date().getFullYear())
+  const [entregaMes, setEntregaMes] = useState(new Date().getMonth())
+  const [entregaDiasLiberados, setEntregaDiasLiberados] = useState([])
+  const [entregaDiasCheios, setEntregaDiasCheios] = useState([])
+  const [entregaSubAba, setEntregaSubAba] = useState('agenda')
+  const [entregaNovaData, setEntregaNovaData] = useState('')
+  const [entregaNovoEmp, setEntregaNovoEmp] = useState('')
+  const [salvandoEntregaDia, setSalvandoEntregaDia] = useState(false)
+  const [entregaFormManual, setEntregaFormManual] = useState({nome:'',cpf:'',email:'',telefone:'',unidade:''})
+  const [salvandoEntregaManual, setSalvandoEntregaManual] = useState(false)
+  const [erroEntregaManual, setErroEntregaManual] = useState('')
+  const [entregaCpfNovo, setEntregaCpfNovo] = useState('')
+  const [entregaCpfNome, setEntregaCpfNome] = useState('')
+  const [entregaCpfUnidade, setEntregaCpfUnidade] = useState('')
+  const [entregaCpfEmp, setEntregaCpfEmp] = useState('')
+  const [salvandoEntregaCpf, setSalvandoEntregaCpf] = useState(false)
+  const [erroEntregaCpf, setErroEntregaCpf] = useState('')
+  const [entregaCpfBusca, setEntregaCpfBusca] = useState('')
+  const [entregaCpfsSel, setEntregaCpfsSel] = useState([])
+  const [entregaEditandoCpf, setEntregaEditandoCpf] = useState(null)
+  const [entregaEditNome, setEntregaEditNome] = useState('')
+  const [entregaEditUnidade, setEntregaEditUnidade] = useState('')
+  const [entregaEditEmp, setEntregaEditEmp] = useState('')
+  const [enviandoTokens, setEnviandoTokens] = useState(false)
+  const [tokenResultado, setTokenResultado] = useState(null)
+  const [entregaCpfsFiltroEmp, setEntregaCpfsFiltroEmp] = useState('')
+
   useEffect(() => { if (status === 'unauthenticated') router.push('/admin/login') }, [status])
   useEffect(() => {
     if (status === 'authenticated') {
@@ -127,7 +164,9 @@ export default function Admin() {
   }, [status])
   useEffect(() => { setPagina(1) }, [filtro, busca, ordem, dataInicio, dataFim, filtroEmp])
   useEffect(() => { setPaginaCpf(1) }, [buscaCpf, filtroCpfData, filtroCpfEmp, inputBuscaCpf])
-  useEffect(() => { if (abaAtiva === 'revistorias') buscarRevistorias() }, [abaAtiva])
+  useEffect(() => { if (abaAtiva === 'revistorias') buscarRevistorias()
+    if (abaAtiva === 'entrega') { buscarEntregaCpfs(); buscarEntregaAgendamentos(); buscarEntregaDias() }
+  }, [abaAtiva])
 
   async function buscarAgendamentos() {
     try { const res = await fetch('/api/agendamentos'); const data = await res.json(); setAgendamentos(Array.isArray(data)?data:[]) } catch(e) { setAgendamentos([]) }
@@ -368,6 +407,62 @@ export default function Admin() {
     setGerandoPDF(false)
   }
 
+  async function buscarEntregaCpfs() { try{const res=await fetch('/api/entrega-cpfs');const data=await res.json();setEntregaCpfs(Array.isArray(data)?data:[])}catch(e){} }
+  async function buscarEntregaAgendamentos() { try{const res=await fetch('/api/entrega-agendamentos');const data=await res.json();setEntregaAgendamentos(Array.isArray(data)?data:[])}catch(e){} }
+  async function buscarEntregaDias() { try{const res=await fetch('/api/entrega-dias');const data=await res.json();setEntregaDias(Array.isArray(data)?data:[])}catch(e){} }
+  async function carregarEntregaMes(a,m,emp) {
+    if(!emp)return
+    const mesStr=a+'-'+String(m+1).padStart(2,'0')
+    try{const res=await fetch('/api/entrega-horarios?mes='+mesStr+'&empreendimento='+encodeURIComponent(emp));const data=await res.json();setEntregaDiasLiberados(data.diasLiberados||[]);setEntregaDiasCheios(data.diasCheios||[])}catch(e){}
+  }
+  async function carregarEntregaHorarios(ds,emp) {
+    if(!ds||!emp)return
+    try{const res=await fetch('/api/entrega-horarios?data='+ds+'&empreendimento='+encodeURIComponent(emp));const data=await res.json();setEntregaHorarios(Array.isArray(data)?data:[])}catch(e){}
+  }
+  async function liberarEntregaDia() {
+    if(!entregaNovaData||!entregaNovoEmp)return; setSalvandoEntregaDia(true)
+    try{await fetch('/api/entrega-dias',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({empreendimento:entregaNovoEmp,data:entregaNovaData})});setEntregaNovaData('');buscarEntregaDias();carregarEntregaMes(entregaAno,entregaMes,entregaNovoEmp)}catch(e){}
+    setSalvandoEntregaDia(false)
+  }
+  async function removerEntregaDia(id) { try{await fetch('/api/entrega-dias',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});buscarEntregaDias();if(entregaFiltroEmp)carregarEntregaMes(entregaAno,entregaMes,entregaFiltroEmp)}catch(e){} }
+  async function salvarEntregaManual() {
+    const {nome,cpf,email,telefone,unidade}=entregaFormManual
+    if(!nome||!cpf||!email||!telefone||!unidade||!entregaFiltroEmp||!entregaDataSel||!entregaHorarioSel){setErroEntregaManual('Preencha todos os campos.');return}
+    setSalvandoEntregaManual(true);setErroEntregaManual('')
+    try{
+      const res=await fetch('/api/entrega-agendamentos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome,cpf:cpf.replace(/\D/g,''),email,telefone,empreendimento:entregaFiltroEmp,unidade,data:entregaDataSel,horario:entregaHorarioSel})})
+      const data=await res.json()
+      if(res.ok){setEntregaFormManual({nome:'',cpf:'',email:'',telefone:'',unidade:''});buscarEntregaAgendamentos();carregarEntregaHorarios(entregaDataSel,entregaFiltroEmp)}
+      else setErroEntregaManual(data.error||'Erro ao salvar.')
+    }catch(e){setErroEntregaManual('Erro de conexao.')}
+    setSalvandoEntregaManual(false)
+  }
+  async function cancelarEntrega(id) {
+    if(!confirm('Cancelar este agendamento de entrega?'))return
+    try{await fetch('/api/entrega-agendamentos',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status:'cancelado'})});buscarEntregaAgendamentos();if(entregaDataSel&&entregaFiltroEmp)carregarEntregaHorarios(entregaDataSel,entregaFiltroEmp)}catch(e){}
+  }
+  async function reativarEntrega(id) {
+    try{await fetch('/api/entrega-agendamentos',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status:'confirmado'})});buscarEntregaAgendamentos();if(entregaDataSel&&entregaFiltroEmp)carregarEntregaHorarios(entregaDataSel,entregaFiltroEmp)}catch(e){}
+  }
+  async function adicionarEntregaCpf() {
+    if(!entregaCpfNovo.trim())return; setSalvandoEntregaCpf(true); setErroEntregaCpf('')
+    try{const res=await fetch('/api/entrega-cpfs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:entregaCpfNovo,nome:entregaCpfNome,unidade:entregaCpfUnidade,empreendimento:entregaCpfEmp})});if(res.ok){setEntregaCpfNovo('');setEntregaCpfNome('');setEntregaCpfUnidade('');setEntregaCpfEmp('');buscarEntregaCpfs()}else{const d=await res.json();setErroEntregaCpf(d.error||'Erro.')}}catch(e){setErroEntregaCpf('Erro.')}
+    setSalvandoEntregaCpf(false)
+  }
+  async function removerEntregaCpf(cpf) { if(!confirm('Remover CPF '+cpf+'?'))return;try{await fetch('/api/entrega-cpfs',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf})});buscarEntregaCpfs()}catch(e){} }
+  async function salvarEdicaoEntregaCpf() {
+    if(!entregaEditandoCpf)return
+    try{await fetch('/api/entrega-cpfs',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:entregaEditandoCpf,nome:entregaEditNome,unidade:entregaEditUnidade,empreendimento:entregaEditEmp})});setEntregaEditandoCpf(null);buscarEntregaCpfs()}catch(e){}
+  }
+  async function enviarTokensEntrega() {
+    if(!entregaCpfsSel.length){alert('Selecione ao menos um CPF.');return}
+    if(!entregaFiltroEmp){alert('Selecione o empreendimento.');return}
+    if(!confirm('Enviar link de entrega para '+entregaCpfsSel.length+' cliente(s)?'))return
+    setEnviandoTokens(true); setTokenResultado(null)
+    try{const res=await fetch('/api/entrega-tokens',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpfs:entregaCpfsSel,empreendimento:entregaFiltroEmp})});const data=await res.json();setTokenResultado(data);setEntregaCpfsSel([])}catch(e){setTokenResultado({error:'Erro de conexao.'})}
+    setEnviandoTokens(false)
+  }
+
   const filtrados=agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>filtro==='todos'||a.status===filtro).filter(a=>!filtroEmp||a.apartamento?.toLowerCase().includes(filtroEmp.toLowerCase())).filter(a=>{if(!busca)return true;const b=busca.toLowerCase();return a.nome?.toLowerCase().includes(b)||a.email?.toLowerCase().includes(b)||a.apartamento?.toLowerCase().includes(b)||a.telefone?.includes(b)||a.cpf?.includes(b)}).filter(a=>{if(dataInicio&&a.data<dataInicio)return false;if(dataFim&&a.data>dataFim)return false;return true}).sort((a,b)=>{const da=new Date(a.criado_em||0),db=new Date(b.criado_em||0);return ordem==='mais-antigo'?da-db:db-da})
   const totalPaginas=Math.ceil(filtrados.length/POR_PAGINA);const paginados=filtrados.slice((pagina-1)*POR_PAGINA,pagina*POR_PAGINA)
   const totalConf=agendamentos.filter(a=>a.status==='confirmado'&&a.tipo!=='revistoria').length
@@ -470,7 +565,7 @@ export default function Admin() {
         </div>
       </div>
       <div style={{background:'#fff',borderBottom:'2px solid #e8ecf5',display:'flex',padding:'0 2rem',gap:'4px',overflowX:'auto'}}>
-        {[{id:'agendamentos',label:'Agendamentos'},{id:'revistorias',label:'Revistorias'},{id:'empreendimentos',label:'Empreendimentos'},{id:'cpfs',label:'CPFs Autorizados'},{id:'configuracoes',label:'Configuracoes'},{id:'emails',label:'Emails'}].map(a=>(
+        {[{id:'agendamentos',label:'Agendamentos'},{id:'revistorias',label:'Revistorias'},{id:'empreendimentos',label:'Empreendimentos'},{id:'cpfs',label:'CPFs Autorizados'},{id:'configuracoes',label:'Configuracoes'},{id:'entrega',label:'Entrega de Chaves'},{id:'emails',label:'Emails'}].map(a=>(
           <button key={a.id} onClick={()=>setAbaAtiva(a.id)} style={{padding:'14px 20px',background:'none',border:'none',borderBottom:abaAtiva===a.id?'3px solid '+AZUL:'3px solid transparent',fontSize:'13px',fontWeight:'700',cursor:'pointer',color:abaAtiva===a.id?AZUL:'#9ca3af',transition:'all 0.15s',marginBottom:'-2px',whiteSpace:'nowrap'}}>{a.label}</button>
         ))}
       </div>
@@ -1105,6 +1200,267 @@ export default function Admin() {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {abaAtiva==='entrega'&&(
+          <div style={{display:'flex',flexDirection:'column',gap:'1.5rem'}}>
+            <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+              {[{id:'agenda',label:'Agenda'},{id:'cpfs',label:'CPFs Autorizados'},{id:'dias',label:'Dias Liberados'},{id:'manual',label:'Agendar Manualmente'}].map(s=>(
+                <button key={s.id} onClick={()=>setEntregaSubAba(s.id)} style={{padding:'10px 20px',borderRadius:'10px',border:entregaSubAba===s.id?'none':'1px solid #e5e7eb',background:entregaSubAba===s.id?AZUL:'#fff',color:entregaSubAba===s.id?'#fff':'#6b7280',fontSize:'13px',fontWeight:'700',cursor:'pointer'}}>{s.label}</button>
+              ))}
+            </div>
+
+            {entregaSubAba==='agenda'&&(
+              <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
+                <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'16px',alignItems:'center'}}>
+                  <select value={entregaFiltroEmp} onChange={e=>{setEntregaFiltroEmp(e.target.value);setEntregaDataSel(null);setEntregaHorarios([]);setEntregaSlotSel(null);if(e.target.value)carregarEntregaMes(entregaAno,entregaMes,e.target.value)}} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}>
+                    <option value="">Selecione o empreendimento...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
+                  </select>
+                  <input type="date" value={entregaFiltroData} onChange={e=>setEntregaFiltroData(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none'}}/>
+                  {entregaFiltroData&&<button onClick={()=>setEntregaFiltroData('')} style={{padding:'8px 12px',background:'#f3f4f6',border:'none',borderRadius:'8px',fontSize:'12px',cursor:'pointer',color:'#6b7280',fontWeight:'600'}}>Limpar data</button>}
+                </div>
+                {!entregaFiltroEmp&&<div style={{textAlign:'center',padding:'3rem',color:'#9ca3af',fontSize:'14px',background:'#f9fafb',borderRadius:'12px'}}>Selecione um empreendimento para ver a agenda.</div>}
+                {entregaFiltroEmp&&(
+                  <div style={{display:'grid',gridTemplateColumns:'300px 1fr',gap:'16px',alignItems:'start'}}>
+                    <div style={{border:'1px solid #e0e5f5',borderRadius:'14px',overflow:'hidden'}}>
+                      <div style={{background:'linear-gradient(135deg,#1B2F7E,#2a45b0)',padding:'14px 16px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                        <button onClick={()=>{if(entregaMes===0){setEntregaMes(11);setEntregaAno(a=>a-1)}else setEntregaMes(m=>m-1);setEntregaDataSel(null);setEntregaHorarios([]);setEntregaSlotSel(null)}} style={{background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',width:'28px',height:'28px',cursor:'pointer',fontSize:'16px',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>&#8249;</button>
+                        <div style={{textAlign:'center'}}><div style={{color:'#fff',fontSize:'15px',fontWeight:'700',textTransform:'uppercase'}}>{MESES_NOMES[entregaMes]}</div><div style={{color:'rgba(255,255,255,0.65)',fontSize:'12px'}}>{entregaAno}</div></div>
+                        <button onClick={()=>{if(entregaMes===11){setEntregaMes(0);setEntregaAno(a=>a+1)}else setEntregaMes(m=>m+1);setEntregaDataSel(null);setEntregaHorarios([]);setEntregaSlotSel(null)}} style={{background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.3)',borderRadius:'8px',width:'28px',height:'28px',cursor:'pointer',fontSize:'16px',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>&#8250;</button>
+                      </div>
+                      <div style={{padding:'12px'}}>
+                        <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',textAlign:'center',marginBottom:'6px'}}>
+                          {['D','S','T','Q','Q','S','S'].map((d,i)=><span key={i} style={{fontSize:'10px',fontWeight:'700',color:i===0||i===6?'#e5e7eb':'#9ca3af',padding:'3px 0'}}>{d}</span>)}
+                        </div>
+                        <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'3px'}}>
+                          {Array(new Date(entregaAno,entregaMes,1).getDay()).fill(null).map((_,i)=><div key={i}/>)}
+                          {Array(new Date(entregaAno,entregaMes+1,0).getDate()).fill(null).map((_,i)=>{
+                            const d=i+1;const date=new Date(entregaAno,entregaMes,d);const dow=date.getDay()
+                            const ds=entregaAno+'-'+String(entregaMes+1).padStart(2,'0')+'-'+String(d).padStart(2,'0')
+                            const isWeekend=dow===0||dow===6;const isLiberado=entregaDiasLiberados.includes(ds);const isCheio=entregaDiasCheios.includes(ds);const isSel=entregaDataSel===ds
+                            const temAgend=entregaAgendamentos.some(a=>a.data===ds&&a.empreendimento===entregaFiltroEmp&&a.status==='confirmado')
+                            if(isSel)return<div key={d} onClick={()=>{setEntregaDataSel(null);setEntregaHorarios([]);setEntregaSlotSel(null)}} style={{aspectRatio:'1',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:'8px',cursor:'pointer',background:'linear-gradient(135deg,#1B2F7E,#2a45b0)',color:'#fff',fontSize:'12px',fontWeight:'800'}}>{d}</div>
+                            if(!isLiberado)return<div key={d} style={{aspectRatio:'1',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'12px',color:'#d1d5db',borderRadius:'8px'}}>{d}</div>
+                            if(isCheio)return<div key={d} onClick={()=>{setEntregaDataSel(ds);carregarEntregaHorarios(ds,entregaFiltroEmp);setEntregaSlotSel(null)}} style={{aspectRatio:'1',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontSize:'11px',color:'#dc2626',borderRadius:'8px',background:'#fee2e2',border:'1.5px solid #fca5a5',cursor:'pointer',fontWeight:'700'}}>{d}<div style={{fontSize:'7px',marginTop:'1px'}}>CHEIO</div></div>
+                            return<div key={d} onClick={()=>{setEntregaDataSel(ds);carregarEntregaHorarios(ds,entregaFiltroEmp);setEntregaSlotSel(null)}} style={{aspectRatio:'1',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',borderRadius:'8px',cursor:'pointer',background:temAgend?'#eff3ff':'#f0fdf4',border:'1px solid '+(temAgend?'#bfdbfe':'#86efac'),fontSize:'12px',fontWeight:'600',color:temAgend?AZUL:'#16a34a'}}>{d}{temAgend&&<div style={{width:'4px',height:'4px',borderRadius:'50%',background:AZUL,marginTop:'1px'}}></div>}</div>
+                          })}
+                        </div>
+                        <div style={{marginTop:'10px',paddingTop:'10px',borderTop:'1px solid #e8ecf5',display:'flex',gap:'10px',flexWrap:'wrap'}}>
+                          <div style={{display:'flex',alignItems:'center',gap:'4px'}}><div style={{width:'8px',height:'8px',borderRadius:'50%',background:AZUL}}></div><span style={{fontSize:'10px',color:'#6b7280'}}>Com agend.</span></div>
+                          <div style={{display:'flex',alignItems:'center',gap:'4px'}}><div style={{width:'8px',height:'8px',borderRadius:'50%',background:'#16a34a'}}></div><span style={{fontSize:'10px',color:'#6b7280'}}>Disponivel</span></div>
+                          <div style={{display:'flex',alignItems:'center',gap:'4px'}}><div style={{width:'8px',height:'8px',borderRadius:'50%',background:'#dc2626'}}></div><span style={{fontSize:'10px',color:'#6b7280'}}>Cheio</span></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      {!entregaDataSel&&<div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'14px',padding:'2rem',textAlign:'center'}}><p style={{fontSize:'14px',color:'#6b7280',margin:0,fontWeight:'600'}}>Selecione um dia no calendario</p></div>}
+                      {entregaDataSel&&(
+                        <div style={{border:'1px solid #e0e5f5',borderRadius:'14px',overflow:'hidden'}}>
+                          <div style={{padding:'12px 16px',background:'linear-gradient(135deg,#eff3ff,#e8edff)',borderBottom:'1px solid #e0e5f5',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                            <p style={{fontSize:'14px',fontWeight:'700',color:AZUL,margin:0,textTransform:'capitalize'}}>{new Date(entregaDataSel+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}</p>
+                            <span style={{fontSize:'11px',padding:'3px 10px',borderRadius:'20px',background:AZUL,color:'#fff',fontWeight:'700'}}>{entregaHorarios.filter(h=>h.ocupadas>0).length} slots ocupados</span>
+                          </div>
+                          <div style={{maxHeight:'400px',overflowY:'auto'}}>
+                            {entregaHorarios.map(h=>{
+                              const isSel=entregaSlotSel===h.horario;const cheio=h.ocupadas>=4
+                              return(
+                                <div key={h.horario} style={{borderBottom:'1px solid #e0e5f5'}}>
+                                  <div onClick={()=>setEntregaSlotSel(isSel?null:h.horario)} style={{display:'flex',alignItems:'center',gap:'10px',padding:'10px 14px',cursor:'pointer',background:isSel?'#eff3ff':'#fff'}}>
+                                    <span style={{fontSize:'13px',fontWeight:'700',color:cheio?VERMELHO:h.ocupadas>0?AZUL:'#9ca3af',minWidth:'50px'}}>{h.horario}</span>
+                                    <div style={{flex:1,display:'flex',gap:'4px',flexWrap:'wrap'}}>
+                                      {h.clientes.map((c,ci)=>(
+                                        <span key={ci} style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',background:'#eff3ff',color:AZUL,border:'1px solid #bfdbfe',fontWeight:'500'}}>{c.nome?.split(' ')[0]} · {c.unidade}</span>
+                                      ))}
+                                      {h.ocupadas===0&&<span style={{fontSize:'11px',color:'#d1d5db',fontStyle:'italic'}}>Sem agendamentos</span>}
+                                    </div>
+                                    <span style={{fontSize:'11px',padding:'3px 8px',borderRadius:'20px',background:cheio?'#fee2e2':h.ocupadas>0?'#eff3ff':'#f0fdf4',color:cheio?VERMELHO:h.ocupadas>0?AZUL:'#16a34a',fontWeight:'700',flexShrink:0}}>{h.ocupadas}/4</span>
+                                  </div>
+                                  {isSel&&h.clientes.length>0&&(
+                                    <div style={{padding:'8px 14px 12px',background:'#f8f9ff',borderTop:'1px solid #e0e5f5'}}>
+                                      {entregaAgendamentos.filter(a=>a.data===entregaDataSel&&a.horario===h.horario&&a.empreendimento===entregaFiltroEmp).map(a=>(
+                                        <div key={a.id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 12px',background:'#fff',borderRadius:'8px',border:'1px solid '+(a.status==='cancelado'?'#fecaca':'#e0e5f5'),marginBottom:'6px'}}>
+                                          <div style={{width:'32px',height:'32px',borderRadius:'50%',background:a.status==='cancelado'?'#fee2e2':AZUL,display:'flex',alignItems:'center',justifyContent:'center',color:a.status==='cancelado'?VERMELHO:'#fff',fontSize:'13px',fontWeight:'700',flexShrink:0}}>{(a.nome||'?').charAt(0)}</div>
+                                          <div style={{flex:1,minWidth:0}}>
+                                            <div style={{fontSize:'13px',fontWeight:'700',color:'#111'}}>{a.nome}</div>
+                                            <div style={{fontSize:'11px',color:'#6b7280'}}>{a.unidade} · {a.email} · {a.telefone}</div>
+                                          </div>
+                                          <span style={{fontSize:'10px',padding:'2px 8px',borderRadius:'20px',background:a.status==='cancelado'?'#fee2e2':'#dcfce7',color:a.status==='cancelado'?VERMELHO:'#16a34a',fontWeight:'700',flexShrink:0}}>{a.status}</span>
+                                          {a.status==='confirmado'?<button onClick={()=>cancelarEntrega(a.id)} style={{padding:'4px 10px',background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'11px',color:VERMELHO,cursor:'pointer',fontWeight:'600',flexShrink:0}}>Cancelar</button>:<button onClick={()=>reativarEntrega(a.id)} style={{padding:'4px 10px',background:'none',border:'1px solid #86efac',borderRadius:'6px',fontSize:'11px',color:VERDE,cursor:'pointer',fontWeight:'600',flexShrink:0}}>Reativar</button>}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <div style={{marginTop:'1.5rem',borderTop:'2px solid #e8ecf5',paddingTop:'1.5rem'}}>
+                  <h3 style={{fontSize:'14px',fontWeight:'700',color:AZUL,margin:'0 0 12px'}}>Todos os agendamentos de entrega</h3>
+                  {(()=>{
+                    const filtrados=entregaAgendamentos.filter(a=>(!entregaFiltroEmp||a.empreendimento===entregaFiltroEmp)&&(!entregaFiltroData||a.data===entregaFiltroData))
+                    if(filtrados.length===0)return<p style={{color:'#9ca3af',fontSize:'13px',textAlign:'center',padding:'2rem'}}>Nenhum agendamento encontrado.</p>
+                    return(
+                      <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                        {filtrados.map(a=>(
+                          <div key={a.id} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 14px',background:a.status==='cancelado'?'#fff8f8':'#f8f9ff',borderRadius:'10px',border:'1px solid '+(a.status==='cancelado'?'#fecaca':'#e0e5f5')}}>
+                            <div style={{width:'36px',height:'36px',borderRadius:'10px',background:a.status==='cancelado'?'#fee2e2':AZUL,display:'flex',alignItems:'center',justifyContent:'center',color:a.status==='cancelado'?VERMELHO:'#fff',fontSize:'14px',fontWeight:'700',flexShrink:0}}>{(a.nome||'?').charAt(0)}</div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontSize:'13px',fontWeight:'700',color:a.status==='cancelado'?'#9ca3af':'#111',textDecoration:a.status==='cancelado'?'line-through':'none'}}>{a.nome}</div>
+                              <div style={{fontSize:'11px',color:'#6b7280'}}>{a.empreendimento} · {a.unidade} · {a.email}</div>
+                            </div>
+                            <div style={{textAlign:'center',flexShrink:0,background:a.status==='cancelado'?'#fff5f5':'#eff3ff',borderRadius:'10px',padding:'8px 12px',border:'1px solid '+(a.status==='cancelado'?'#fecaca':'#bfdbfe')}}>
+                              <div style={{fontSize:'14px',fontWeight:'800',color:a.status==='cancelado'?'#d1d5db':AZUL}}>{new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</div>
+                              <div style={{fontSize:'12px',fontWeight:'700',color:a.status==='cancelado'?'#d1d5db':AZUL,marginTop:'2px'}}>{a.horario}</div>
+                            </div>
+                            {a.status==='confirmado'?<button onClick={()=>cancelarEntrega(a.id)} style={{padding:'5px 12px',background:'#fff0f0',border:'1px solid #fca5a5',borderRadius:'8px',fontSize:'11px',fontWeight:'700',color:VERMELHO,cursor:'pointer',flexShrink:0}}>CANCELAR</button>:<button onClick={()=>reativarEntrega(a.id)} style={{padding:'5px 12px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'8px',fontSize:'11px',fontWeight:'700',color:VERDE,cursor:'pointer',flexShrink:0}}>REATIVAR</button>}
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {entregaSubAba==='dias'&&(
+              <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
+                <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 6px'}}>Dias Liberados para Entrega</h2>
+                <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 20px'}}>Por padrao todos os dias estao bloqueados. Libere os dias especificos para cada empreendimento.</p>
+                <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'1.25rem',marginBottom:'1.5rem'}}>
+                  <div style={{display:'flex',gap:'10px',flexWrap:'wrap',alignItems:'flex-end'}}>
+                    <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento *</label><select value={entregaNovoEmp} onChange={e=>setEntregaNovoEmp(e.target.value)} style={{padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}><option value="">Selecione...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select></div>
+                    <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Data *</label><input type="date" value={entregaNovaData} onChange={e=>setEntregaNovaData(e.target.value)} style={{padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none'}}/></div>
+                    <button onClick={liberarEntregaDia} disabled={!entregaNovaData||!entregaNovoEmp||salvandoEntregaDia} style={{padding:'8px 20px',background:!entregaNovaData||!entregaNovoEmp?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:!entregaNovaData||!entregaNovoEmp?'not-allowed':'pointer',whiteSpace:'nowrap'}}>{salvandoEntregaDia?'SALVANDO...':'+ LIBERAR DIA'}</button>
+                  </div>
+                </div>
+                {(()=>{
+                  const porEmp={}
+                  entregaDias.forEach(d=>{if(!porEmp[d.empreendimento])porEmp[d.empreendimento]=[];porEmp[d.empreendimento].push(d)})
+                  const emps=Object.keys(porEmp)
+                  if(emps.length===0)return<p style={{color:'#9ca3af',fontSize:'13px',textAlign:'center',padding:'2rem'}}>Nenhum dia liberado ainda.</p>
+                  return emps.map(emp=>(
+                    <div key={emp} style={{marginBottom:'16px'}}>
+                      <p style={{fontSize:'13px',fontWeight:'700',color:AZUL,margin:'0 0 8px'}}>{emp}</p>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:'8px'}}>
+                        {porEmp[emp].map(d=>(
+                          <div key={d.id} style={{display:'inline-flex',alignItems:'center',gap:'8px',padding:'6px 14px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'20px'}}>
+                            <span style={{fontSize:'13px',fontWeight:'600',color:'#16a34a'}}>{new Date(d.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})}</span>
+                            <button onClick={()=>removerEntregaDia(d.id)} style={{background:'none',border:'none',cursor:'pointer',color:'#86efac',fontSize:'16px',padding:'0',lineHeight:'1',fontWeight:'700'}}>x</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                })()}
+              </div>
+            )}
+
+            {entregaSubAba==='manual'&&(
+              <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
+                <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 6px'}}>Agendar Entrega Manualmente</h2>
+                <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 20px'}}>Agende uma entrega diretamente pelo painel para um cliente especifico.</p>
+                <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'16px'}}>
+                  <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento *</label><select value={entregaFiltroEmp} onChange={e=>{setEntregaFiltroEmp(e.target.value);setEntregaDataSel(null);setEntregaHorarios([]);setEntregaHorarioSel(null);if(e.target.value)carregarEntregaMes(entregaAno,entregaMes,e.target.value)}} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer',minWidth:'180px'}}><option value="">Selecione...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select></div>
+                  <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Data *</label><input type="date" value={entregaDataSel||''} onChange={e=>{setEntregaDataSel(e.target.value);if(entregaFiltroEmp)carregarEntregaHorarios(e.target.value,entregaFiltroEmp)}} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none'}}/></div>
+                  <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Horario *</label><select value={entregaHorarioSel||''} onChange={e=>setEntregaHorarioSel(e.target.value)} style={{padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}><option value="">Selecione...</option>{entregaHorarios.filter(h=>h.disponivel).map(h=><option key={h.horario} value={h.horario}>{h.horario} ({4-h.ocupadas} vaga{4-h.ocupadas!==1?'s':''})</option>)}</select></div>
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
+                  <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Nome *</label><input value={entregaFormManual.nome} onChange={e=>setEntregaFormManual(p=>({...p,nome:e.target.value}))} placeholder="Nome completo" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/></div>
+                  <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>CPF *</label><input value={entregaFormManual.cpf} onChange={e=>setEntregaFormManual(p=>({...p,cpf:mascaraCPF(e.target.value)}))} placeholder="000.000.000-00" maxLength={14} style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/></div>
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
+                  <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Email *</label><input value={entregaFormManual.email} onChange={e=>setEntregaFormManual(p=>({...p,email:e.target.value}))} placeholder="email@exemplo.com" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/></div>
+                  <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Telefone *</label><input value={entregaFormManual.telefone} onChange={e=>setEntregaFormManual(p=>({...p,telefone:mascaraTelefone(e.target.value)}))} placeholder="(11) 99999-9999" maxLength={15} style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/></div>
+                </div>
+                <div style={{marginBottom:'16px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Unidade *</label><input value={entregaFormManual.unidade} onChange={e=>setEntregaFormManual(p=>({...p,unidade:e.target.value}))} placeholder="Ex: Torre A, Apto 301" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/></div>
+                {erroEntregaManual&&<div style={{background:'#fff5f5',border:'1px solid #fca5a5',borderRadius:'8px',padding:'10px 14px',marginBottom:'12px'}}><p style={{color:VERMELHO,fontSize:'13px',fontWeight:'600',margin:0}}>{erroEntregaManual}</p></div>}
+                <button onClick={salvarEntregaManual} disabled={salvandoEntregaManual} style={{padding:'10px 24px',background:salvandoEntregaManual?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:salvandoEntregaManual?'not-allowed':'pointer'}}>{salvandoEntregaManual?'SALVANDO...':'CONFIRMAR AGENDAMENTO'}</button>
+              </div>
+            )}
+
+            {entregaSubAba==='cpfs'&&(
+              <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
+                <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 6px'}}>CPFs Autorizados — Entrega de Chaves</h2>
+                <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 20px'}}>Somente CPFs cadastrados aqui conseguem agendar a entrega de chaves.</p>
+                <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'1.25rem',marginBottom:'1.5rem'}}>
+                  <p style={{fontSize:'13px',fontWeight:'700',color:AZUL,margin:'0 0 12px'}}>Adicionar CPF</p>
+                  <div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}>
+                    <div style={{flex:1,minWidth:'130px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>CPF *</label><input value={entregaCpfNovo} onChange={e=>setEntregaCpfNovo(mascaraCPF(e.target.value))} placeholder="000.000.000-00" maxLength={14} style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/></div>
+                    <div style={{flex:2,minWidth:'150px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Nome</label><input value={entregaCpfNome} onChange={e=>setEntregaCpfNome(e.target.value)} placeholder="Nome do proprietario" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/></div>
+                    <div style={{flex:1,minWidth:'110px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Unidade</label><input value={entregaCpfUnidade} onChange={e=>setEntregaCpfUnidade(e.target.value)} placeholder="Ex: Apto 301" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/></div>
+                    <div style={{flex:2,minWidth:'150px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento</label><select value={entregaCpfEmp} onChange={e=>setEntregaCpfEmp(e.target.value)} style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer',boxSizing:'border-box'}}><option value="">Selecione...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select></div>
+                    <div style={{display:'flex',alignItems:'flex-end'}}><button onClick={adicionarEntregaCpf} disabled={salvandoEntregaCpf||!entregaCpfNovo.trim()} style={{padding:'9px 20px',background:salvandoEntregaCpf||!entregaCpfNovo.trim()?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:'pointer',whiteSpace:'nowrap'}}>{salvandoEntregaCpf?'SALVANDO...':'+ ADICIONAR'}</button></div>
+                  </div>
+                  {erroEntregaCpf&&<p style={{color:VERMELHO,fontSize:'12px',margin:'8px 0 0',fontWeight:'600'}}>{erroEntregaCpf}</p>}
+                </div>
+                <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'12px',alignItems:'center'}}>
+                  <input value={entregaCpfBusca} onChange={e=>setEntregaCpfBusca(e.target.value)} placeholder="Buscar por CPF ou nome..." style={{flex:1,minWidth:'180px',padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none'}}/>
+                  <select value={entregaCpfsFiltroEmp} onChange={e=>setEntregaCpfsFiltroEmp(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}><option value="">Todos os empreendimentos</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select>
+                </div>
+                {entregaCpfsSel.length>0&&(
+                  <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap',marginBottom:'12px',padding:'10px 14px',background:'#f0f7ff',borderRadius:'10px',border:'1px solid #bfdbfe'}}>
+                    <span style={{fontSize:'12px',fontWeight:'600',color:AZUL}}>{entregaCpfsSel.length} selecionado(s)</span>
+                    <select value={entregaFiltroEmp} onChange={e=>setEntregaFiltroEmp(e.target.value)} style={{padding:'6px 10px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'12px',outline:'none',background:'#fff',cursor:'pointer'}}><option value="">Empreendimento para link...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select>
+                    <button onClick={enviarTokensEntrega} disabled={enviandoTokens} style={{padding:'6px 16px',background:enviandoTokens?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:enviandoTokens?'not-allowed':'pointer',whiteSpace:'nowrap'}}>{enviandoTokens?'ENVIANDO...':'Enviar link de entrega'}</button>
+                    <button onClick={()=>setEntregaCpfsSel([])} style={{padding:'6px 12px',background:'none',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'12px',color:AZUL,cursor:'pointer',fontWeight:'600'}}>Limpar</button>
+                  </div>
+                )}
+                {tokenResultado&&(
+                  <div style={{background:tokenResultado.error?'#fff5f5':'#f0fdf4',border:'1px solid '+(tokenResultado.error?'#fca5a5':'#86efac'),borderRadius:'8px',padding:'10px 14px',marginBottom:'12px'}}>
+                    {tokenResultado.error?<p style={{color:VERMELHO,fontSize:'13px',fontWeight:'600',margin:0}}>{tokenResultado.error}</p>:<p style={{color:'#15803d',fontSize:'13px',fontWeight:'600',margin:0}}>Links enviados para {tokenResultado.enviados} cliente(s)!{tokenResultado.erros?.length>0&&' Falha: '+tokenResultado.erros.join(', ')}</p>}
+                  </div>
+                )}
+                <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                  {(()=>{
+                    const filtrados=entregaCpfs.filter(c=>{
+                      const b=entregaCpfBusca.toLowerCase()
+                      const passaBusca=!entregaCpfBusca||(c.nome?.toLowerCase().includes(b)||c.cpf?.includes(entregaCpfBusca.replace(/\D/g,'')))
+                      const passaEmp=!entregaCpfsFiltroEmp||(c.empreendimento===entregaCpfsFiltroEmp)
+                      return passaBusca&&passaEmp
+                    })
+                    if(filtrados.length===0)return<p style={{color:'#9ca3af',fontSize:'13px',textAlign:'center',padding:'2rem'}}>Nenhum CPF cadastrado.</p>
+                    return filtrados.map(c=>(
+                      <div key={c.id} style={{background:'#f8f9ff',borderRadius:'12px',border:'1px solid #e0e5f5',overflow:'hidden'}}>
+                        <div style={{display:'flex',alignItems:'center',gap:'10px',padding:'12px 14px',flexWrap:'wrap'}}>
+                          <input type="checkbox" checked={entregaCpfsSel.includes(c.cpf)} onChange={e=>setEntregaCpfsSel(prev=>e.target.checked?[...prev,c.cpf]:prev.filter(x=>x!==c.cpf))} style={{width:'16px',height:'16px',cursor:'pointer',accentColor:AZUL,flexShrink:0}}/>
+                          <div style={{width:'36px',height:'36px',borderRadius:'10px',background:AZUL,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:'14px',fontWeight:'700',flexShrink:0}}>{(c.nome||'?').charAt(0).toUpperCase()}</div>
+                          <div style={{flex:1,minWidth:0}}>
+                            {c.nome&&<div style={{fontSize:'13px',fontWeight:'700',color:AZUL}}>{c.nome}</div>}
+                            <div style={{fontSize:'12px',color:'#374151',fontFamily:'monospace'}}>{c.cpf?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4')}</div>
+                            <div style={{display:'flex',gap:'8px',marginTop:'2px',flexWrap:'wrap'}}>
+                              {c.unidade&&<span style={{fontSize:'11px',color:'#6b7280'}}>{c.unidade}</span>}
+                              {c.empreendimento&&<span style={{fontSize:'11px',color:'#6b7280'}}>{c.empreendimento}</span>}
+                            </div>
+                          </div>
+                          <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
+                            {(()=>{const jaAgendou=entregaAgendamentos.some(a=>a.cpf===c.cpf&&a.status==='confirmado');return jaAgendou?<span style={{fontSize:'10px',padding:'3px 8px',borderRadius:'20px',background:'#dcfce7',color:'#16a34a',fontWeight:'700'}}>AGENDADO</span>:<span style={{fontSize:'10px',padding:'3px 8px',borderRadius:'20px',background:'#fff3cd',color:'#92400e',fontWeight:'700'}}>PENDENTE</span>})()}
+                            <button onClick={()=>{setEntregaEditandoCpf(entregaEditandoCpf===c.cpf?null:c.cpf);setEntregaEditNome(c.nome||'');setEntregaEditUnidade(c.unidade||'');setEntregaEditEmp(c.empreendimento||'')}} style={{padding:'5px 12px',background:'none',border:'1px solid #bfdbfe',borderRadius:'6px',fontSize:'11px',color:AZUL,cursor:'pointer',fontWeight:'600'}}>Editar</button>
+                            <button onClick={()=>removerEntregaCpf(c.cpf)} style={{padding:'5px 12px',background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'11px',color:VERMELHO,cursor:'pointer',fontWeight:'600'}}>Remover</button>
+                          </div>
+                        </div>
+                        {entregaEditandoCpf===c.cpf&&(
+                          <div style={{padding:'10px 14px 14px',borderTop:'1px solid #e0e5f5',background:'#f0f7ff'}}>
+                            <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
+                              <input value={entregaEditNome} onChange={e=>setEntregaEditNome(e.target.value)} placeholder="Nome" style={{flex:2,minWidth:'140px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
+                              <input value={entregaEditUnidade} onChange={e=>setEntregaEditUnidade(e.target.value)} placeholder="Unidade" style={{flex:1,minWidth:'100px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
+                              <select value={entregaEditEmp} onChange={e=>setEntregaEditEmp(e.target.value)} style={{flex:2,minWidth:'140px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}><option value="">Empreendimento...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select>
+                              <button onClick={salvarEdicaoEntregaCpf} style={{padding:'8px 16px',background:VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>SALVAR</button>
+                              <button onClick={()=>setEntregaEditandoCpf(null)} style={{padding:'8px 12px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>Cancelar</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
