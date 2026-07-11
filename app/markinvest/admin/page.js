@@ -484,33 +484,57 @@ export default function Admin() {
     setEntregaEmailAssunto('Sua Entrega de Chaves foi Liberada - '+entregaTemplateEmp)
     setEntregaEmailMensagem(`Prezado(a) Cliente,
 
+🎉 O GRANDE DIA CHEGOU!
 
-Temos uma excelente noticia: SUA UNIDADE no ${entregaTemplateEmp} esta PRONTA para a ENTREGA DE CHAVES!
+SUA UNIDADE no ${entregaTemplateEmp} esta OFICIALMENTE LIBERADA para a ENTREGA DE CHAVES!
 
-As entregas estao sendo realizadas de forma organizada e por agendamento previo, garantindo um atendimento exclusivo e tranquilo para voce.
+Este e um momento muito especial para nos da Markinvest — entregar o sonho que construimos juntos.
 
-COMO AGENDAR?
-Clique no link abaixo e escolha o melhor horario para voce no dia ${dataFmt} (${diaSemana}).
-https://vistoria-agendamento.vercel.app/markinvest/entrega
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🗓 AGENDE SUA ENTREGA AGORA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-IMPORTANTE: As vagas sao limitadas e preenchidas por ordem de acesso. Recomendamos que realize o seu agendamento imediatamente.
+Acesse o link abaixo e escolha o melhor horario para voce:
 
-ORIENTACOES PARA O DIA DA ENTREGA:
+👉 https://vistoria-agendamento.vercel.app/markinvest/entrega
 
-· Documentacao: Apresentacao indispensavel de documento oficial com foto (RG ou CNH).
+📅 Data disponivel: ${dataFmt} (${diaSemana})
+⏱ Duracao: 15 minutos de atendimento exclusivo
 
-· Pontualidade: A entrega tem duracao de 15 minutos. Solicitamos chegada com 10 minutos de antecedencia. Atrasos superiores a 15 minutos implicarao no reagendamento para o final do cronograma.
+⚠️ ATENCAO: As vagas sao limitadas e preenchidas por ordem de acesso.
+Garanta o seu horario o quanto antes!
 
-· Trajes: Por estarmos em um canteiro de obras, e obrigatorio o uso de calcados fechados e sem salto.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 ORIENTACOES IMPORTANTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-· Restricoes: Nao sera permitida a entrada de criancas menores de 12 anos ou animais domesticos.
+📄 Documentacao
+Apresente documento oficial com foto (RG ou CNH). Sem documento, o acesso nao sera permitido.
 
+⏰ Pontualidade
+Chegue com 10 minutos de antecedencia. Atrasos superiores a 15 minutos implicarao no reagendamento para o final do cronograma.
 
-Localizacao: Avenida Francisco de Paula Leite, n.o 466 (entrada principal - acesso de pedestres).
+👟 Vestimenta
+Uso obrigatorio de calcados fechados e sem salto. O canteiro de obras exige este cuidado com a sua seguranca.
 
-Estamos ansiosos para entregar as chaves do seu novo lar!
+🚫 Restricoes
+Nao e permitida a entrada de criancas menores de 12 anos ou animais domesticos.
 
-Em caso de duvidas, nossa Central de Relacionamento permanece a disposicao.`)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 LOCAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Avenida Francisco de Paula Leite, n.o 466
+Entrada principal — acesso de pedestres
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Estamos ansiosos para colocar as chaves do seu novo lar nas suas maos! 🏠✨
+
+Em caso de duvidas, nossa Central de Relacionamento esta a disposicao.
+
+Com carinho,
+Equipe Markinvest`)
     setEntregaTemplateMostrar(false)
   }
 
