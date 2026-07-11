@@ -143,6 +143,7 @@ export default function Admin() {
   const [entregaCpfNome, setEntregaCpfNome] = useState('')
   const [entregaCpfUnidade, setEntregaCpfUnidade] = useState('')
   const [entregaCpfEmp, setEntregaCpfEmp] = useState('')
+  const [entregaCpfEmail, setEntregaCpfEmail] = useState('')
   const [salvandoEntregaCpf, setSalvandoEntregaCpf] = useState(false)
   const [erroEntregaCpf, setErroEntregaCpf] = useState('')
   const [entregaCpfBusca, setEntregaCpfBusca] = useState('')
@@ -151,6 +152,7 @@ export default function Admin() {
   const [entregaEditNome, setEntregaEditNome] = useState('')
   const [entregaEditUnidade, setEntregaEditUnidade] = useState('')
   const [entregaEditEmp, setEntregaEditEmp] = useState('')
+  const [entregaEditEmail, setEntregaEditEmail] = useState('')
   const [enviandoTokens, setEnviandoTokens] = useState(false)
   const [entregaTemplateEmp, setEntregaTemplateEmp] = useState('')
   const [entregaTemplateData, setEntregaTemplateData] = useState('')
@@ -456,13 +458,13 @@ export default function Admin() {
   }
   async function adicionarEntregaCpf() {
     if(!entregaCpfNovo.trim())return; setSalvandoEntregaCpf(true); setErroEntregaCpf('')
-    try{const res=await fetch('/api/entrega-cpfs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:entregaCpfNovo,nome:entregaCpfNome,unidade:entregaCpfUnidade,empreendimento:entregaCpfEmp})});if(res.ok){setEntregaCpfNovo('');setEntregaCpfNome('');setEntregaCpfUnidade('');setEntregaCpfEmp('');buscarEntregaCpfs()}else{const d=await res.json();setErroEntregaCpf(d.error||'Erro.')}}catch(e){setErroEntregaCpf('Erro.')}
+    try{const res=await fetch('/api/entrega-cpfs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:entregaCpfNovo,nome:entregaCpfNome,unidade:entregaCpfUnidade,empreendimento:entregaCpfEmp,email:entregaCpfEmail})});if(res.ok){setEntregaCpfNovo('');setEntregaCpfNome('');setEntregaCpfUnidade('');setEntregaCpfEmp('');setEntregaCpfEmail('');buscarEntregaCpfs()}else{const d=await res.json();setErroEntregaCpf(d.error||'Erro.')}}catch(e){setErroEntregaCpf('Erro.')}
     setSalvandoEntregaCpf(false)
   }
   async function removerEntregaCpf(cpf) { if(!confirm('Remover CPF '+cpf+'?'))return;try{await fetch('/api/entrega-cpfs',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf})});buscarEntregaCpfs()}catch(e){} }
   async function salvarEdicaoEntregaCpf() {
     if(!entregaEditandoCpf)return
-    try{await fetch('/api/entrega-cpfs',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:entregaEditandoCpf,nome:entregaEditNome,unidade:entregaEditUnidade,empreendimento:entregaEditEmp})});setEntregaEditandoCpf(null);buscarEntregaCpfs()}catch(e){}
+    try{await fetch('/api/entrega-cpfs',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:entregaEditandoCpf,nome:entregaEditNome,unidade:entregaEditUnidade,empreendimento:entregaEditEmp,email:entregaEditEmail})});setEntregaEditandoCpf(null);buscarEntregaCpfs()}catch(e){}
   }
   async function enviarTokensEntrega() {
     if(!entregaCpfsSel.length){alert('Selecione ao menos um CPF.');return}
@@ -1485,6 +1487,7 @@ Em caso de duvidas, nossa Central de Relacionamento permanece a disposicao.`)
                     <div style={{flex:1,minWidth:'130px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>CPF *</label><input value={entregaCpfNovo} onChange={e=>setEntregaCpfNovo(mascaraCPF(e.target.value))} placeholder="000.000.000-00" maxLength={14} style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/></div>
                     <div style={{flex:2,minWidth:'150px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Nome</label><input value={entregaCpfNome} onChange={e=>setEntregaCpfNome(e.target.value)} placeholder="Nome do proprietario" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/></div>
                     <div style={{flex:1,minWidth:'110px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Unidade</label><input value={entregaCpfUnidade} onChange={e=>setEntregaCpfUnidade(e.target.value)} placeholder="Ex: Apto 301" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/></div>
+                    <div style={{flex:2,minWidth:'160px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Email *</label><input value={entregaCpfEmail} onChange={e=>setEntregaCpfEmail(e.target.value)} placeholder="email@exemplo.com" type="email" style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/></div>
                     <div style={{flex:2,minWidth:'150px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento</label><select value={entregaCpfEmp} onChange={e=>setEntregaCpfEmp(e.target.value)} style={{width:'100%',padding:'9px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer',boxSizing:'border-box'}}><option value="">Selecione...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select></div>
                     <div style={{display:'flex',alignItems:'flex-end'}}><button onClick={adicionarEntregaCpf} disabled={salvandoEntregaCpf||!entregaCpfNovo.trim()} style={{padding:'9px 20px',background:salvandoEntregaCpf||!entregaCpfNovo.trim()?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:'pointer',whiteSpace:'nowrap'}}>{salvandoEntregaCpf?'SALVANDO...':'+ ADICIONAR'}</button></div>
                   </div>
@@ -1579,11 +1582,12 @@ Em caso de duvidas, nossa Central de Relacionamento permanece a disposicao.`)
                             <div style={{display:'flex',gap:'8px',marginTop:'2px',flexWrap:'wrap'}}>
                               {c.unidade&&<span style={{fontSize:'11px',color:'#6b7280'}}>{c.unidade}</span>}
                               {c.empreendimento&&<span style={{fontSize:'11px',color:'#6b7280'}}>{c.empreendimento}</span>}
+                              {c.email&&<span style={{fontSize:'11px',color:'#6b7280'}}>✉ {c.email}</span>}
                             </div>
                           </div>
                           <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
                             {(()=>{const jaAgendou=entregaAgendamentos.some(a=>a.cpf===c.cpf&&a.status==='confirmado');return jaAgendou?<span style={{fontSize:'10px',padding:'3px 8px',borderRadius:'20px',background:'#dcfce7',color:'#16a34a',fontWeight:'700'}}>AGENDADO</span>:<span style={{fontSize:'10px',padding:'3px 8px',borderRadius:'20px',background:'#fff3cd',color:'#92400e',fontWeight:'700'}}>PENDENTE</span>})()}
-                            <button onClick={()=>{setEntregaEditandoCpf(entregaEditandoCpf===c.cpf?null:c.cpf);setEntregaEditNome(c.nome||'');setEntregaEditUnidade(c.unidade||'');setEntregaEditEmp(c.empreendimento||'')}} style={{padding:'5px 12px',background:'none',border:'1px solid #bfdbfe',borderRadius:'6px',fontSize:'11px',color:AZUL,cursor:'pointer',fontWeight:'600'}}>Editar</button>
+                            <button onClick={()=>{setEntregaEditandoCpf(entregaEditandoCpf===c.cpf?null:c.cpf);setEntregaEditNome(c.nome||'');setEntregaEditUnidade(c.unidade||'');setEntregaEditEmp(c.empreendimento||'');setEntregaEditEmail(c.email||'')}} style={{padding:'5px 12px',background:'none',border:'1px solid #bfdbfe',borderRadius:'6px',fontSize:'11px',color:AZUL,cursor:'pointer',fontWeight:'600'}}>Editar</button>
                             <button onClick={()=>removerEntregaCpf(c.cpf)} style={{padding:'5px 12px',background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'11px',color:VERMELHO,cursor:'pointer',fontWeight:'600'}}>Remover</button>
                           </div>
                         </div>
@@ -1592,6 +1596,7 @@ Em caso de duvidas, nossa Central de Relacionamento permanece a disposicao.`)
                             <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
                               <input value={entregaEditNome} onChange={e=>setEntregaEditNome(e.target.value)} placeholder="Nome" style={{flex:2,minWidth:'140px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
                               <input value={entregaEditUnidade} onChange={e=>setEntregaEditUnidade(e.target.value)} placeholder="Unidade" style={{flex:1,minWidth:'100px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
+                              <input value={entregaEditEmail} onChange={e=>setEntregaEditEmail(e.target.value)} placeholder="Email" type="email" style={{flex:2,minWidth:'160px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none'}}/>
                               <select value={entregaEditEmp} onChange={e=>setEntregaEditEmp(e.target.value)} style={{flex:2,minWidth:'140px',padding:'8px 12px',border:'1px solid #bfdbfe',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}><option value="">Empreendimento...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select>
                               <button onClick={salvarEdicaoEntregaCpf} style={{padding:'8px 16px',background:VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>SALVAR</button>
                               <button onClick={()=>setEntregaEditandoCpf(null)} style={{padding:'8px 12px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'12px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>Cancelar</button>
