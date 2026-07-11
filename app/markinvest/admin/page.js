@@ -51,7 +51,12 @@ export default function Admin() {
   const [dataInicioEspecial, setDataInicioEspecial] = useState('')
   const [dataFimEspecial, setDataFimEspecial] = useState('')
   const [obsEspecial, setObsEspecial] = useState('')
+  const [empEspecial, setEmpEspecial] = useState('todos')
   const [salvandoDia, setSalvandoDia] = useState(false)
+  const [horariosBloqEmp, setHorariosBloqEmp] = useState([])
+  const [novoEmpBloqH, setNovoEmpBloqH] = useState('')
+  const [novoHorarioBloqH, setNovoHorarioBloqH] = useState('')
+  const [salvandoBloqH, setSalvandoBloqH] = useState(false)
   const [horariosBloqueadosData, setHorariosBloqueadosData] = useState([])
   const [novaDataBloqueio, setNovaDataBloqueio] = useState('')
   const [novoUltimoHorario, setNovoUltimoHorario] = useState('')
@@ -117,7 +122,7 @@ export default function Admin() {
   useEffect(() => {
     if (status === 'authenticated') {
       buscarAgendamentos(); buscarEmpreendimentos(); buscarMesesBloqueados()
-      buscarHorariosConfig(); buscarDiasEspeciais(); buscarHorariosBloqueadosData(); buscarCpfsAutorizados()
+      buscarHorariosConfig(); buscarDiasEspeciais(); buscarHorariosBloqueadosData(); buscarCpfsAutorizados(); buscarHorariosBloqEmp()
     }
   }, [status])
   useEffect(() => { setPagina(1) }, [filtro, busca, ordem, dataInicio, dataFim, filtroEmp])
@@ -299,9 +304,16 @@ export default function Admin() {
   async function toggleHorario(horario,ativo){setSalvandoHorario(true);try{await fetch('/api/horarios-config',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({horario,ativo:!ativo})});buscarHorariosConfig()}catch(e){};setSalvandoHorario(false)}
   async function adicionarDiaEspecial(tipo){
     if(!dataInicioEspecial||!dataFimEspecial)return;setSalvandoDia(true)
-    try{await fetch('/api/dias-especiais',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data_inicio:dataInicioEspecial,data_fim:dataFimEspecial,tipo,observacao:obsEspecial})});setDataInicioEspecial('');setDataFimEspecial('');setObsEspecial('');buscarDiasEspeciais()}catch(e){}
+    try{await fetch('/api/dias-especiais',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data_inicio:dataInicioEspecial,data_fim:dataFimEspecial,tipo,observacao:obsEspecial,empreendimento:empEspecial})});setDataInicioEspecial('');setDataFimEspecial('');setObsEspecial('');setEmpEspecial('todos');buscarDiasEspeciais()}catch(e){}
     setSalvandoDia(false)
   }
+  async function buscarHorariosBloqEmp() { try{const res=await fetch('/api/horarios-bloqueados-emp');const data=await res.json();setHorariosBloqEmp(Array.isArray(data)?data:[])}catch(e){} }
+  async function adicionarHorarioBloqEmp() {
+    if(!novoEmpBloqH||!novoHorarioBloqH)return; setSalvandoBloqH(true)
+    try{const res=await fetch('/api/horarios-bloqueados-emp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({empreendimento:novoEmpBloqH,horario:novoHorarioBloqH})});if(res.ok){setNovoEmpBloqH('');setNovoHorarioBloqH('');buscarHorariosBloqEmp()}}catch(e){}
+    setSalvandoBloqH(false)
+  }
+  async function removerHorarioBloqEmp(id){try{await fetch('/api/horarios-bloqueados-emp',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});buscarHorariosBloqEmp()}catch(e){}}
   async function removerDiaEspecial(id){try{await fetch('/api/dias-especiais',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});buscarDiasEspeciais()}catch(e){}}
   async function adicionarEmpreendimento(){
     if(!novoEmp.trim())return;setSalvandoEmp(true);setErroEmp('')
@@ -890,6 +902,7 @@ export default function Admin() {
                   <div style={{display:'flex',gap:'10px',flexWrap:'wrap',alignItems:'flex-end'}}>
                     <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Data inicio</label><input type="date" value={dataInicioEspecial} onChange={e=>setDataInicioEspecial(e.target.value)} style={{padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none'}}/></div>
                     <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Data fim</label><input type="date" value={dataFimEspecial} onChange={e=>setDataFimEspecial(e.target.value)} style={{padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none'}}/></div>
+                    <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento</label><select value={empEspecial} onChange={e=>setEmpEspecial(e.target.value)} style={{padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}><option value="todos">Todos</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select></div>
                     <div style={{flex:1,minWidth:'160px'}}><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Observacao</label><input value={obsEspecial} onChange={e=>setObsEspecial(e.target.value)} placeholder="Ex: Feriado..." style={{width:'100%',padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/></div>
                     <div style={{display:'flex',gap:'8px'}}>
                       <button onClick={()=>adicionarDiaEspecial('liberado')} disabled={!dataInicioEspecial||!dataFimEspecial||salvandoDia} style={{padding:'8px 16px',background:!dataInicioEspecial||!dataFimEspecial?'#9ca3af':VERDE,color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer',whiteSpace:'nowrap'}}>LIBERAR</button>
@@ -903,11 +916,48 @@ export default function Admin() {
                     <div key={d.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 16px',background:d.tipo==='liberado'?'#f0fdf4':'#fff5f5',borderRadius:'10px',border:d.tipo==='liberado'?'1px solid #86efac':'1px solid #fca5a5'}}>
                       <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
                         <div style={{width:'36px',height:'36px',borderRadius:'10px',background:d.tipo==='liberado'?VERDE:VERMELHO,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',color:'#fff',fontWeight:'700',flexShrink:0}}>{d.tipo==='liberado'?'V':'X'}</div>
-                        <div><div style={{fontSize:'14px',fontWeight:'700',color:d.tipo==='liberado'?VERDE:VERMELHO}}>{new Date(d.data_inicio+'T12:00:00').toLocaleDateString('pt-BR')} ate {new Date(d.data_fim+'T12:00:00').toLocaleDateString('pt-BR')}</div><div style={{fontSize:'12px',color:'#6b7280'}}>{d.tipo==='liberado'?'Periodo liberado':'Periodo bloqueado'}{d.observacao&&' - '+d.observacao}</div></div>
+                        <div>
+                          <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'3px',flexWrap:'wrap'}}>
+                            <span style={{fontSize:'14px',fontWeight:'700',color:d.tipo==='liberado'?VERDE:VERMELHO}}>{new Date(d.data_inicio+'T12:00:00').toLocaleDateString('pt-BR')} ate {new Date(d.data_fim+'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                            <span style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',fontWeight:'700',background:(!d.empreendimento||d.empreendimento==='todos')?'#f3f4f6':'#eff3ff',color:(!d.empreendimento||d.empreendimento==='todos')?'#6b7280':AZUL,border:'1px solid '+( (!d.empreendimento||d.empreendimento==='todos')?'#e5e7eb':'#bfdbfe')}}>{(!d.empreendimento||d.empreendimento==='todos')?'Todos os empreendimentos':d.empreendimento}</span>
+                          </div>
+                          <div style={{fontSize:'12px',color:'#6b7280'}}>{d.tipo==='liberado'?'Periodo liberado':'Periodo bloqueado'}{d.observacao&&' — '+d.observacao}</div>
+                        </div>
                       </div>
                       <button onClick={()=>removerDiaEspecial(d.id)} style={{padding:'6px 14px',background:'none',border:'1px solid #fca5a5',borderRadius:'8px',fontSize:'12px',color:VERMELHO,cursor:'pointer',fontWeight:'600'}}>REMOVER</button>
                     </div>
                   ))}
+                </div>
+
+                <div style={{marginTop:'2rem',borderTop:'2px solid #e8ecf5',paddingTop:'1.5rem'}}>
+                  <h3 style={{fontSize:'15px',fontWeight:'700',color:AZUL,margin:'0 0 6px'}}>Horarios Bloqueados por Empreendimento</h3>
+                  <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 1.25rem'}}>Bloqueia um horario especifico permanentemente para um empreendimento, independente da data.</p>
+                  <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'1.25rem',marginBottom:'1.25rem'}}>
+                    <div style={{display:'flex',gap:'10px',flexWrap:'wrap',alignItems:'flex-end'}}>
+                      <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento *</label><select value={novoEmpBloqH} onChange={e=>setNovoEmpBloqH(e.target.value)} style={{padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}><option value="">Selecione...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select></div>
+                      <div><label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Horario a bloquear *</label><select value={novoHorarioBloqH} onChange={e=>setNovoHorarioBloqH(e.target.value)} style={{padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}><option value="">Selecione...</option>{HORARIOS_DISPONIVEIS.map(h=><option key={h} value={h}>{h}</option>)}</select></div>
+                      <button onClick={adicionarHorarioBloqEmp} disabled={!novoEmpBloqH||!novoHorarioBloqH||salvandoBloqH} style={{padding:'8px 20px',background:!novoEmpBloqH||!novoHorarioBloqH?'#9ca3af':VERMELHO,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:!novoEmpBloqH||!novoHorarioBloqH?'not-allowed':'pointer',whiteSpace:'nowrap'}}>{salvandoBloqH?'SALVANDO...':'BLOQUEAR'}</button>
+                    </div>
+                  </div>
+                  {(()=>{
+                    const porEmp={}
+                    horariosBloqEmp.forEach(b=>{if(!porEmp[b.empreendimento])porEmp[b.empreendimento]=[];porEmp[b.empreendimento].push(b)})
+                    const emps=Object.keys(porEmp)
+                    if(emps.length===0)return<p style={{color:'#9ca3af',fontSize:'13px',textAlign:'center',padding:'1.5rem'}}>Nenhum horario bloqueado por empreendimento.</p>
+                    return emps.map(emp=>(
+                      <div key={emp} style={{background:'#fff5f5',border:'1px solid #fca5a5',borderRadius:'10px',padding:'12px 16px',marginBottom:'8px'}}>
+                        <p style={{fontSize:'13px',fontWeight:'700',color:VERMELHO,margin:'0 0 8px'}}>{emp}</p>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
+                          {porEmp[emp].map(b=>(
+                            <div key={b.id} style={{display:'inline-flex',alignItems:'center',gap:'6px',padding:'4px 12px',background:'#fee2e2',border:'1px solid #fca5a5',borderRadius:'20px'}}>
+                              <span style={{fontSize:'13px',fontWeight:'700',color:VERMELHO}}>{b.horario}</span>
+                              <button onClick={()=>removerHorarioBloqEmp(b.id)} style={{background:'none',border:'none',cursor:'pointer',color:'#fca5a5',fontSize:'16px',padding:'0',lineHeight:'1',fontWeight:'700'}}>x</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  })()}
                 </div>
               </div>
             )}
