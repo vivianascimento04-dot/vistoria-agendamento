@@ -522,9 +522,6 @@ Chegue com 10 minutos de antecedencia. Atrasos superiores a 15 minutos implicara
 👟 Vestimenta
 Uso obrigatorio de calcados fechados e sem salto. O canteiro de obras exige este cuidado com a sua seguranca.
 
-🚫 Restricoes
-Nao e permitida a entrada de criancas menores de 12 anos ou animais domesticos.
-
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📍 LOCAL
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -578,7 +575,6 @@ Sua entrega de chaves no *${a.empreendimento}* foi CONFIRMADA com sucesso!
 📄 Documento oficial com foto (RG ou CNH) — obrigatorio
 👟 Calcado fechado e sem salto — obrigatorio
 ⏱ Chegue com 10 minutos de antecedencia
-🚫 Nao e permitida entrada de criancas menores de 12 anos
 
 📍 *Local:* Av. Francisco de Paula Leite, 466
 (Entrada principal — acesso de pedestres)
@@ -622,7 +618,6 @@ As vagas sao limitadas e preenchidas por ordem de acesso. Acesse agora e garanta
 📄 Documento oficial com foto (RG ou CNH)
 👟 Calcado fechado e sem salto
 ⏱ Chegue 10 min antes
-🚫 Sem criancas menores de 12 anos
 
 📍 Av. Francisco de Paula Leite, 466
 (Entrada principal — acesso de pedestres)
