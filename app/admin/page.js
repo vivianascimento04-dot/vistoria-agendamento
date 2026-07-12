@@ -17,6 +17,9 @@ const MOTIVOS = ['Selecione o motivo','Cliente solicitou cancelamento','Revistor
 function mascaraCPF(v) {
   return v.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2').slice(0,14)
 }
+function mascaraTelefone(v) {
+  return v.replace(/\D/g,'').replace(/(\d{2})(\d)/,'($1) $2').replace(/(\d{5})(\d{1,4})$/,'$1-$2').slice(0,15)
+}
 
 export default function Admin() {
   const { data: session, status } = useSession()
