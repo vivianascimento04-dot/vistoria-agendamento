@@ -96,8 +96,8 @@ export async function POST(request) {
   })
   const dataCapitalizada = dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1)
 
-  // Enviar email de confirmacao
   try {
+    // Email para o cliente
     await transporter.sendMail({
       from: '"Markinvest" <' + process.env.EMAIL_USER + '>',
       to: email,
@@ -127,19 +127,19 @@ export async function POST(request) {
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr><td style="padding:10px 0;border-bottom:1px solid #eef0f8;width:40%;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin:0;">Empreendimento</p></td>
               <td style="padding:10px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:14px;font-weight:700;color:#1B2F7E;margin:0;">${empreendimento}</p></td></tr>
+              <tr><td style="padding:10px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin:0;">Unidade</p></td>
+              <td style="padding:10px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:14px;font-weight:600;color:#374151;margin:0;">${unidade}</p></td></tr>
               <tr><td style="padding:10px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin:0;">Data</p></td>
               <td style="padding:10px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:14px;font-weight:700;color:#1B2F7E;margin:0;">${dataCapitalizada}</p></td></tr>
-              <tr><td style="padding:10px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin:0;">Horario</p></td>
-              <td style="padding:10px 0;border-bottom:1px solid #eef0f8;"><p style="font-size:14px;font-weight:700;color:#1B2F7E;margin:0;">${horario}</p></td></tr>
-              <tr><td style="padding:10px 0;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin:0;">Unidade</p></td>
-              <td style="padding:10px 0;"><p style="font-size:14px;font-weight:600;color:#374151;margin:0;">${unidade}</p></td></tr>
+              <tr><td style="padding:10px 0;"><p style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin:0;">Horario</p></td>
+              <td style="padding:10px 0;"><p style="font-size:14px;font-weight:700;color:#1B2F7E;margin:0;">${horario}</p></td></tr>
             </table>
           </td></tr>
         </table>
         <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8e1;border-radius:10px;border-left:4px solid #f59e0b;margin-bottom:24px;">
           <tr><td style="padding:14px 18px;">
             <p style="font-size:13px;color:#92400e;font-weight:600;margin:0 0 4px;">&#9888; Importante</p>
-            <p style="font-size:13px;color:#92400e;margin:0;line-height:1.5;">Apresente documento oficial com foto (RG ou CNH) no dia da entrega. Em caso de duvidas, entre em contato com o Relacionamento.</p>
+            <p style="font-size:13px;color:#92400e;margin:0;line-height:1.5;">Apresente documento oficial com foto (RG ou CNH) no dia da entrega. Chegue com 10 minutos de antecedencia. Em caso de duvidas, entre em contato com o Relacionamento.</p>
           </td></tr>
         </table>
       </td></tr>
@@ -155,6 +155,7 @@ export async function POST(request) {
 </html>`
     })
 
+    // Email para o relacionamento
     await transporter.sendMail({
       from: '"Markinvest" <' + process.env.EMAIL_USER + '>',
       to: 'relacionamento@markinvest.com.br',
@@ -164,14 +165,19 @@ export async function POST(request) {
 <body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:30px 0;">
   <tr><td align="center">
-    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;border-radius:16px;overflow:hidden;">
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
       <tr><td style="background:linear-gradient(135deg,#1B2F7E 0%,#2a4db5 100%);padding:32px;text-align:center;">
-        <p style="color:#fff;font-size:24px;font-weight:900;margin:0;font-family:Georgia,serif;">MARKINVEST</p>
-        <p style="color:rgba(255,255,255,0.75);font-size:11px;margin:4px 0 0;">Nova Entrega de Chaves Agendada</p>
+        <p style="color:#fff;font-size:24px;font-weight:900;margin:0 0 6px;font-family:Georgia,serif;">MARKINVEST</p>
+        <p style="color:rgba(255,255,255,0.75);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;margin:0;">Nova Entrega de Chaves Agendada</p>
+      </td></tr>
+      <tr><td style="background:#1d9e75;padding:12px 32px;text-align:center;">
+        <p style="color:#fff;font-size:13px;font-weight:700;margin:0;">&#128273; Novo agendamento de entrega recebido</p>
       </td></tr>
       <tr><td style="background:#fff;padding:32px;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9ff;border-radius:12px;border:1px solid #e0e5f5;">
-          <tr><td style="padding:14px 20px;border-bottom:1px solid #e0e5f5;"><p style="font-size:10px;font-weight:700;color:#1B2F7E;text-transform:uppercase;margin:0;">DADOS DO CLIENTE</p></td></tr>
+          <tr><td style="padding:14px 20px;border-bottom:1px solid #e0e5f5;">
+            <p style="font-size:10px;font-weight:700;color:#1B2F7E;text-transform:uppercase;letter-spacing:0.12em;margin:0;">DADOS DO CLIENTE</p>
+          </td></tr>
           <tr><td style="padding:4px 20px 14px;">
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr><td style="padding:8px 0;border-bottom:1px solid #eef0f8;width:35%;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Nome</td><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:14px;font-weight:700;color:#111;">${nome}</td></tr>
@@ -179,15 +185,16 @@ export async function POST(request) {
               <tr><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Email</td><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:14px;color:#1B2F7E;font-weight:600;">${email}</td></tr>
               <tr><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Telefone</td><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:14px;color:#374151;">${telefone}</td></tr>
               <tr><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Empreendimento</td><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:14px;font-weight:700;color:#1B2F7E;">${empreendimento}</td></tr>
-              <tr><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Data</td><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:14px;font-weight:700;color:#1B2F7E;">${dataCapitalizada}</td></tr>
-              <tr><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Horario</td><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:14px;font-weight:700;color:#1B2F7E;">${horario}</td></tr>
-              <tr><td style="padding:8px 0;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Unidade</td><td style="padding:8px 0;font-size:14px;color:#374151;">${unidade}</td></tr>
+              <tr><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Unidade</td><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:14px;color:#374151;">${unidade}</td></tr>
+              <tr><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Data</td><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:15px;font-weight:700;color:#1B2F7E;">${dataCapitalizada}</td></tr>
+              <tr><td style="padding:8px 0;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Horario</td><td style="padding:8px 0;font-size:15px;font-weight:700;color:#1B2F7E;">${horario}</td></tr>
             </table>
           </td></tr>
         </table>
       </td></tr>
       <tr><td style="background:#1B2F7E;padding:20px 32px;text-align:center;">
         <p style="color:#fff;font-size:13px;font-weight:700;margin:0;">MARKINVEST — Sistema de Entrega de Chaves</p>
+        <p style="color:rgba(255,255,255,0.6);font-size:11px;margin:6px 0 0;">Este e-mail foi gerado automaticamente.</p>
       </td></tr>
     </table>
   </td></tr>
