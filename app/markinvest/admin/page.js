@@ -562,28 +562,88 @@ Equipe Markinvest`)
   }
 
   function abrirWhatsAppAgendamento(a) {
-    const data = new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})
-    const msg1 = `Ola ${a.nome}! Lembrando que sua entrega de chaves no ${a.empreendimento} esta agendada para ${data} as ${a.horario}. Nao se esqueca de trazer documento oficial com foto (RG ou CNH). Chegue com 10 minutos de antecedencia. Em caso de duvidas, entre em contato. — Markinvest`
-    const msg2 = `Ola ${a.nome}! Passando para confirmar sua entrega de chaves: ${a.empreendimento} | ${data} as ${a.horario} | Unidade: ${a.unidade}. Traga seu documento com foto. Ate logo! — Markinvest`
+    const dataFmt = new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})
+    const msg1 = `🎉 Ola, ${a.nome}!
+
+Sua entrega de chaves no *${a.empreendimento}* foi CONFIRMADA com sucesso!
+
+📍 Unidade: ${a.unidade}
+📅 Data: ${dataFmt}
+⏰ Horario: ${a.horario}
+
+📋 *ORIENTACOES IMPORTANTES:*
+📄 Documento oficial com foto (RG ou CNH) — obrigatorio
+👟 Calcado fechado e sem salto — obrigatorio
+⏱ Chegue com 10 minutos de antecedencia
+🚫 Nao e permitida entrada de criancas menores de 12 anos
+
+📍 *Local:* Av. Francisco de Paula Leite, 466
+(Entrada principal — acesso de pedestres)
+
+Qualquer duvida estamos a disposicao! 🏠✨
+*Equipe Markinvest*`
+
+    const msg2 = `👋 Ola, ${a.nome}!
+
+Lembrando da sua *entrega de chaves* 🗝️
+
+🏢 ${a.empreendimento}
+🏠 Unidade: ${a.unidade}
+📅 ${dataFmt}
+⏰ ${a.horario}
+
+📄 Traga documento com foto
+👟 Calcado fechado obrigatorio
+📍 Av. Francisco de Paula Leite, 466
+
+Ate logo! — *Markinvest* 🏠✨`
+
     const opcao = window.confirm(
       'Escolha a mensagem:\n\n' +
-      'OK = Mensagem completa com instrucoes\n' +
-      'CANCELAR = Mensagem curta de confirmacao'
+      'OK = Confirmacao completa com instrucoes\n' +
+      'CANCELAR = Lembrete simples e rapido'
     )
-    const mensagem = opcao ? msg1 : msg2
-    window.open(gerarLinkWhatsApp(a.telefone, mensagem), '_blank')
+    window.open(gerarLinkWhatsApp(a.telefone, opcao ? msg1 : msg2), '_blank')
   }
 
   function abrirWhatsAppCpf(c) {
-    const msg1 = `Ola ${c.nome}! Sua unidade ${c.unidade} no ${c.empreendimento} esta pronta para a ENTREGA DE CHAVES! Acesse o link abaixo para escolher seu horario: https://vistoria-agendamento.vercel.app/markinvest/entrega As vagas sao limitadas, agende ja! — Markinvest`
-    const msg2 = `Ola ${c.nome}! O grande dia chegou! Sua unidade no ${c.empreendimento} esta liberada para entrega de chaves. Clique para agendar: https://vistoria-agendamento.vercel.app/markinvest/entrega — Markinvest`
+    const msg1 = `🎉 Ola, ${c.nome}!
+
+O grande dia chegou! Sua unidade *${c.unidade}* no *${c.empreendimento}* esta OFICIALMENTE LIBERADA para a *ENTREGA DE CHAVES!* 🗝️🏠
+
+As vagas sao limitadas e preenchidas por ordem de acesso. Acesse agora e garanta o seu horario:
+
+👉 https://vistoria-agendamento.vercel.app/markinvest/entrega
+
+📋 *ORIENTACOES:*
+📄 Documento oficial com foto (RG ou CNH)
+👟 Calcado fechado e sem salto
+⏱ Chegue 10 min antes
+🚫 Sem criancas menores de 12 anos
+
+📍 Av. Francisco de Paula Leite, 466
+(Entrada principal — acesso de pedestres)
+
+Estamos ansiosos para entregar as chaves do seu novo lar! ✨
+*Equipe Markinvest*`
+
+    const msg2 = `👋 Ola, ${c.nome}!
+
+Sua unidade no *${c.empreendimento}* esta pronta para a *entrega de chaves!* 🗝️
+
+Clique no link e agende ja o seu horario:
+👉 https://vistoria-agendamento.vercel.app/markinvest/entrega
+
+⚠️ Vagas limitadas!
+
+— *Markinvest* 🏠✨`
+
     const opcao = window.confirm(
       'Escolha a mensagem:\n\n' +
-      'OK = Mensagem detalhada com link\n' +
+      'OK = Mensagem completa com instrucoes\n' +
       'CANCELAR = Mensagem curta com link'
     )
-    const mensagem = opcao ? msg1 : msg2
-    window.open(gerarLinkWhatsApp(c.telefone || '', mensagem), '_blank')
+    window.open(gerarLinkWhatsApp(c.telefone || '', opcao ? msg1 : msg2), '_blank')
   }
 
   const filtrados=agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>filtro==='todos'||a.status===filtro).filter(a=>!filtroEmp||a.apartamento?.toLowerCase().includes(filtroEmp.toLowerCase())).filter(a=>{if(!busca)return true;const b=busca.toLowerCase();return a.nome?.toLowerCase().includes(b)||a.email?.toLowerCase().includes(b)||a.apartamento?.toLowerCase().includes(b)||a.telefone?.includes(b)||a.cpf?.includes(b)}).filter(a=>{if(dataInicio&&a.data<dataInicio)return false;if(dataFim&&a.data>dataFim)return false;return true}).sort((a,b)=>{const da=new Date(a.criado_em||0),db=new Date(b.criado_em||0);return ordem==='mais-antigo'?da-db:db-da})
@@ -1570,8 +1630,8 @@ Equipe Markinvest`)
                       const opcao=window.confirm('Escolha a mensagem:\n\nOK = Mensagem detalhada com link\nCANCELAR = Mensagem curta com link')
                       cpfsSel.forEach((c,i)=>{
                         setTimeout(()=>{
-                          const msg1='Ola '+c.nome+'! Sua unidade '+c.unidade+' no '+c.empreendimento+' esta pronta para a ENTREGA DE CHAVES! Acesse o link abaixo para escolher seu horario: https://vistoria-agendamento.vercel.app/markinvest/entrega As vagas sao limitadas, agende ja! — Markinvest'
-                          const msg2='Ola '+c.nome+'! O grande dia chegou! Sua unidade no '+c.empreendimento+' esta liberada para entrega de chaves. Clique para agendar: https://vistoria-agendamento.vercel.app/markinvest/entrega — Markinvest'
+                          const msg1='🎉 Ola, '+c.nome+'!\n\nO grande dia chegou! Sua unidade *'+c.unidade+'* no *'+c.empreendimento+'* esta OFICIALMENTE LIBERADA para a *ENTREGA DE CHAVES!* 🗝️🏠\n\nAs vagas sao limitadas! Acesse agora:\n👉 https://vistoria-agendamento.vercel.app/markinvest/entrega\n\n📄 Documento com foto obrigatorio\n👟 Calcado fechado obrigatorio\n📍 Av. Francisco de Paula Leite, 466\n\nEstamos ansiosos para entregar as chaves do seu novo lar! ✨\n*Equipe Markinvest*'
+                          const msg2='👋 Ola, '+c.nome+'! Sua unidade no *'+c.empreendimento+'* esta pronta para entrega de chaves! 🗝️\n\nAgende ja o seu horario:\n👉 https://vistoria-agendamento.vercel.app/markinvest/entrega\n\n⚠️ Vagas limitadas! — *Markinvest* 🏠✨'
                           window.open(gerarLinkWhatsApp(c.telefone, opcao?msg1:msg2),'_blank')
                         },i*1500)
                       })
