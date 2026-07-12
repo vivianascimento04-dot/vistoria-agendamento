@@ -115,6 +115,11 @@ export default function Home() {
   function selecionarHorario(h) { setHorarioSel(h); setEtapa(3) }
 
   function isDiaBloqueado(ds) {
+    if (datasLiberadasCpf.length > 0) {
+      const _dlCpf = datasLiberadasCpf.find(function(d) { return d.data === ds })
+      if (_dlCpf) return false
+      return true
+    }
     for (const d of diasEspeciais) {
       if (ds >= d.data_inicio && ds <= d.data_fim && d.tipo === 'bloqueado') return true
     }
@@ -317,7 +322,7 @@ export default function Home() {
                       const isToday = d===hoje.getDate()&&mes===hoje.getMonth()&&ano===hoje.getFullYear()
                       const isCheio = diasCheios.includes(ds)
                       const bloqueado = isDiaBloqueado(ds)
-                      if (isPast||isWeekend||mesBloqueado||bloqueado) return (
+                      var _dlCal = datasLiberadasCpf.some(function(d) { return d.data === ds }); if (isPast||isWeekend||(mesBloqueado&&!_dlCal)||bloqueado) return (
                         <div key={d} style={{aspectRatio:'1',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'12px',color:'#d1d5db',borderRadius:'8px',background:'#f9fafb',fontWeight:'500'}}>{d}</div>
                       )
                       if (isCheio&&!isSel) return (
@@ -511,4 +516,5 @@ export default function Home() {
     </main>
   )
 }
+
 
