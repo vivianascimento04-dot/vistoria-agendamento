@@ -115,9 +115,15 @@ export default function Home() {
   function selecionarHorario(h) { setHorarioSel(h); setEtapa(3) }
 
   function isDiaBloqueado(ds) {
+    // Se o CPF tem datas especificas liberadas, essa data tem prioridade sobre QUALQUER bloqueio
+    if (datasLiberadasCpf.length > 0) {
+      const dataCpfLiberada = datasLiberadasCpf.find(d => d.data === ds)
+      if (dataCpfLiberada) return false // data liberada para este CPF — nunca bloqueado
+      return true // CPF tem datas mas esta nao esta na lista
+    }
+    // Sem datas especificas — aplica regras normais
     const especiaisNaData = diasEspeciais.filter(d => ds >= d.data_inicio && ds <= d.data_fim)
     if (especiaisNaData.length > 0) {
-      // Regra especifica do empreendimento tem prioridade sobre 'todos'
       const regraEmp = empreendimentoSel
         ? especiaisNaData.find(d => d.empreendimento === empreendimentoSel)
         : null
@@ -125,7 +131,6 @@ export default function Home() {
       const regra = regraEmp || regraTodos
       if (regra) return regra.tipo === 'bloqueado'
     }
-    if (datasLiberadasCpf.length > 0 && !datasLiberadasCpf.find(d => d.data === ds)) return true
     return false
   }
 
@@ -325,7 +330,8 @@ export default function Home() {
                       const isCheio = diasCheios.includes(ds)
                       const bloqueado = isDiaBloqueado(ds)
                           const dataCpfLiberada = datasLiberadasCpf.some(d2 => d2.data === ds)
-                      if (isPast||isWeekend||(mesBloqueado&&!dataCpfLiberada)||bloqueado) return (
+                      const dataCpfLiberadaCal = datasLiberadasCpf.some(d2 => d2.data === ds)
+                      if (isPast||isWeekend||(mesBloqueado&&!dataCpfLiberadaCal)||bloqueado) return (
                         <div key={d} style={{aspectRatio:'1',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'12px',color:'#d1d5db',borderRadius:'8px',background:'#f9fafb',fontWeight:'500'}}>{d}</div>
                       )
                       if (isCheio&&!isSel) return (
