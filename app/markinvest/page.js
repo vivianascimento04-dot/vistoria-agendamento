@@ -118,7 +118,7 @@ export default function Home() {
     for (const d of diasEspeciais) {
       if (ds >= d.data_inicio && ds <= d.data_fim && d.tipo === 'bloqueado') return true
     }
-    if (datasLiberadasCpf.length > 0 && !datasLiberadasCpf.find(d => d.data === ds)) return true
+    if (datasLiberadasCpf.length > 0) { const _dl = datasLiberadasCpf.find(d => d.data === ds); if (_dl) return false; return true }
     return false
   }
 
@@ -511,3 +511,4 @@ export default function Home() {
     </main>
   )
 }
+
