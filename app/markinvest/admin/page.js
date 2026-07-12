@@ -159,6 +159,11 @@ export default function Admin() {
   const [entregaEditEmail, setEntregaEditEmail] = useState('')
   const [entregaEditTelefone, setEntregaEditTelefone] = useState('')
   const [enviandoTokens, setEnviandoTokens] = useState(false)
+  const [entregaRelFiltroEmp, setEntregaRelFiltroEmp] = useState('')
+  const [entregaRelFiltroStatus, setEntregaRelFiltroStatus] = useState('todos')
+  const [entregaRelFiltroDataInicio, setEntregaRelFiltroDataInicio] = useState('')
+  const [entregaRelFiltroDataFim, setEntregaRelFiltroDataFim] = useState('')
+  const [gerandoPDFEntrega, setGerandoPDFEntrega] = useState(false)
   const [entregaTemplateEmp, setEntregaTemplateEmp] = useState('')
   const [entregaTemplateData, setEntregaTemplateData] = useState('')
   const [entregaTemplateMostrar, setEntregaTemplateMostrar] = useState(false)
@@ -642,6 +647,47 @@ Clique no link e agende ja o seu horario:
       'CANCELAR = Mensagem curta com link'
     )
     window.open(gerarLinkWhatsApp(c.telefone || '', opcao ? msg1 : msg2), '_blank')
+  }
+
+  function exportarCSVEntrega(lista) {
+    const cab=['Nome','CPF','Email','Telefone','Empreendimento','Unidade','Data','Horario','Status','Agendado Em']
+    const linhas=lista.map(a=>[a.nome,a.cpf,a.email,a.telefone,a.empreendimento,a.unidade,new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'),(a.horario||'').slice(0,5),a.status,a.criado_em?new Date(a.criado_em).toLocaleString('pt-BR'):''])
+    const csv=[cab,...linhas].map(l=>l.map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(',')).join('
+')
+    const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='relatorio-entrega-'+new Date().toISOString().split('T')[0]+'.csv';link.click();URL.revokeObjectURL(url)
+  }
+  async function gerarPDFEntrega(lista) {
+    setGerandoPDFEntrega(true)
+    try {
+      const script=document.createElement('script');script.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';document.head.appendChild(script)
+      await new Promise((res,rej)=>{script.onload=res;script.onerror=rej})
+      const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});const W=297,M=12;let y=0
+      doc.setFillColor(27,47,126);doc.rect(0,0,W,32,'F');doc.setTextColor(255,255,255);doc.setFontSize(20);doc.setFont('helvetica','bold');doc.text('MARKINVEST',W/2,13,{align:'center'});doc.setFontSize(9);doc.setFont('helvetica','normal');doc.text('Relatorio de Entrega de Chaves',W/2,21,{align:'center'});doc.setFontSize(7.5);doc.text('Gerado em: '+new Date().toLocaleString('pt-BR'),W/2,28,{align:'center'});y=38
+      doc.setFillColor(240,243,250);doc.rect(M,y-4,W-M*2,10,'F');doc.setTextColor(60,60,100);doc.setFontSize(7.5);doc.setFont('helvetica','italic')
+      let ftxt='Total: '+lista.length+' registro(s)';if(entregaRelFiltroEmp)ftxt+=' | Empreendimento: '+entregaRelFiltroEmp;if(entregaRelFiltroStatus!=='todos')ftxt+=' | Status: '+entregaRelFiltroStatus;doc.text(ftxt,M+3,y+2);y+=12
+      const cols=[{x:M,label:'NOME'},{x:M+45,label:'CPF'},{x:M+80,label:'EMPREENDIMENTO'},{x:M+120,label:'UNIDADE'},{x:M+155,label:'DATA'},{x:M+175,label:'HORA'},{x:M+190,label:'EMAIL'},{x:M+240,label:'STATUS'},{x:M+258,label:'AGENDADO EM'}]
+      doc.setFillColor(27,47,126);doc.rect(M,y,W-M*2,8,'F');doc.setTextColor(255,255,255);doc.setFontSize(7);doc.setFont('helvetica','bold');cols.forEach(c=>doc.text(c.label,c.x+1,y+5.5));y+=9;doc.setFont('helvetica','normal')
+      lista.forEach((a,idx)=>{
+        if(y>185){doc.addPage();y=15;doc.setFillColor(27,47,126);doc.rect(M,y,W-M*2,8,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);cols.forEach(c=>doc.text(c.label,c.x+1,y+5.5));y+=9;doc.setFont('helvetica','normal')}
+        const rowH=8;if(idx%2===0){doc.setFillColor(247,249,255);doc.rect(M,y,W-M*2,rowH,'F')};doc.setDrawColor(220,225,240);doc.line(M,y+rowH,W-M,y+rowH);doc.setFontSize(7)
+        const cancelado=a.status==='cancelado'
+        doc.setTextColor(30,30,30);doc.setFont('helvetica','bold');doc.text((a.nome||'').slice(0,20),cols[0].x+1,y+5.5)
+        doc.setFont('helvetica','normal');doc.setTextColor(60,60,60)
+        doc.text((a.cpf||'').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4'),cols[1].x+1,y+5.5)
+        doc.setTextColor(27,47,126);doc.text((a.empreendimento||'').slice(0,18),cols[2].x+1,y+5.5)
+        doc.setTextColor(60,60,60);doc.text((a.unidade||'').slice(0,16),cols[3].x+1,y+5.5)
+        doc.setTextColor(27,47,126);doc.setFont('helvetica','bold');doc.text(new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'),cols[4].x+1,y+5.5)
+        doc.text((a.horario||'').slice(0,5),cols[5].x+1,y+5.5)
+        doc.setFont('helvetica','normal');doc.setTextColor(80,80,80);doc.text((a.email||'').slice(0,24),cols[6].x+1,y+5.5)
+        if(cancelado){doc.setFillColor(254,226,226);doc.rect(cols[7].x,y+1.5,16,5.5,'F');doc.setTextColor(180,30,30)}else{doc.setFillColor(220,252,231);doc.rect(cols[7].x,y+1.5,16,5.5,'F');doc.setTextColor(22,101,52)}
+        doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.text(cancelado?'CANCEL.':'CONF.',cols[7].x+1,y+5.5)
+        const cr=a.criado_em?new Date(a.criado_em):null;if(cr){doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(100,100,100);doc.text(cr.toLocaleDateString('pt-BR')+' '+cr.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),cols[8].x+1,y+5.5)}
+        y+=rowH
+      })
+      const total=doc.getNumberOfPages();for(let i=1;i<=total;i++){doc.setPage(i);doc.setFillColor(27,47,126);doc.rect(0,200,W,7,'F');doc.setTextColor(255,255,255);doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.text('Markinvest - Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo',W/2,204.5,{align:'center'});doc.text('Pagina '+i+' de '+total,W-M,204.5,{align:'right'})}
+      doc.save('relatorio-entrega-'+new Date().toISOString().split('T')[0]+'.pdf')
+    } catch(e){console.error(e);alert('Erro ao gerar PDF.')}
+    setGerandoPDFEntrega(false)
   }
 
   const filtrados=agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>filtro==='todos'||a.status===filtro).filter(a=>!filtroEmp||a.apartamento?.toLowerCase().includes(filtroEmp.toLowerCase())).filter(a=>{if(!busca)return true;const b=busca.toLowerCase();return a.nome?.toLowerCase().includes(b)||a.email?.toLowerCase().includes(b)||a.apartamento?.toLowerCase().includes(b)||a.telefone?.includes(b)||a.cpf?.includes(b)}).filter(a=>{if(dataInicio&&a.data<dataInicio)return false;if(dataFim&&a.data>dataFim)return false;return true}).sort((a,b)=>{const da=new Date(a.criado_em||0),db=new Date(b.criado_em||0);return ordem==='mais-antigo'?da-db:db-da})
@@ -1414,7 +1460,7 @@ Clique no link e agende ja o seu horario:
         {abaAtiva==='entrega'&&(
           <div style={{display:'flex',flexDirection:'column',gap:'1.5rem'}}>
             <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-              {[{id:'agenda',label:'Agenda'},{id:'cpfs',label:'CPFs Autorizados'},{id:'dias',label:'Dias Liberados'},{id:'manual',label:'Agendar Manualmente'}].map(s=>(
+              {[{id:'agenda',label:'Agenda'},{id:'relatorio',label:'Relatorio'},{id:'cpfs',label:'CPFs Autorizados'},{id:'dias',label:'Dias Liberados'},{id:'manual',label:'Agendar Manualmente'}].map(s=>(
                 <button key={s.id} onClick={()=>setEntregaSubAba(s.id)} style={{padding:'10px 20px',borderRadius:'10px',border:entregaSubAba===s.id?'none':'1px solid #e5e7eb',background:entregaSubAba===s.id?AZUL:'#fff',color:entregaSubAba===s.id?'#fff':'#6b7280',fontSize:'13px',fontWeight:'700',cursor:'pointer'}}>{s.label}</button>
               ))}
             </div>
@@ -1592,6 +1638,105 @@ Clique no link e agende ja o seu horario:
                 {erroEntregaManual&&<div style={{background:'#fff5f5',border:'1px solid #fca5a5',borderRadius:'8px',padding:'10px 14px',marginBottom:'12px'}}><p style={{color:VERMELHO,fontSize:'13px',fontWeight:'600',margin:0}}>{erroEntregaManual}</p></div>}
 
                 <button onClick={salvarEntregaManual} disabled={salvandoEntregaManual} style={{padding:'10px 24px',background:salvandoEntregaManual?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:salvandoEntregaManual?'not-allowed':'pointer'}}>{salvandoEntregaManual?'SALVANDO...':'CONFIRMAR AGENDAMENTO'}</button>
+              </div>
+            )}
+
+            {entregaSubAba==='relatorio'&&(
+              <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px',flexWrap:'wrap',gap:'10px'}}>
+                  <div>
+                    <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 4px'}}>Relatorio de Entrega de Chaves</h2>
+                    <p style={{fontSize:'13px',color:'#6b7280',margin:0}}>Clientes que realizaram agendamento de entrega</p>
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'16px',padding:'12px 14px',background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',alignItems:'center'}}>
+                  <select value={entregaRelFiltroEmp} onChange={e=>setEntregaRelFiltroEmp(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}>
+                    <option value="">Todos os empreendimentos</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
+                  </select>
+                  <select value={entregaRelFiltroStatus} onChange={e=>setEntregaRelFiltroStatus(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}>
+                    <option value="todos">Todos os status</option>
+                    <option value="confirmado">Confirmados</option>
+                    <option value="cancelado">Cancelados</option>
+                  </select>
+                  <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+                    <label style={{fontSize:'12px',color:'#6b7280',fontWeight:'600'}}>De:</label>
+                    <input type="date" value={entregaRelFiltroDataInicio} onChange={e=>setEntregaRelFiltroDataInicio(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none'}}/>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+                    <label style={{fontSize:'12px',color:'#6b7280',fontWeight:'600'}}>Ate:</label>
+                    <input type="date" value={entregaRelFiltroDataFim} onChange={e=>setEntregaRelFiltroDataFim(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none'}}/>
+                  </div>
+                  {(entregaRelFiltroEmp||entregaRelFiltroStatus!=='todos'||entregaRelFiltroDataInicio||entregaRelFiltroDataFim)&&(
+                    <button onClick={()=>{setEntregaRelFiltroEmp('');setEntregaRelFiltroStatus('todos');setEntregaRelFiltroDataInicio('');setEntregaRelFiltroDataFim('')}} style={{padding:'8px 12px',background:'#f3f4f6',border:'none',borderRadius:'8px',fontSize:'12px',cursor:'pointer',color:'#6b7280',fontWeight:'600'}}>Limpar</button>
+                  )}
+                </div>
+                {(()=>{
+                  const lista=entregaAgendamentos.filter(a=>
+                    (!entregaRelFiltroEmp||a.empreendimento===entregaRelFiltroEmp)&&
+                    (entregaRelFiltroStatus==='todos'||a.status===entregaRelFiltroStatus)&&
+                    (!entregaRelFiltroDataInicio||a.data>=entregaRelFiltroDataInicio)&&
+                    (!entregaRelFiltroDataFim||a.data<=entregaRelFiltroDataFim)
+                  ).sort((a,b)=>a.data<b.data?-1:a.data>b.data?1:a.horario<b.horario?-1:1)
+                  const totalConf=lista.filter(a=>a.status==='confirmado').length
+                  const totalCanc=lista.filter(a=>a.status==='cancelado').length
+                  return(
+                    <>
+                      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'12px',marginBottom:'16px'}}>
+                        {[{label:'TOTAL',val:lista.length,cor:AZUL,bg:'#eff3ff'},{label:'CONFIRMADOS',val:totalConf,cor:VERDE,bg:'#f0fdf4'},{label:'CANCELADOS',val:totalCanc,cor:VERMELHO,bg:'#fff5f5'}].map(c=>(
+                          <div key={c.label} style={{background:'#fff',borderRadius:'12px',padding:'14px 16px',border:'1px solid #e0e5f5',borderLeft:'4px solid '+c.cor,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                            <div><p style={{fontSize:'10px',fontWeight:'700',color:'#9ca3af',textTransform:'uppercase',margin:'0 0 4px'}}>{c.label}</p><p style={{fontSize:'28px',fontWeight:'800',color:c.cor,margin:0,lineHeight:1}}>{c.val}</p></div>
+                            <div style={{width:'40px',height:'40px',background:c.bg,borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px'}}>{c.label==='TOTAL'?'📋':c.label==='CONFIRMADOS'?'✅':'❌'}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{display:'flex',gap:'8px',marginBottom:'16px'}}>
+                        <button onClick={()=>exportarCSVEntrega(lista)} style={{padding:'8px 18px',background:AZUL,color:'#fff',border:'none',borderRadius:'10px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>⬇ EXPORTAR CSV</button>
+                        <button onClick={()=>gerarPDFEntrega(lista)} disabled={gerandoPDFEntrega} style={{padding:'8px 18px',background:gerandoPDFEntrega?'#9ca3af':'#C0392B',color:'#fff',border:'none',borderRadius:'10px',fontSize:'12px',fontWeight:'700',cursor:gerandoPDFEntrega?'not-allowed':'pointer'}}>{gerandoPDFEntrega?'GERANDO...':'📄 EXPORTAR PDF'}</button>
+                      </div>
+                      {lista.length===0?(
+                        <div style={{textAlign:'center',padding:'3rem',color:'#9ca3af',fontSize:'14px',background:'#f9fafb',borderRadius:'12px'}}>Nenhum agendamento encontrado.</div>
+                      ):(
+                        <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                          {lista.map(a=>{
+                            const cancelado=a.status==='cancelado';const criadoEm=a.criado_em?new Date(a.criado_em):null
+                            return(
+                              <div key={a.id} style={{background:cancelado?'#fff8f8':'#f8f9ff',borderRadius:'12px',padding:'12px 16px',border:'1px solid '+(cancelado?'#fecaca':'#e0e5f5'),display:'flex',alignItems:'center',gap:'12px',position:'relative',overflow:'hidden'}}>
+                                <div style={{position:'absolute',left:0,top:0,bottom:0,width:'4px',background:cancelado?VERMELHO:VERDE,borderRadius:'12px 0 0 12px'}}></div>
+                                <div style={{width:'38px',height:'38px',borderRadius:'10px',background:cancelado?'#fee2e2':AZUL,display:'flex',alignItems:'center',justifyContent:'center',color:cancelado?VERMELHO:'#fff',fontSize:'15px',fontWeight:'700',flexShrink:0,marginLeft:'6px'}}>{(a.nome||'?').charAt(0).toUpperCase()}</div>
+                                <div style={{flex:1,minWidth:0}}>
+                                  <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'3px',flexWrap:'wrap'}}>
+                                    <span style={{fontSize:'13px',fontWeight:'700',color:cancelado?'#9ca3af':'#111',textDecoration:cancelado?'line-through':'none'}}>{a.nome}</span>
+                                    <span style={{fontSize:'10px',padding:'2px 8px',borderRadius:'20px',background:cancelado?'#fee2e2':'#dcfce7',color:cancelado?VERMELHO:'#16a34a',fontWeight:'700'}}>{a.status}</span>
+                                  </div>
+                                  <div style={{fontSize:'12px',color:'#6b7280',marginBottom:'2px'}}><span style={{fontWeight:'600',color:AZUL}}>{a.empreendimento}</span> · {a.unidade}</div>
+                                  <div style={{display:'flex',gap:'12px',fontSize:'11px',color:'#9ca3af',flexWrap:'wrap'}}>
+                                    {a.email&&<span>✉ {a.email}</span>}
+                                    {a.telefone&&<span>📱 {a.telefone}</span>}
+                                    {a.cpf&&<span>🪪 {a.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4')}</span>}
+                                  </div>
+                                  {criadoEm&&<div style={{fontSize:'10px',color:'#c4c9d9',marginTop:'2px'}}>Agendado em {criadoEm.toLocaleDateString('pt-BR')} {criadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>}
+                                </div>
+                                <div style={{textAlign:'center',flexShrink:0,background:cancelado?'#fff5f5':'#eff3ff',borderRadius:'10px',padding:'8px 14px',border:'1px solid '+(cancelado?'#fecaca':'#bfdbfe')}}>
+                                  <div style={{fontSize:'16px',fontWeight:'800',color:cancelado?'#d1d5db':AZUL,lineHeight:1}}>{new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</div>
+                                  <div style={{fontSize:'10px',color:'#9ca3af',marginTop:'2px'}}>{new Date(a.data+'T12:00:00').getFullYear()}</div>
+                                  <div style={{fontSize:'13px',fontWeight:'700',color:cancelado?'#d1d5db':AZUL,marginTop:'4px'}}>{(a.horario||'').slice(0,5)}</div>
+                                </div>
+                                {a.telefone&&<button onClick={()=>{
+                                  const dataFmt=new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})
+                                  const msg='Ola '+a.nome+'! Lembrando da sua entrega de chaves no '+a.empreendimento+' — '+dataFmt+' as '+(a.horario||'').slice(0,5)+'. Traga documento com foto. — Markinvest'
+                                  window.open(gerarLinkWhatsApp(a.telefone,msg),'_blank')
+                                }} style={{padding:'5px 10px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'8px',fontSize:'11px',color:'#15803d',cursor:'pointer',fontWeight:'700',flexShrink:0,display:'flex',alignItems:'center',gap:'4px'}}>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.556 4.116 1.525 5.836L.057 23.998l6.304-1.456A11.947 11.947 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.884 9.884 0 01-5.031-1.378l-.36-.214-3.742.865.944-3.617-.235-.372A9.877 9.877 0 012.106 12c0-5.461 4.433-9.894 9.894-9.894 5.461 0 9.894 4.433 9.894 9.894 0 5.461-4.433 9.894-9.894 9.894z"/></svg>
+                                  WA
+                                </button>}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
               </div>
             )}
 
