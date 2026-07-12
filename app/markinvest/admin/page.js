@@ -652,8 +652,7 @@ Clique no link e agende ja o seu horario:
   function exportarCSVEntrega(lista) {
     const cab=['Nome','CPF','Email','Telefone','Empreendimento','Unidade','Data','Horario','Status','Agendado Em']
     const linhas=lista.map(a=>[a.nome,a.cpf,a.email,a.telefone,a.empreendimento,a.unidade,new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'),(a.horario||'').slice(0,5),a.status,a.criado_em?new Date(a.criado_em).toLocaleString('pt-BR'):''])
-    const rows=[cab,...linhas].map(l=>l.map(v=>String(v||'')).join(';')).join('
-')
+    const NL=String.fromCharCode(10);const rows=[cab,...linhas].map(l=>l.map(v=>String(v||'')).join(';')).join(NL)
     const blob=new Blob(['﻿'+rows],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='relatorio-entrega-'+new Date().toISOString().split('T')[0]+'.csv';link.click();URL.revokeObjectURL(url)
   }
   async function gerarPDFEntrega(lista) {
