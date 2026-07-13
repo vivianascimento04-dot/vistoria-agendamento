@@ -492,56 +492,52 @@ export default function Admin() {
     const diasSemana = ['Domingo','Segunda-feira','Terca-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sabado']
     const diaSemana = diasSemana[dataObj.getDay()]
     setEntregaEmailAssunto('Sua Entrega de Chaves foi Liberada - '+entregaTemplateEmp)
-    setEntregaEmailMensagem(`Prezado(a) Cliente,
+    setEntregaEmailMensagem(`🏠 RESIDENCIAL ${entregaTemplateEmp}
 
-🎉 O GRANDE DIA CHEGOU!
+Chegou o grande dia de receber as chaves do seu apartamento! 🎉🗝️
 
-SUA UNIDADE no ${entregaTemplateEmp} esta OFICIALMENTE LIBERADA para a ENTREGA DE CHAVES!
+E com grande satisfacao que compartilhamos este momento tao especial.
 
-Este e um momento muito especial para nos da Markinvest — entregar o sonho que construimos juntos.
+A entrega das chaves representa a realizacao de um importante sonho e o inicio de uma nova etapa. A Markinvest e toda a sua equipe tem a honra de fazer parte dessa conquista e agradecemos a confianca depositada ao longo dessa trajetoria. 💙
+
+📅 A entrega das chaves sera realizada no dia ${dataFmt} (${diaSemana}).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🗓 AGENDE SUA ENTREGA AGORA
+🗓️ COMO AGENDAR?
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Acesse o link abaixo e escolha o melhor horario para voce:
+Clique no link abaixo e selecione o horario de sua preferencia para o atendimento:
 
 👉 https://vistoria-agendamento.vercel.app/markinvest/entrega
 
-📅 Data disponivel: ${dataFmt} (${diaSemana})
-⏱ Duracao: 15 minutos de atendimento exclusivo
-
-⚠️ ATENCAO: As vagas sao limitadas e preenchidas por ordem de acesso.
-Garanta o seu horario o quanto antes!
-
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 ORIENTACOES IMPORTANTES
+📋 INFORMACOES IMPORTANTES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📄 Documentacao
-Apresente documento oficial com foto (RG ou CNH). Sem documento, o acesso nao sera permitido.
+📄 Documentacao obrigatoria
+No dia da entrega das chaves, sera indispensavel a apresentacao de um documento oficial de identificacao com foto (RG ou CNH).
+
+👤 Titularidade
+O agendamento devera ser realizado pelo titular da aquisicao.
 
 ⏰ Pontualidade
-Chegue com 10 minutos de antecedencia. Atrasos superiores a 15 minutos implicarao no reagendamento para o final do cronograma.
-
-👟 Vestimenta
-Uso obrigatorio de calcados fechados e sem salto. O canteiro de obras exige este cuidado com a sua seguranca.
+Solicitamos que compareca no horario agendado para que possamos proporcionar um atendimento organizado e pontual.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📍 LOCAL
+📍 LOCAL DO EVENTO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Avenida Francisco de Paula Leite, n.o 466
-Entrada principal — acesso de pedestres
+Entrada principal (acesso de pedestres)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Estamos ansiosos para colocar as chaves do seu novo lar nas suas maos! 🏠✨
+Sera um prazer recebe-lo(a) para celebrar este momento tao significativo. 🥂
 
-Em caso de duvidas, nossa Central de Relacionamento esta a disposicao.
+Esperamos por voce!
 
-Com carinho,
-Equipe Markinvest`)
+Atenciosamente,
+Equipe Markinvest 🏠✨`)
     setEntregaTemplateMostrar(false)
   }
 
