@@ -173,6 +173,7 @@ export default function Admin() {
   const [entregaEmailManual, setEntregaEmailManual] = useState('')
   const [enviandoEntregaEmail, setEnviandoEntregaEmail] = useState(false)
   const [entregaEmailResultado, setEntregaEmailResultado] = useState(null)
+  const [mostrarPreviewEmail, setMostrarPreviewEmail] = useState(false)
   const [mostrarEnvioEmail, setMostrarEnvioEmail] = useState(false)
   const [tokenResultado, setTokenResultado] = useState(null)
   const [entregaCpfsFiltroEmp, setEntregaCpfsFiltroEmp] = useState('')
@@ -1830,9 +1831,50 @@ Clique no link e agende ja o seu horario:
                           {entregaEmailResultado.error?<p style={{color:VERMELHO,fontSize:'13px',fontWeight:'600',margin:0}}>{entregaEmailResultado.error}</p>:<p style={{color:'#15803d',fontSize:'13px',fontWeight:'700',margin:0}}>✅ {entregaEmailResultado.enviados} email(s) enviado(s) com sucesso!</p>}
                         </div>
                       )}
-                      <button onClick={enviarEmailEntrega} disabled={enviandoEntregaEmail} style={{width:'100%',padding:'14px',background:enviandoEntregaEmail?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'10px',fontSize:'14px',fontWeight:'700',cursor:enviandoEntregaEmail?'not-allowed':'pointer'}}>
-                        {enviandoEntregaEmail?'ENVIANDO...':'📧 ENVIAR EMAIL'}
-                      </button>
+                      <div style={{display:'flex',gap:'8px',marginBottom:'12px'}}>
+                        <button onClick={()=>setMostrarPreviewEmail(true)} disabled={!entregaEmailMensagem.trim()||!entregaEmailAssunto.trim()} style={{flex:1,padding:'12px',background:'#f8f9ff',color:AZUL,border:'1px solid #bfdbfe',borderRadius:'10px',fontSize:'13px',fontWeight:'700',cursor:'pointer'}}>
+                          👁 PRE-VISUALIZAR
+                        </button>
+                        <button onClick={enviarEmailEntrega} disabled={enviandoEntregaEmail} style={{flex:2,padding:'12px',background:enviandoEntregaEmail?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'10px',fontSize:'14px',fontWeight:'700',cursor:enviandoEntregaEmail?'not-allowed':'pointer'}}>
+                          {enviandoEntregaEmail?'ENVIANDO...':'📧 ENVIAR EMAIL'}
+                        </button>
+                      </div>
+
+                      {mostrarPreviewEmail&&(
+                        <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.6)',zIndex:9999,display:'flex',alignItems:'flex-start',justifyContent:'center',overflowY:'auto',padding:'20px'}}>
+                          <div style={{background:'#fff',borderRadius:'16px',maxWidth:'640px',width:'100%',overflow:'hidden',boxShadow:'0 20px 60px rgba(0,0,0,0.3)',marginTop:'20px'}}>
+                            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 20px',background:'#f8f9ff',borderBottom:'1px solid #e0e5f5'}}>
+                              <div>
+                                <div style={{fontSize:'13px',fontWeight:'700',color:AZUL}}>Pre-visualizacao do email</div>
+                                <div style={{fontSize:'11px',color:'#6b7280',marginTop:'2px'}}>Assunto: {entregaEmailAssunto}</div>
+                              </div>
+                              <button onClick={()=>setMostrarPreviewEmail(false)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'20px',color:'#6b7280',padding:'4px 8px',borderRadius:'6px'}}>✕</button>
+                            </div>
+                            <div style={{padding:'0'}}>
+                              <div style={{background:'linear-gradient(135deg,#1B2F7E,#2a4db5)',padding:'28px 32px',textAlign:'center'}}>
+                                <p style={{color:'#fff',fontSize:'22px',fontWeight:'900',margin:'0 0 4px',letterSpacing:'0.08em',fontFamily:'Georgia,serif'}}>MARKINVEST</p>
+                                <p style={{color:'rgba(255,255,255,0.7)',fontSize:'10px',letterSpacing:'0.18em',textTransform:'uppercase',margin:0}}>Entrega de Chaves</p>
+                              </div>
+                              <div style={{background:'#1d9e75',padding:'10px 32px',textAlign:'center'}}>
+                                <p style={{color:'#fff',fontSize:'12px',fontWeight:'700',margin:0}}>🗝️ Agendamento de Entrega de Chaves</p>
+                              </div>
+                              <div style={{padding:'28px 32px',background:'#fff'}}>
+                                <div style={{whiteSpace:'pre-wrap',fontSize:'13px',lineHeight:'1.8',color:'#374151',fontFamily:"'Segoe UI',sans-serif"}}>
+                                  {entregaEmailMensagem}
+                                </div>
+                              </div>
+                              <div style={{background:'#1B2F7E',padding:'20px 32px',textAlign:'center'}}>
+                                <p style={{color:'#fff',fontSize:'13px',fontWeight:'700',margin:'0 0 4px'}}>MARKINVEST</p>
+                                <p style={{color:'rgba(255,255,255,0.7)',fontSize:'11px',margin:0}}>Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo</p>
+                              </div>
+                            </div>
+                            <div style={{padding:'14px 20px',background:'#f8f9ff',borderTop:'1px solid #e0e5f5',display:'flex',gap:'8px',justifyContent:'flex-end'}}>
+                              <button onClick={()=>setMostrarPreviewEmail(false)} style={{padding:'8px 20px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'13px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>Fechar</button>
+                              <button onClick={()=>{setMostrarPreviewEmail(false);enviarEmailEntrega()}} disabled={enviandoEntregaEmail} style={{padding:'8px 24px',background:AZUL,color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:'pointer'}}>📧 Enviar agora</button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
