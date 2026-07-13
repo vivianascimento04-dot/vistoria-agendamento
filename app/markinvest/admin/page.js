@@ -52,7 +52,7 @@ export default function Home() {
       try {
         const cpfAutorizado = sessionStorage.getItem('cpf_autorizado')
         if (!cpfAutorizado) {
-          router.push('/markinvest/verificar')
+          router.push('/markinvest/admin/login')
           return
         }
         const resVerif = await fetch('/api/cpfs-autorizados', {
@@ -63,7 +63,7 @@ export default function Home() {
         const dataVerif = await resVerif.json()
         if (!dataVerif.autorizado) {
           sessionStorage.removeItem('cpf_autorizado')
-          router.push('/markinvest/verificar')
+          router.push('/markinvest/admin/login')
           return
         }
 
@@ -74,7 +74,7 @@ export default function Home() {
         const datas = await resDatas.json()
         if (Array.isArray(datas) && datas.length > 0) setDatasLiberadasCpf(datas)
       } catch(e) {
-        router.push('/markinvest/verificar')
+        router.push('/markinvest/admin/login')
         return
       }
       setVerificando(false)
@@ -154,7 +154,7 @@ export default function Home() {
     if (!cpfSessao || cpfSessao.replace(/\D/g, '') !== cpfFormulario) {
       setErro('CPF invalido. Por favor, volte ao inicio e informe seu CPF novamente.')
       sessionStorage.removeItem('cpf_autorizado')
-      setTimeout(() => router.push('/markinvest/verificar'), 2000)
+      setTimeout(() => router.push('/markinvest/admin/login'), 2000)
       return
     }
 
@@ -525,3 +525,4 @@ export default function Home() {
     </main>
   )
 }
+
