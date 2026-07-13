@@ -327,7 +327,7 @@ function EntregaContent() {
                           const date=new Date(ano,mes,d)
                           const dow=date.getDay()
                           const isPast=date<new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate())
-                          const isWeekend=dow===0||dow===6
+                          const isWeekend=false
                           const ds=ano+'-'+String(mes+1).padStart(2,'0')+'-'+String(d).padStart(2,'0')
                           const isSel=dataSel===ds
                           const isLiberado=diasLiberados.includes(ds)
