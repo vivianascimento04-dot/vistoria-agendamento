@@ -782,8 +782,7 @@ Clique no link e agende ja o seu horario:
       const binary = atob(base64)
       const bytes = new Uint8Array(binary.length)
       for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i)
-      const wb2 = (window.XLSX||{read:null}).read
-      if(!wb2) throw new Error('XLSX nao disponivel')
+      if (!window.XLSX) { await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)}) }
       const wb = window.XLSX.read(bytes,{type:'array'})
       const ws = wb.Sheets[wb.SheetNames[0]]
       const rows = window.XLSX.utils.sheet_to_json(ws,{defval:''})
@@ -2578,6 +2577,7 @@ Clique no link e agende ja o seu horario:
     </main>
   )
 }
+
 
 
 
