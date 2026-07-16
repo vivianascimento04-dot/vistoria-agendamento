@@ -2497,7 +2497,7 @@ Clique no link e agende ja o seu horario:
                 <button onClick={gerarPDF} disabled={gerandoPDF} style={{padding:'8px 18px',background:gerandoPDF?'#9ca3af':'#C0392B',color:'#fff',border:'none',borderRadius:'10px',fontSize:'12px',fontWeight:'700',cursor:gerandoPDF?'not-allowed':'pointer'}}>{gerandoPDF?'GERANDO...':'EXPORTAR PDF'}</button>
                 <button onClick={exportarRelatorioGeral} style={{padding:'8px 18px',background:VERDE,color:'#fff',border:'none',borderRadius:'10px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>RELATORIO GERAL</button>
               </div>
-            </div>
+            </div>)}
             {paginados.length===0?(<div style={{textAlign:'center',padding:'3rem',color:'#9ca3af',fontSize:'14px',background:'#fff',borderRadius:'16px'}}>Nenhum agendamento encontrado</div>):(
               <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
                 {paginados.map(a=>{
@@ -2547,4 +2547,5 @@ Clique no link e agende ja o seu horario:
     </main>
   )
 }
+
 
