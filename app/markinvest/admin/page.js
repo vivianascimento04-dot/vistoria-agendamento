@@ -698,6 +698,57 @@ Clique no link e agende ja o seu horario:
     setGerandoPDFEntrega(false)
   }
 
+  async function salvarConfigHorarios() {
+    setSalvandoConfig(true); setConfigSucesso(false)
+    try {
+      // Gerar lista de horarios com o intervalo configurado
+      const horarios = []
+      const [hIni, mIni] = configHoraInicio.split(':').map(Number)
+      const [hFim, mFim] = configHoraFim.split(':').map(Number)
+      let totalMin = hIni * 60 + mIni
+      const fimMin = hFim * 60 + mFim
+      while (totalMin <= fimMin) {
+        const h = String(Math.floor(totalMin/60)).padStart(2,'0')
+        const m = String(totalMin%60).padStart(2,'0')
+        horarios.push(h+':'+m)
+        totalMin += Number(configIntervalo)
+      }
+      // Buscar horarios existentes
+      const resExist = await fetch('/api/horarios-config')
+      const existing = await resExist.json()
+      // Desativar todos primeiro
+      for (const h of (existing||[])) {
+        await fetch('/api/horarios-config', {
+          method: 'PATCH',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({id: h.id, ativo: false})
+        })
+      }
+      // Ativar/criar os horarios do novo intervalo
+      for (const hor of horarios) {
+        const existe = (existing||[]).find(e => e.horario === hor)
+        if (existe) {
+          await fetch('/api/horarios-config', {
+            method: 'PATCH',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({id: existe.id, ativo: true})
+          })
+        } else {
+          await fetch('/api/horarios-config', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({horario: hor, ativo: true})
+          })
+        }
+      }
+      // Salvar dias da semana no localStorage
+      localStorage.setItem('vistoria_dias_semana', JSON.stringify(configDiasSemana))
+      setConfigSucesso(true)
+      setTimeout(() => setConfigSucesso(false), 3000)
+    } catch(e) { alert('Erro ao salvar: '+e.message) }
+    setSalvandoConfig(false)
+  }
+
   const filtrados=agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>filtro==='todos'||a.status===filtro).filter(a=>!filtroEmp||a.apartamento?.toLowerCase().includes(filtroEmp.toLowerCase())).filter(a=>{if(!busca)return true;const b=busca.toLowerCase();return a.nome?.toLowerCase().includes(b)||a.email?.toLowerCase().includes(b)||a.apartamento?.toLowerCase().includes(b)||a.telefone?.includes(b)||a.cpf?.includes(b)}).filter(a=>{if(dataInicio&&a.data<dataInicio)return false;if(dataFim&&a.data>dataFim)return false;return true}).sort((a,b)=>{const da=new Date(a.criado_em||0),db=new Date(b.criado_em||0);return ordem==='mais-antigo'?da-db:db-da})
   const totalPaginas=Math.ceil(filtrados.length/POR_PAGINA);const paginados=filtrados.slice((pagina-1)*POR_PAGINA,pagina*POR_PAGINA)
   const totalConf=agendamentos.filter(a=>a.status==='confirmado'&&a.tipo!=='revistoria').length
@@ -1216,10 +1267,80 @@ Clique no link e agende ja o seu horario:
         {abaAtiva==='configuracoes'&&(
           <div>
             <div style={{display:'flex',gap:'8px',marginBottom:'1.5rem',flexWrap:'wrap'}}>
-              {[{id:'meses',label:'Bloquear Meses'},{id:'horarios',label:'Gerenciar Horarios'},{id:'dias',label:'Periodos Especiais'},{id:'bloqueios',label:'Horarios por Data'}].map(s=>(
+              {[{id:'intervalo',label:'Intervalo e Dias'},{id:'meses',label:'Bloquear Meses'},{id:'horarios',label:'Gerenciar Horarios'},{id:'dias',label:'Periodos Especiais'},{id:'bloqueios',label:'Horarios por Data'}].map(s=>(
                 <button key={s.id} onClick={()=>setSubAbaConfig(s.id)} style={{padding:'10px 20px',borderRadius:'10px',border:subAbaConfig===s.id?'none':'1px solid #e5e7eb',background:subAbaConfig===s.id?AZUL:'#fff',color:subAbaConfig===s.id?'#fff':'#6b7280',fontSize:'13px',fontWeight:'700',cursor:'pointer',boxShadow:subAbaConfig===s.id?'0 4px 12px rgba(27,47,126,0.3)':'none'}}>{s.label}</button>
               ))}
             </div>
+            {subAbaConfig==='intervalo'&&(
+              <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)',maxWidth:'600px'}}>
+                <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 6px'}}>Configurar Intervalo de Vistoria</h2>
+                <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 24px'}}>Define os dias da semana e o intervalo entre cada agendamento de vistoria.</p>
+
+                <div style={{marginBottom:'24px'}}>
+                  <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'10px',textTransform:'uppercase'}}>Dias da semana disponiveis</label>
+                  <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+                    {[{k:'seg',l:'Seg'},{k:'ter',l:'Ter'},{k:'qua',l:'Qua'},{k:'qui',l:'Qui'},{k:'sex',l:'Sex'},{k:'sab',l:'Sab'},{k:'dom',l:'Dom'}].map(d=>(
+                      <button key={d.k} onClick={()=>setConfigDiasSemana(prev=>({...prev,[d.k]:!prev[d.k]}))}
+                        style={{padding:'10px 16px',borderRadius:'10px',border:'2px solid',fontSize:'13px',fontWeight:'700',cursor:'pointer',
+                          borderColor:configDiasSemana[d.k]?AZUL:'#e5e7eb',
+                          background:configDiasSemana[d.k]?AZUL:'#fff',
+                          color:configDiasSemana[d.k]?'#fff':'#9ca3af'}}>
+                        {d.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'24px'}}>
+                  <div>
+                    <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'6px',textTransform:'uppercase'}}>Horario de inicio</label>
+                    <input type="time" value={configHoraInicio} onChange={e=>setConfigHoraInicio(e.target.value)} style={{width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/>
+                  </div>
+                  <div>
+                    <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'6px',textTransform:'uppercase'}}>Horario de fim</label>
+                    <input type="time" value={configHoraFim} onChange={e=>setConfigHoraFim(e.target.value)} style={{width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/>
+                  </div>
+                </div>
+
+                <div style={{marginBottom:'24px'}}>
+                  <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'10px',textTransform:'uppercase'}}>Intervalo entre vistorias</label>
+                  <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+                    {[{v:30,l:'30 min'},{v:60,l:'1 hora'},{v:90,l:'1h30'},{v:120,l:'2 horas'}].map(op=>(
+                      <button key={op.v} onClick={()=>setConfigIntervalo(op.v)}
+                        style={{padding:'10px 20px',borderRadius:'10px',border:'2px solid',fontSize:'13px',fontWeight:'700',cursor:'pointer',
+                          borderColor:configIntervalo===op.v?AZUL:'#e5e7eb',
+                          background:configIntervalo===op.v?AZUL:'#fff',
+                          color:configIntervalo===op.v?'#fff':'#9ca3af'}}>
+                        {op.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'14px 16px',marginBottom:'20px'}}>
+                  <p style={{fontSize:'12px',fontWeight:'700',color:AZUL,margin:'0 0 8px'}}>Pre-visualizacao dos horarios gerados:</p>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
+                    {(()=>{
+                      const slots=[]
+                      const [hI,mI]=configHoraInicio.split(':').map(Number)
+                      const [hF,mF]=configHoraFim.split(':').map(Number)
+                      let t=hI*60+mI
+                      const fim=hF*60+mF
+                      while(t<=fim){const h=String(Math.floor(t/60)).padStart(2,'0');const m=String(t%60).padStart(2,'0');slots.push(h+':'+m);t+=Number(configIntervalo)}
+                      return slots.map(s=><span key={s} style={{padding:'3px 10px',background:'#eff3ff',borderRadius:'20px',fontSize:'12px',fontWeight:'500',color:AZUL}}>{s}</span>)
+                    })()}
+                  </div>
+                </div>
+
+                {configSucesso&&<div style={{background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'10px',padding:'10px 16px',marginBottom:'16px'}}><p style={{color:'#15803d',fontSize:'13px',fontWeight:'700',margin:0}}>✅ Configuracao salva com sucesso!</p></div>}
+
+                <button onClick={salvarConfigHorarios} disabled={salvandoConfig} style={{padding:'12px 28px',background:salvandoConfig?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'10px',fontSize:'14px',fontWeight:'700',cursor:salvandoConfig?'not-allowed':'pointer'}}>
+                  {salvandoConfig?'SALVANDO...':'SALVAR E GERAR HORARIOS'}
+                </button>
+                <p style={{fontSize:'11px',color:'#9ca3af',marginTop:'10px'}}>Os horarios existentes serao atualizados automaticamente. Agendamentos ja confirmados nao sao afetados.</p>
+              </div>
+            )}
+
             {subAbaConfig==='meses'&&(
               <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
                 <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 6px'}}>Bloquear / Liberar Meses</h2>
