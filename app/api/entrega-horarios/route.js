@@ -7,7 +7,7 @@ const supabase = createClient(
 )
 
 const HORARIOS = []
-for (let h = 8; h < 18; h++) {
+for (let h = 9; h < 18; h++) {
   for (let m = 0; m < 60; m += 15) {
     HORARIOS.push(String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0'))
   }
@@ -54,7 +54,6 @@ export async function GET(request) {
 
   // Retorna horarios de uma data especifica
   if (data && empreendimento) {
-    // Verificar se dia esta liberado
     const { data: diaLiberado } = await supabase
       .from('entrega_dias_liberados')
       .select('id')
@@ -62,9 +61,7 @@ export async function GET(request) {
       .eq('data', data)
       .maybeSingle()
 
-    if (!diaLiberado) {
-      return NextResponse.json([])
-    }
+    if (!diaLiberado) return NextResponse.json([])
 
     const { data: agendados } = await supabase
       .from('entrega_agendamentos')
