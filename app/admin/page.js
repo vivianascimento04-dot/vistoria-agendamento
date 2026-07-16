@@ -865,7 +865,7 @@ Clique no link e agende ja o seu horario:
     if (!importEmp) { alert('Selecione o empreendimento antes de importar.'); return }
     setImportandoCpfs(true); setImportResultado(null)
     try {
-      const XLSX = await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm')
+      const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.0/package/xlsx.mjs')
       const buffer = await file.arrayBuffer()
       const wb = XLSX.read(buffer, { type: 'array' })
       const ws = wb.Sheets[wb.SheetNames[0]]
@@ -2024,11 +2024,11 @@ Clique no link e agende ja o seu horario:
                 </div>
                                 <div style={{marginBottom:'12px'}}>
                   <button onClick={()=>setMostrarImport(t=>!t)} style={{display:'flex',alignItems:'center',gap:'8px',padding:'9px 18px',background:mostrarImport?'#6366f1':'#f5f3ff',border:'1px solid #a5b4fc',borderRadius:'10px',fontSize:'13px',fontWeight:'700',color:'#6366f1',cursor:'pointer',marginBottom:'10px'}}>
-                    ?? {mostrarImport?'Ocultar importador':'Importar planilha Excel'}
+                     📊  {mostrarImport?'Ocultar importador':'Importar planilha Excel'}
                   </button>
                   {mostrarImport&&(
                     <div style={{background:'#f5f3ff',border:'1px solid #a5b4fc',borderRadius:'12px',padding:'1.25rem',marginBottom:'12px'}}>
-                      <p style={{fontSize:'13px',fontWeight:'700',color:'#6366f1',margin:'0 0 4px'}}>?? Importar planilha Excel</p>
+                      <p style={{fontSize:'13px',fontWeight:'700',color:'#6366f1',margin:'0 0 4px'}}> 📊  Importar planilha Excel</p>
                       <p style={{fontSize:'12px',color:'#7c3aed',margin:'0 0 12px'}}>Colunas esperadas: CPF, Cliente/Nome, Unidade, E-mail.</p>
                       <div style={{display:'flex',gap:'10px',flexWrap:'wrap',alignItems:'flex-end',marginBottom:'10px'}}>
                         <div>
