@@ -8,66 +8,25 @@ const supabase = createClient(
 
 export async function POST(request) {
   try {
-    const formData = await request.formData()
-    const file = formData.get('file')
-    const empreendimento = formData.get('empreendimento')
+    const { registros, empreendimento } = await request.json()
 
-    if (!file || !empreendimento) {
-      return NextResponse.json({ error: 'Arquivo e empreendimento obrigatorios.' }, { status: 400 })
+    if (!registros?.length || !empreendimento) {
+      return NextResponse.json({ error: 'Dados invalidos.' }, { status: 400 })
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer())
-    
-    // Use dynamic require to avoid ESM issues
-    let rows = []
-    try {
-      const XLSXLib = await import('xlsx')
-      const XLSX = XLSXLib.default || XLSXLib
-      const wb = XLSX.read(buffer, { type: 'buffer' })
-      const ws = wb.Sheets[wb.SheetNames[0]]
-      rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
-    } catch(xlsxErr) {
-      return NextResponse.json({ error: 'Erro ao ler planilha: ' + xlsxErr.message }, { status: 400 })
-    }
+    let inseridos = 0, duplicados = 0, erros = []
 
-    let inseridos = 0
-    let duplicados = 0
-    let erros = []
+    for (const reg of registros) {
+      const cpfLimpo = String(reg.cpf || '').replace(/\D/g, '')
+      if (!cpfLimpo || cpfLimpo.length < 11) { erros.push('CPF invalido: ' + reg.cpf); continue }
 
-    for (const row of rows) {
-      const get = (nomes) => {
-        for (const n of nomes) {
-          const k = Object.keys(row).find(k => k.toLowerCase().trim().includes(n))
-          if (k) return String(row[k] || '').trim()
-        }
-        return ''
-      }
+      const { error } = await supabase.from('entrega_cpfs_autorizados').insert([{
+        cpf: cpfLimpo, nome: reg.nome||'', unidade: reg.unidade||'',
+        email: reg.email||'', telefone: reg.telefone||'', empreendimento
+      }])
 
-      const cpfRaw = get(['cpf'])
-      const cpfLimpo = cpfRaw.replace(/\D/g, '')
-
-      if (!cpfLimpo || cpfLimpo.length < 11) {
-        erros.push('CPF invalido: ' + cpfRaw)
-        continue
-      }
-
-      const { error } = await supabase
-        .from('entrega_cpfs_autorizados')
-        .insert([{
-          cpf: cpfLimpo,
-          nome: get(['cliente', 'nome']),
-          unidade: get(['unidade', 'apto']),
-          email: get(['e-mail', 'email', 'mail']),
-          telefone: get(['telefone', 'celular', 'fone', 'tel']),
-          empreendimento
-        }])
-
-      if (error) {
-        if (error.code === '23505') duplicados++
-        else erros.push(cpfRaw + ' - ' + error.message)
-      } else {
-        inseridos++
-      }
+      if (error) { if (error.code==='23505') duplicados++; else erros.push(reg.cpf+' - '+error.message) }
+      else inseridos++
     }
 
     return NextResponse.json({ success: true, inseridos, duplicados, erros })

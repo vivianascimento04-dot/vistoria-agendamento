@@ -777,10 +777,43 @@ Clique no link e agende ja o seu horario:
     if (!importEmp) { alert('Selecione o empreendimento.'); return }
     setImportandoCpfs(true); setImportResultado(null)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('empreendimento', importEmp)
-      const res = await fetch('/api/entrega-importar', { method: 'POST', body: formData })
+      const data64 = await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)})
+      const base64 = data64.split(',')[1]
+      const binary = atob(base64)
+      const bytes = new Uint8Array(binary.length)
+      for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i)
+      const wb2 = (window.XLSX||{read:null}).read
+      if(!wb2) throw new Error('XLSX nao disponivel')
+      const wb = window.XLSX.read(bytes,{type:'array'})
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const rows = window.XLSX.utils.sheet_to_json(ws,{defval:''})
+      const registros = rows.map(row=>{const get=(ns)=>{for(const n of ns){const k=Object.keys(row).find(k=>k.toLowerCase().includes(n));if(k)return String(row[k]||'').trim()}return''};return {cpf:get(['cpf']),nome:get(['cliente','nome']),unidade:get(['unidade']),email:get(['mail']),telefone:get(['tel','fone'])}}).filter(r=>r.cpf)
+      const res = await fetch('/api/entrega-importar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({registros, empreendimento: importEmp}) })
+      const data = await res.json()
+      setImportResultado(data)
+      if (data.inseridos > 0) buscarEntregaCpfs()
+    } catch(e) { setImportResultado({ error: 'Erro: ' + e.message }) }
+    setImportandoCpfs(false)
+  }
+
+  async function importarPlanilha(file) {
+    if (!importEmp) { alert('Selecione o empreendimento.'); return }
+    setImportandoCpfs(true); setImportResultado(null)
+    try {
+      const data64 = await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)})
+      const base64 = data64.split(',')[1]
+      const binary = atob(base64)
+      const bytes = new Uint8Array(binary.length)
+      for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i)
+      if(!window.XLSX) throw new Error('XLSX nao carregado')
+      const wb = window.XLSX.read(bytes,{type:'array'})
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const rows = window.XLSX.utils.sheet_to_json(ws,{defval:''})
+      const registros = rows.map(row=>{
+        const get=(ns)=>{for(const n of ns){const k=Object.keys(row).find(k=>k.toLowerCase().includes(n));if(k)return String(row[k]||'').trim()}return''}
+        return {cpf:get(['cpf']),nome:get(['cliente','nome']),unidade:get(['unidade']),email:get(['mail']),telefone:get(['tel','fone'])}
+      }).filter(r=>r.cpf)
+      const res = await fetch('/api/entrega-importar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({registros, empreendimento: importEmp}) })
       const data = await res.json()
       setImportResultado(data)
       if (data.inseridos > 0) buscarEntregaCpfs()
@@ -2545,6 +2578,9 @@ Clique no link e agende ja o seu horario:
     </main>
   )
 }
+
+
+
 
 
 
