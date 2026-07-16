@@ -323,7 +323,7 @@ export default function Admin() {
   async function gerarPDFRevistorias() {
     setGerandoPDFRev(true)
     try {
-      const script=document.createElement('script'); script.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; document.head.appendChild(script)
+      const script=document.createElement('script'); script.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js'; document.head.appendChild(script)
       await new Promise((res,rej)=>{script.onload=res;script.onerror=rej})
       const {jsPDF}=window.jspdf; const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'}); const W=297,M=12; let y=0
       doc.setFillColor(27,47,126); doc.rect(0,0,W,32,'F'); doc.setTextColor(255,255,255); doc.setFontSize(20); doc.setFont('helvetica','bold'); doc.text('MARKINVEST',W/2,13,{align:'center'}); doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.text('Relatorio de Revistorias',W/2,21,{align:'center'}); doc.setFontSize(7.5); doc.text('Gerado em: '+new Date().toLocaleString('pt-BR'),W/2,28,{align:'center'}); y=38
@@ -497,7 +497,7 @@ export default function Admin() {
   async function reativarEntrega(id) {
     try{await fetch('/api/entrega-agendamentos',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status:'confirmado'})});buscarEntregaAgendamentos();if(entregaDataSel&&entregaFiltroEmp)carregarEntregaHorarios(entregaDataSel,entregaFiltroEmp)}catch(e){}
   }
-  async function adicionarEntregaCpf() {
+   async function adicionarEntregaCpf() {
     if(!entregaCpfNovo.trim())return; setSalvandoEntregaCpf(true); setErroEntregaCpf('')
     try{const res=await fetch('/api/entrega-cpfs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpf:entregaCpfNovo,nome:entregaCpfNome,unidade:entregaCpfUnidade,empreendimento:entregaCpfEmp,email:entregaCpfEmail,telefone:entregaCpfTelefone})});if(res.ok){setEntregaCpfNovo('');setEntregaCpfNome('');setEntregaCpfUnidade('');setEntregaCpfEmp('');setEntregaCpfEmail('');setEntregaCpfTelefone('');buscarEntregaCpfs()}else{const d=await res.json();setErroEntregaCpf(d.error||'Erro.')}}catch(e){setErroEntregaCpf('Erro.')}
     setSalvandoEntregaCpf(false)
@@ -773,53 +773,6 @@ Clique no link e agende ja o seu horario:
     setSalvandoConfig(false)
   }
 
-  async function importarPlanilha(file) {
-    if (!importEmp) { alert('Selecione o empreendimento.'); return }
-    setImportandoCpfs(true); setImportResultado(null)
-    try {
-      const data64 = await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)})
-      const base64 = data64.split(',')[1]
-      const binary = atob(base64)
-      const bytes = new Uint8Array(binary.length)
-      for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i)
-      if (!window.XLSX) { await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)}) }
-      const wb = window.XLSX.read(bytes,{type:'array'})
-      const ws = wb.Sheets[wb.SheetNames[0]]
-      const rows = window.XLSX.utils.sheet_to_json(ws,{defval:''})
-      const registros = rows.map(row=>{const get=(ns)=>{for(const n of ns){const k=Object.keys(row).find(k=>k.toLowerCase().includes(n));if(k)return String(row[k]||'').trim()}return''};return {cpf:get(['cpf']),nome:get(['cliente','nome']),unidade:get(['unidade']),email:get(['mail']),telefone:get(['tel','fone'])}}).filter(r=>r.cpf)
-      const res = await fetch('/api/entrega-importar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({registros, empreendimento: importEmp}) })
-      const data = await res.json()
-      setImportResultado(data)
-      if (data.inseridos > 0) buscarEntregaCpfs()
-    } catch(e) { setImportResultado({ error: 'Erro: ' + e.message }) }
-    setImportandoCpfs(false)
-  }
-
-  async function importarPlanilha(file) {
-    if (!importEmp) { alert('Selecione o empreendimento.'); return }
-    setImportandoCpfs(true); setImportResultado(null)
-    try {
-      const data64 = await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)})
-      const base64 = data64.split(',')[1]
-      const binary = atob(base64)
-      const bytes = new Uint8Array(binary.length)
-      for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i)
-      if(!window.XLSX) throw new Error('XLSX nao carregado')
-      const wb = window.XLSX.read(bytes,{type:'array'})
-      const ws = wb.Sheets[wb.SheetNames[0]]
-      const rows = window.XLSX.utils.sheet_to_json(ws,{defval:''})
-      const registros = rows.map(row=>{
-        const get=(ns)=>{for(const n of ns){const k=Object.keys(row).find(k=>k.toLowerCase().includes(n));if(k)return String(row[k]||'').trim()}return''}
-        return {cpf:get(['cpf']),nome:get(['cliente','nome']),unidade:get(['unidade']),email:get(['mail']),telefone:get(['tel','fone'])}
-      }).filter(r=>r.cpf)
-      const res = await fetch('/api/entrega-importar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({registros, empreendimento: importEmp}) })
-      const data = await res.json()
-      setImportResultado(data)
-      if (data.inseridos > 0) buscarEntregaCpfs()
-    } catch(e) { setImportResultado({ error: 'Erro: ' + e.message }) }
-    setImportandoCpfs(false)
-  }
-
   async function buscarEmailTemplates() {
     try {
       const res = await fetch('/api/email-templates')
@@ -912,23 +865,27 @@ Clique no link e agende ja o seu horario:
     if (!importEmp) { alert('Selecione o empreendimento antes de importar.'); return }
     setImportandoCpfs(true); setImportResultado(null)
     try {
-      const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.0/package/xlsx.mjs')
-      const buffer = await file.arrayBuffer()
-      const wb = XLSX.read(buffer, { type: 'array' })
+      const data64 = await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)})
+      const base64 = data64.split(',')[1]
+      const binary = atob(base64)
+      const bytes = new Uint8Array(binary.length)
+      for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i)
+      const XLSXmod = await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.mjs')
+      const XLSX = XLSXmod.default || XLSXmod
+      const wb = XLSX.read(bytes,{type:'array'})
       const ws = wb.Sheets[wb.SheetNames[0]]
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
-      const registros = rows.map(row => ({
-        cpf: String(Object.entries(row).find(([k])=>k.toLowerCase().includes('cpf'))?.[1]||'').trim(),
-        nome: String(Object.entries(row).find(([k])=>k.toLowerCase().includes('cliente')||k.toLowerCase().includes('nome'))?.[1]||'').trim(),
-        unidade: String(Object.entries(row).find(([k])=>k.toLowerCase().includes('unidade'))?.[1]||'').trim(),
-        email: String(Object.entries(row).find(([k])=>k.toLowerCase().includes('mail'))?.[1]||'').trim(),
-        telefone: String(Object.entries(row).find(([k])=>k.toLowerCase().includes('tel')||k.toLowerCase().includes('fone'))?.[1]||'').trim()
-      })).filter(r=>r.cpf)
-      const res = await fetch('/api/entrega-importar', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ registros, empreendimento: importEmp }) })
+      const rows = XLSX.utils.sheet_to_json(ws,{defval:''})
+      const registros = rows.map(row=>{
+        const get=(ns)=>{for(const n of ns){const k=Object.keys(row).find(k=>k.toLowerCase().trim().includes(n));if(k)return String(row[k]||'').trim()}return''}
+        return {cpf:get(['cpf']),nome:get(['cliente','nome']),unidade:get(['unidade','apto']),email:get(['mail','e-mail']),telefone:get(['tel','fone','celular'])}
+      }).filter(r=>r.cpf)
+      const res = await fetch('/api/entrega-importar', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({registros,empreendimento:importEmp})})
       const data = await res.json()
       setImportResultado(data)
       if (data.inseridos > 0) buscarEntregaCpfs()
-    } catch(e) { setImportResultado({ error: 'Erro: ' + e.message }) }
+    } catch(e) {
+      setImportResultado({ error: 'Erro: ' + e.message })
+    }
     setImportandoCpfs(false)
   }
 
@@ -1041,7 +998,7 @@ Clique no link e agende ja o seu horario:
           {id:'cpfs',label:'CPFs Autorizados',icon:'🔐'},
           {id:'configuracoes',label:'Configuracoes',icon:'⚙️'},
           {id:'entrega',label:'Entrega de Chaves',icon:'🗝️'},
-          {id:'emails',label:'Emails',icon:'📧'}
+           {id:'emails',label:'Emails',icon:'📧'}
         ].map(a=>(
           <button key={a.id} onClick={()=>setAbaAtiva(a.id)} style={{
             padding:'12px 16px',
@@ -2069,31 +2026,43 @@ Clique no link e agende ja o seu horario:
                   </div>
                   {erroEntregaCpf&&<p style={{color:VERMELHO,fontSize:'12px',margin:'8px 0 0',fontWeight:'600'}}>{erroEntregaCpf}</p>}
                 </div>
-                                <div style={{marginBottom:'12px'}}>
+                <div style={{marginBottom:'12px'}}>
                   <button onClick={()=>setMostrarImport(t=>!t)} style={{display:'flex',alignItems:'center',gap:'8px',padding:'9px 18px',background:mostrarImport?'#6366f1':'#f5f3ff',border:'1px solid #a5b4fc',borderRadius:'10px',fontSize:'13px',fontWeight:'700',color:'#6366f1',cursor:'pointer',marginBottom:'10px'}}>
-                     📊  {mostrarImport?'Ocultar importador':'Importar planilha Excel'}
+                    📊 {mostrarImport?'Ocultar importador':'Importar planilha Excel'}
                   </button>
                   {mostrarImport&&(
                     <div style={{background:'#f5f3ff',border:'1px solid #a5b4fc',borderRadius:'12px',padding:'1.25rem',marginBottom:'12px'}}>
-                      <p style={{fontSize:'13px',fontWeight:'700',color:'#6366f1',margin:'0 0 4px'}}> 📊  Importar planilha Excel</p>
-                      <p style={{fontSize:'12px',color:'#7c3aed',margin:'0 0 12px'}}>Colunas esperadas: CPF, Cliente/Nome, Unidade, E-mail.</p>
+                      <p style={{fontSize:'13px',fontWeight:'700',color:'#6366f1',margin:'0 0 4px'}}>📊 Importar planilha Excel</p>
+                      <p style={{fontSize:'12px',color:'#7c3aed',margin:'0 0 12px'}}>Colunas esperadas: CPF, Cliente/Nome, Unidade, E-mail. Telefone e outros campos opcionais.</p>
                       <div style={{display:'flex',gap:'10px',flexWrap:'wrap',alignItems:'flex-end',marginBottom:'10px'}}>
                         <div>
-                          <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento</label>
+                          <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento *</label>
                           <select value={importEmp} onChange={e=>setImportEmp(e.target.value)} style={{padding:'9px 12px',border:'1px solid #a5b4fc',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
                             <option value="">Selecione...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
                           </select>
                         </div>
                         <div>
-                          <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Arquivo Excel</label>
+                          <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Arquivo Excel *</label>
                           <input type="file" accept=".xlsx,.xls" onChange={e=>e.target.files[0]&&importarPlanilha(e.target.files[0])} disabled={importandoCpfs||!importEmp} style={{padding:'7px 12px',border:'1px solid #a5b4fc',borderRadius:'8px',fontSize:'13px',background:'#fff',cursor:importEmp?'pointer':'not-allowed'}}/>
                         </div>
                         {importandoCpfs&&<p style={{fontSize:'13px',color:'#7c3aed',fontWeight:'600',alignSelf:'center'}}>Importando...</p>}
                       </div>
-                      {importResultado&&(<div style={{background:importResultado.error?'#fff5f5':'#f0fdf4',border:'1px solid '+(importResultado.error?'#fca5a5':'#86efac'),borderRadius:'10px',padding:'12px 14px'}}>{importResultado.error?<p style={{color:'red',fontSize:'13px',fontWeight:'600',margin:0}}>{importResultado.error}</p>:<p style={{color:'#15803d',fontSize:'13px',fontWeight:'700',margin:0}}>Importados: {importResultado.inseridos} | Duplicados: {importResultado.duplicados}</p>}</div>)}
+                      {importResultado&&(
+                        <div style={{background:importResultado.error?'#fff5f5':'#f0fdf4',border:'1px solid '+(importResultado.error?'#fca5a5':'#86efac'),borderRadius:'10px',padding:'12px 14px'}}>
+                          {importResultado.error
+                            ?<p style={{color:VERMELHO,fontSize:'13px',fontWeight:'600',margin:0}}>{importResultado.error}</p>
+                            :<div>
+                              <p style={{color:'#15803d',fontSize:'13px',fontWeight:'700',margin:'0 0 4px'}}>✅ Importacao concluida!</p>
+                              <p style={{fontSize:'12px',color:'#374151',margin:0}}>✔ {importResultado.inseridos} cadastrado(s) · 🔁 {importResultado.duplicados} duplicado(s) já existiam{importResultado.erros?.length>0?' · ⚠ '+importResultado.erros.length+' erro(s)':''}</p>
+                              {importResultado.erros?.length>0&&<p style={{fontSize:'11px',color:VERMELHO,marginTop:'4px'}}>{importResultado.erros.slice(0,3).join(', ')}{importResultado.erros.length>3?' ...':''}</p>}
+                            </div>
+                              }
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
+
                 <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'12px',alignItems:'center'}}>
                   <input value={entregaCpfBusca} onChange={e=>setEntregaCpfBusca(e.target.value)} placeholder="Buscar por CPF ou nome..." style={{flex:1,minWidth:'180px',padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none'}}/>
                   <select value={entregaCpfsFiltroEmp} onChange={e=>setEntregaCpfsFiltroEmp(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}><option value="">Todos os empreendimentos</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select>
@@ -2505,7 +2474,7 @@ Clique no link e agende ja o seu horario:
                   <div style={{width:'48px',height:'48px',background:c.bg,borderRadius:'12px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'22px'}}>{c.label==='TOTAL'?'📅':c.label==='CONFIRMADOS'?'✅':'❌'}</div>
                 </div>
               ))}
-            </div>)}
+            )}
             {subAbaAgend!=='relatorio'&&(<div style={{background:'#fff',borderRadius:'16px',padding:'1rem 1.25rem',marginBottom:'1rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
               <div style={{display:'flex',gap:'10px',flexWrap:'wrap',alignItems:'center',marginBottom:'10px'}}>
                 <div style={{display:'flex',gap:'4px',background:'#f4f6fb',borderRadius:'10px',padding:'4px'}}>
@@ -2528,7 +2497,7 @@ Clique no link e agende ja o seu horario:
                 <button onClick={gerarPDF} disabled={gerandoPDF} style={{padding:'8px 18px',background:gerandoPDF?'#9ca3af':'#C0392B',color:'#fff',border:'none',borderRadius:'10px',fontSize:'12px',fontWeight:'700',cursor:gerandoPDF?'not-allowed':'pointer'}}>{gerandoPDF?'GERANDO...':'EXPORTAR PDF'}</button>
                 <button onClick={exportarRelatorioGeral} style={{padding:'8px 18px',background:VERDE,color:'#fff',border:'none',borderRadius:'10px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>RELATORIO GERAL</button>
               </div>
-            </div>)}
+            </div>
             {paginados.length===0?(<div style={{textAlign:'center',padding:'3rem',color:'#9ca3af',fontSize:'14px',background:'#fff',borderRadius:'16px'}}>Nenhum agendamento encontrado</div>):(
               <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
                 {paginados.map(a=>{
@@ -2569,6 +2538,7 @@ Clique no link e agende ja o seu horario:
                 <button onClick={()=>setPagina(p=>Math.min(totalPaginas,p+1))} disabled={pagina===totalPaginas} style={{padding:'6px 14px',background:pagina===totalPaginas?'#f3f4f6':'#fff',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'13px',fontWeight:'600',cursor:pagina===totalPaginas?'not-allowed':'pointer',color:pagina===totalPaginas?'#9ca3af':'#374151'}}>Proximo</button>
               </div>
             )}
+            </div>)}
             {subAbaAgend!=='relatorio'&&<p style={{textAlign:'center',fontSize:'12px',color:'#9ca3af',marginTop:'1rem'}}>Mostrando {filtrados.length===0?0:((pagina-1)*POR_PAGINA)+1} - {Math.min(pagina*POR_PAGINA,filtrados.length)} de {filtrados.length} agendamentos</p>}
             <p style={{textAlign:'center',fontSize:'11px',color:'#d1d5db',marginTop:'6px',marginBottom:'1rem'}}>Markinvest 2026</p>
           </>
@@ -2577,10 +2547,3 @@ Clique no link e agende ja o seu horario:
     </main>
   )
 }
-
-
-
-
-
-
-
