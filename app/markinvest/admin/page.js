@@ -181,6 +181,7 @@ export default function Admin() {
   const [relFiltroDataInicio, setRelFiltroDataInicio] = useState('')
   const [relFiltroDataFim, setRelFiltroDataFim] = useState('')
   const [subAbaAgend, setSubAbaAgend] = useState('lista')
+  const [subAbaAgend, setSubAbaAgend] = useState('lista')
   const [gerandoPDFRel, setGerandoPDFRel] = useState(false)
   const [entregaTemplateEmp, setEntregaTemplateEmp] = useState('')
   const [entregaTemplateData, setEntregaTemplateData] = useState('')
