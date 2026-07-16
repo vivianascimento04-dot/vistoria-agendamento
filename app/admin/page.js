@@ -2469,7 +2469,6 @@ Clique no link e agende ja o seu horario:
                 <button onClick={()=>setPagina(p=>Math.min(totalPaginas,p+1))} disabled={pagina===totalPaginas} style={{padding:'6px 14px',background:pagina===totalPaginas?'#f3f4f6':'#fff',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'13px',fontWeight:'600',cursor:pagina===totalPaginas?'not-allowed':'pointer',color:pagina===totalPaginas?'#9ca3af':'#374151'}}>Proximo</button>
               </div>
             )}
-            </div>)}
             {subAbaAgend!=='relatorio'&&<p style={{textAlign:'center',fontSize:'12px',color:'#9ca3af',marginTop:'1rem'}}>Mostrando {filtrados.length===0?0:((pagina-1)*POR_PAGINA)+1} - {Math.min(pagina*POR_PAGINA,filtrados.length)} de {filtrados.length} agendamentos</p>}
             <p style={{textAlign:'center',fontSize:'11px',color:'#d1d5db',marginTop:'6px',marginBottom:'1rem'}}>Markinvest 2026</p>
           </>
