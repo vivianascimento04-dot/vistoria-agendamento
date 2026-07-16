@@ -181,7 +181,6 @@ export default function Admin() {
   const [relFiltroDataInicio, setRelFiltroDataInicio] = useState('')
   const [relFiltroDataFim, setRelFiltroDataFim] = useState('')
   const [subAbaAgend, setSubAbaAgend] = useState('lista')
-  const [subAbaAgend, setSubAbaAgend] = useState('lista')
   const [gerandoPDFRel, setGerandoPDFRel] = useState(false)
   const [entregaTemplateEmp, setEntregaTemplateEmp] = useState('')
   const [entregaTemplateData, setEntregaTemplateData] = useState('')
@@ -961,7 +960,7 @@ Clique no link e agende ja o seu horario:
       </div>
       <div style={{background:'#fff',borderBottom:'2px solid #e8ecf5',display:'flex',padding:'0 1rem',gap:'2px',overflowX:'auto'}}>
         {[
-          {id:'agendamentos',label:'Agendamentos',icon:'📋'},
+          {id:'agendamentos',label:'Agendamentos e Vistorias',icon:'📋'},
           {id:'revistorias',label:'Revistorias',icon:'🔄'},
           {id:'empreendimentos',label:'Empreendimentos',icon:'🏢'},
           {id:'cpfs',label:'CPFs Autorizados',icon:'🔐'},
@@ -2399,14 +2398,14 @@ Clique no link e agende ja o seu horario:
                 ))}
               </div>
             )}
-            {subAbaAgend!=='relatorio'&&<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'16px',marginBottom:'1.5rem'}}>
+            {subAbaAgend!=='relatorio'&&(<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'16px',marginBottom:'1.5rem'}}>
               {[{label:'TOTAL',val:agendamentos.filter(a=>a.tipo!=='revistoria').length,cor:AZUL,bg:'#eff3ff'},{label:'CONFIRMADOS',val:totalConf,cor:VERDE,bg:'#f0fdf4'},{label:'CANCELADOS',val:totalCanc,cor:VERMELHO,bg:'#fff5f5'}].map(c=>(
                 <div key={c.label} style={{background:'#fff',borderRadius:'16px',padding:'1.25rem 1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)',borderLeft:'4px solid '+c.cor,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                   <div><p style={{fontSize:'10px',fontWeight:'700',color:'#9ca3af',textTransform:'uppercase',letterSpacing:'0.1em',margin:'0 0 6px'}}>{c.label}</p><p style={{fontSize:'32px',fontWeight:'800',color:c.cor,margin:0,lineHeight:1}}>{c.val}</p></div>
                   <div style={{width:'48px',height:'48px',background:c.bg,borderRadius:'12px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'22px'}}>{c.label==='TOTAL'?'📅':c.label==='CONFIRMADOS'?'✅':'❌'}</div>
                 </div>
               ))}
-            </div>
+            </div>)}
             {subAbaAgend!=='relatorio'&&(<div style={{background:'#fff',borderRadius:'16px',padding:'1rem 1.25rem',marginBottom:'1rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
               <div style={{display:'flex',gap:'10px',flexWrap:'wrap',alignItems:'center',marginBottom:'10px'}}>
                 <div style={{display:'flex',gap:'4px',background:'#f4f6fb',borderRadius:'10px',padding:'4px'}}>
@@ -2471,7 +2470,7 @@ Clique no link e agende ja o seu horario:
               </div>
             )}
             </div>)}
-            <p style={{textAlign:'center',fontSize:'12px',color:'#9ca3af',marginTop:'1rem'}}>Mostrando {filtrados.length===0?0:((pagina-1)*POR_PAGINA)+1} - {Math.min(pagina*POR_PAGINA,filtrados.length)} de {filtrados.length} agendamentos</p>
+            {subAbaAgend!=='relatorio'&&<p style={{textAlign:'center',fontSize:'12px',color:'#9ca3af',marginTop:'1rem'}}>Mostrando {filtrados.length===0?0:((pagina-1)*POR_PAGINA)+1} - {Math.min(pagina*POR_PAGINA,filtrados.length)} de {filtrados.length} agendamentos</p>
             <p style={{textAlign:'center',fontSize:'11px',color:'#d1d5db',marginTop:'6px',marginBottom:'1rem'}}>Markinvest 2026</p>
           </>
         )}
@@ -2479,5 +2478,3 @@ Clique no link e agende ja o seu horario:
     </main>
   )
 }
-
-
