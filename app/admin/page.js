@@ -493,52 +493,58 @@ export default function Admin() {
     const diasSemana = ['Domingo','Segunda-feira','Terca-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sabado']
     const diaSemana = diasSemana[dataObj.getDay()]
     setEntregaEmailAssunto('Sua Entrega de Chaves foi Liberada - '+entregaTemplateEmp)
-    setEntregaEmailMensagem(`🏠 RESIDENCIAL ${entregaTemplateEmp}
+    setEntregaEmailMensagem(`Prezado(a) cliente do ${entregaTemplateEmp},
 
-Chegou o grande dia de receber as chaves do seu apartamento! 🎉🗝️
+E com grande alegria que informamos que o momento tao esperado chegou! A entrega das chaves do seu novo imovel esta prestes a acontecer. 🎉🗝️
 
-E com grande satisfacao que compartilhamos este momento tao especial.
-
-A entrega das chaves representa a realizacao de um importante sonho e o inicio de uma nova etapa. A Markinvest e toda a sua equipe tem a honra de fazer parte dessa conquista e agradecemos a confianca depositada ao longo dessa trajetoria. 💙
-
-📅 A entrega das chaves sera realizada no dia ${dataFmt} (${diaSemana}).
+Para garantir um atendimento exclusivo, seguro e sem filas, a entrega sera feita por meio de agendamento individual. Pedimos que leia atentamente as orientacoes abaixo para garantir o seu horario.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🗓️ COMO AGENDAR?
+🗓️ COMO AGENDAR O SEU HORARIO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Clique no link abaixo e selecione o horario de sua preferencia para o atendimento:
-
+1️⃣ Acesse o link:
 👉 https://vistoria-agendamento.vercel.app/markinvest/entrega
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 INFORMACOES IMPORTANTES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2️⃣ Escolha seu horario: Selecione o horario de sua preferencia entre as opcoes disponiveis.
 
-📄 Documentacao obrigatoria
-No dia da entrega das chaves, sera indispensavel a apresentacao de um documento oficial de identificacao com foto (RG ou CNH).
+3️⃣ Confirme: Preencha os dados solicitados para finalizar a reserva do seu atendimento.
 
-👤 Titularidade
-O agendamento devera ser realizado pelo titular da aquisicao.
+⚠️ Atencao: Os horarios sao limitados e preenchidos por ordem de acesso. Realize o seu agendamento o quanto antes.
 
-⏰ Pontualidade
-Solicitamos que compareca no horario agendado para que possamos proporcionar um atendimento organizado e pontual.
+📅 Data disponivel: ${dataFmt} (${diaSemana})
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📍 LOCAL DO EVENTO
+👣 PASSO A PASSO NO DIA DO EVENTO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Avenida Francisco de Paula Leite, n.o 466
-Entrada principal (acesso de pedestres)
+1️⃣ Pontualidade: Chegue com apenas 10 minutos de antecedencia do seu horario reservado.
+2️⃣ Assinatura: Assinatura do termo de recebimento definitivo das chaves.
+3️⃣ Entrega: Recebimento do kit de chaves e manual do proprietario.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📄 DOCUMENTOS OBRIGATORIOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Apresente os seguintes documentos originais no momento do atendimento:
+
+📌 Documento de identidade oficial com foto (RG ou CNH).
+📌 Procuracao registrada em cartorio (caso o proprietario titular nao possa comparecer).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 RECOMENDACOES UTEIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⏰ Evite atrasos: Como os horarios sao individuais, atrasos podem comprometer o atendimento dos proximos clientes.
+👨‍👩‍👧 Acompanhantes: Sua familia sera bem-vinda!
+⏱️ Duracao: Seu atendimento personalizado durara cerca de 15 minutos.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Sera um prazer recebe-lo(a) para celebrar este momento tao significativo. 🥂
-
-Esperamos por voce!
+Parabens por esta conquista! Estamos ansiosos para entregar as chaves do seu novo lar no ${entregaTemplateEmp}. 🏠✨
 
 Atenciosamente,
-Equipe Markinvest 🏠✨`)
+Equipe Markinvest`)
     setEntregaTemplateMostrar(false)
   }
 
