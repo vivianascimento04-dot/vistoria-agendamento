@@ -1589,7 +1589,7 @@ Clique no link e agende ja o seu horario:
         {abaAtiva==='entrega'&&(
           <div style={{display:'flex',flexDirection:'column',gap:'1.5rem'}}>
             <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-              {[{id:'agenda',label:'Agenda'},{id:'relatorio',label:'Relatorio'},{id:'cpfs',label:'CPFs Autorizados'},{id:'dias',label:'Dias Liberados'},{id:'manual',label:'Agendar Manualmente'}].map(s=>(
+              {[{id:'agenda',label:'Agenda'},{id:'relatorio',label:'Relatorio'},{id:'cpfs',label:'CPFs Autorizados'},{id:'dias',label:'Dias Liberados'},{id:'manual',label:'Agendar Manualmente'},{id:'config',label:'Configuracoes'}].map(s=>(
                 <button key={s.id} onClick={()=>setEntregaSubAba(s.id)} style={{padding:'10px 20px',borderRadius:'10px',border:entregaSubAba===s.id?'none':'1px solid #e5e7eb',background:entregaSubAba===s.id?AZUL:'#fff',color:entregaSubAba===s.id?'#fff':'#6b7280',fontSize:'13px',fontWeight:'700',cursor:'pointer'}}>{s.label}</button>
               ))}
             </div>
