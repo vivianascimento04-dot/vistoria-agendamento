@@ -165,6 +165,12 @@ export default function Admin() {
   const [entregaEditEmail, setEntregaEditEmail] = useState('')
   const [entregaEditTelefone, setEntregaEditTelefone] = useState('')
   const [enviandoTokens, setEnviandoTokens] = useState(false)
+  const [entregaConfigHoraInicio, setEntregaConfigHoraInicio] = useState('09:00')
+  const [entregaConfigHoraFim, setEntregaConfigHoraFim] = useState('17:45')
+  const [entregaConfigIntervalo, setEntregaConfigIntervalo] = useState(15)
+  const [entregaConfigVagas, setEntregaConfigVagas] = useState(4)
+  const [salvandoEntregaConfig, setSalvandoEntregaConfig] = useState(false)
+  const [entregaConfigSucesso, setEntregaConfigSucesso] = useState(false)
   const [entregaRelFiltroEmp, setEntregaRelFiltroEmp] = useState('')
   const [entregaRelFiltroStatus, setEntregaRelFiltroStatus] = useState('todos')
   const [entregaRelFiltroDataInicio, setEntregaRelFiltroDataInicio] = useState('')
@@ -2062,6 +2068,85 @@ Clique no link e agende ja o seu horario:
                 </div>
               </div>
             )}
+          {entregaSubAba==='config'&&(
+              <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)',maxWidth:'560px'}}>
+                <h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 6px'}}>Configurar Horarios de Entrega</h2>
+                <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 24px'}}>Define o periodo, intervalo e quantidade de vagas por horario.</p>
+
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'20px'}}>
+                  <div>
+                    <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'6px',textTransform:'uppercase'}}>Horario de inicio</label>
+                    <input type="time" value={entregaConfigHoraInicio} onChange={e=>setEntregaConfigHoraInicio(e.target.value)} style={{width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/>
+                  </div>
+                  <div>
+                    <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'6px',textTransform:'uppercase'}}>Horario de fim</label>
+                    <input type="time" value={entregaConfigHoraFim} onChange={e=>setEntregaConfigHoraFim(e.target.value)} style={{width:'100%',padding:'10px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}}/>
+                  </div>
+                </div>
+
+                <div style={{marginBottom:'20px'}}>
+                  <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'10px',textTransform:'uppercase'}}>Intervalo entre horarios</label>
+                  <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+                    {[{v:15,l:'15 min'},{v:30,l:'30 min'},{v:45,l:'45 min'},{v:60,l:'1 hora'}].map(op=>(
+                      <button key={op.v} onClick={()=>setEntregaConfigIntervalo(op.v)}
+                        style={{padding:'10px 18px',borderRadius:'10px',border:'2px solid',fontSize:'13px',fontWeight:'700',cursor:'pointer',
+                          borderColor:entregaConfigIntervalo===op.v?AZUL:'#e5e7eb',
+                          background:entregaConfigIntervalo===op.v?AZUL:'#fff',
+                          color:entregaConfigIntervalo===op.v?'#fff':'#9ca3af'}}>
+                        {op.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{marginBottom:'24px'}}>
+                  <label style={{fontSize:'12px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'10px',textTransform:'uppercase'}}>Vagas por horario</label>
+                  <div style={{display:'flex',gap:'8px'}}>
+                    {[1,2,3,4,5,6].map(v=>(
+                      <button key={v} onClick={()=>setEntregaConfigVagas(v)}
+                        style={{width:'44px',height:'44px',borderRadius:'10px',border:'2px solid',fontSize:'15px',fontWeight:'700',cursor:'pointer',
+                          borderColor:entregaConfigVagas===v?AZUL:'#e5e7eb',
+                          background:entregaConfigVagas===v?AZUL:'#fff',
+                          color:entregaConfigVagas===v?'#fff':'#9ca3af'}}>
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'14px 16px',marginBottom:'20px'}}>
+                  <p style={{fontSize:'12px',fontWeight:'700',color:AZUL,margin:'0 0 8px'}}>Pre-visualizacao dos horarios:</p>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
+                    {(()=>{
+                      const slots=[]
+                      const [hI,mI]=(entregaConfigHoraInicio||'09:00').split(':').map(Number)
+                      const [hF,mF]=(entregaConfigHoraFim||'17:45').split(':').map(Number)
+                      let t=hI*60+mI
+                      const fim=hF*60+mF
+                      while(t<=fim){const h=String(Math.floor(t/60)).padStart(2,'0');const m=String(t%60).padStart(2,'0');slots.push(h+':'+m);t+=Number(entregaConfigIntervalo)}
+                      return slots.map(s=><span key={s} style={{padding:'3px 10px',background:'#eff3ff',borderRadius:'20px',fontSize:'11px',fontWeight:'500',color:AZUL}}>{s}</span>)
+                    })()}
+                  </div>
+                  <p style={{fontSize:'11px',color:'#9ca3af',marginTop:'8px'}}>{entregaConfigVagas} vaga(s) por horario · as configuracoes sao aplicadas na API ao salvar</p>
+                </div>
+
+                {entregaConfigSucesso&&<div style={{background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'10px',padding:'10px 16px',marginBottom:'16px'}}><p style={{color:'#15803d',fontSize:'13px',fontWeight:'700',margin:0}}>✅ Configuracao salva! Novos agendamentos ja usarao os horarios atualizados.</p></div>}
+
+                <button onClick={async()=>{
+                  setSalvandoEntregaConfig(true);setEntregaConfigSucesso(false)
+                  try{
+                    await fetch('/api/entrega-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({horaInicio:entregaConfigHoraInicio,horaFim:entregaConfigHoraFim,intervalo:entregaConfigIntervalo,vagas:entregaConfigVagas})})
+                    setEntregaConfigSucesso(true)
+                    setTimeout(()=>setEntregaConfigSucesso(false),4000)
+                  }catch(e){alert('Erro ao salvar.')}
+                  setSalvandoEntregaConfig(false)
+                }} disabled={salvandoEntregaConfig} style={{padding:'12px 28px',background:salvandoEntregaConfig?'#9ca3af':AZUL,color:'#fff',border:'none',borderRadius:'10px',fontSize:'14px',fontWeight:'700',cursor:salvandoEntregaConfig?'not-allowed':'pointer'}}>
+                  {salvandoEntregaConfig?'SALVANDO...':'SALVAR CONFIGURACAO'}
+                </button>
+                <p style={{fontSize:'11px',color:'#9ca3af',marginTop:'10px'}}>As configuracoes afetam apenas novos agendamentos. Horarios ja confirmados nao sao alterados.</p>
+              </div>
+            )}
+
           </div>
         )}
 
