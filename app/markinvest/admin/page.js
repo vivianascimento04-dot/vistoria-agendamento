@@ -186,6 +186,14 @@ export default function Admin() {
   const [enviandoEntregaEmail, setEnviandoEntregaEmail] = useState(false)
   const [entregaEmailResultado, setEntregaEmailResultado] = useState(null)
   const [mostrarPreviewEmail, setMostrarPreviewEmail] = useState(false)
+  const [emailTemplates, setEmailTemplates] = useState([])
+  const [mostrarTemplates, setMostrarTemplates] = useState(false)
+  const [novoTemplateNome, setNovoTemplateNome] = useState('')
+  const [novoTemplateAssunto, setNovoTemplateAssunto] = useState('')
+  const [novoTemplateMensagem, setNovoTemplateMensagem] = useState('')
+  const [editandoTemplate, setEditandoTemplate] = useState(null)
+  const [salvandoTemplate, setSalvandoTemplate] = useState(false)
+  const [mostrarFormTemplate, setMostrarFormTemplate] = useState(false)
   const [mostrarEnvioEmail, setMostrarEnvioEmail] = useState(false)
   const [tokenResultado, setTokenResultado] = useState(null)
   const [entregaCpfsFiltroEmp, setEntregaCpfsFiltroEmp] = useState('')
@@ -200,7 +208,7 @@ export default function Admin() {
   useEffect(() => { setPagina(1) }, [filtro, busca, ordem, dataInicio, dataFim, filtroEmp])
   useEffect(() => { setPaginaCpf(1) }, [buscaCpf, filtroCpfData, filtroCpfEmp, inputBuscaCpf])
   useEffect(() => { if (abaAtiva === 'revistorias') buscarRevistorias()
-    if (abaAtiva === 'entrega') { buscarEntregaCpfs(); buscarEntregaAgendamentos(); buscarEntregaDias() }
+    if (abaAtiva === 'entrega') { buscarEntregaCpfs(); buscarEntregaAgendamentos(); buscarEntregaDias(); buscarEmailTemplates() }
   }, [abaAtiva])
 
   async function buscarAgendamentos() {
@@ -753,6 +761,44 @@ Clique no link e agende ja o seu horario:
       setTimeout(() => setConfigSucesso(false), 3000)
     } catch(e) { alert('Erro ao salvar: '+e.message) }
     setSalvandoConfig(false)
+  }
+
+  async function buscarEmailTemplates() {
+    try {
+      const res = await fetch('/api/email-templates')
+      const data = await res.json()
+      setEmailTemplates(Array.isArray(data) ? data : [])
+    } catch(e) {}
+  }
+
+  async function salvarTemplate() {
+    if (!novoTemplateNome.trim() || !novoTemplateAssunto.trim() || !novoTemplateMensagem.trim()) {
+      alert('Preencha nome, assunto e mensagem.'); return
+    }
+    setSalvandoTemplate(true)
+    try {
+      const method = editandoTemplate ? 'PATCH' : 'POST'
+      const body = editandoTemplate
+        ? { id: editandoTemplate, nome: novoTemplateNome, assunto: novoTemplateAssunto, mensagem: novoTemplateMensagem }
+        : { nome: novoTemplateNome, assunto: novoTemplateAssunto, mensagem: novoTemplateMensagem }
+      await fetch('/api/email-templates', { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) })
+      setNovoTemplateNome(''); setNovoTemplateAssunto(''); setNovoTemplateMensagem(''); setEditandoTemplate(null); setMostrarFormTemplate(false)
+      buscarEmailTemplates()
+    } catch(e) { alert('Erro ao salvar.') }
+    setSalvandoTemplate(false)
+  }
+
+  async function excluirTemplate(id) {
+    if (!confirm('Excluir este template?')) return
+    await fetch('/api/email-templates', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ id }) })
+    buscarEmailTemplates()
+  }
+
+  function aplicarTemplate(t) {
+    setEntregaEmailAssunto(t.assunto)
+    setEntregaEmailMensagem(t.mensagem)
+    setMostrarTemplates(false)
+    setMostrarEnvioEmail(true)
   }
 
   const filtrados=agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>filtro==='todos'||a.status===filtro).filter(a=>!filtroEmp||a.apartamento?.toLowerCase().includes(filtroEmp.toLowerCase())).filter(a=>{if(!busca)return true;const b=busca.toLowerCase();return a.nome?.toLowerCase().includes(b)||a.email?.toLowerCase().includes(b)||a.apartamento?.toLowerCase().includes(b)||a.telefone?.includes(b)||a.cpf?.includes(b)}).filter(a=>{if(dataInicio&&a.data<dataInicio)return false;if(dataFim&&a.data>dataFim)return false;return true}).sort((a,b)=>{const da=new Date(a.criado_em||0),db=new Date(b.criado_em||0);return ordem==='mais-antigo'?da-db:db-da})
@@ -1926,9 +1972,63 @@ Clique no link e agende ja o seu horario:
                   </div>
                 )}
                 <div style={{marginTop:'16px',borderTop:'2px solid #e8ecf5',paddingTop:'16px'}}>
-                  <button onClick={()=>setMostrarEnvioEmail(t=>!t)} style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 18px',background:mostrarEnvioEmail?AZUL:'#f8f9ff',border:'1px solid '+(mostrarEnvioEmail?AZUL:'#e0e5f5'),borderRadius:'10px',fontSize:'13px',fontWeight:'700',color:mostrarEnvioEmail?'#fff':AZUL,cursor:'pointer',marginBottom:'12px'}}>
-                    📧 {mostrarEnvioEmail?'Ocultar envio de email':'Enviar email para clientes'}
-                  </button>
+                  <div style={{display:'flex',gap:'8px',marginBottom:'12px',flexWrap:'wrap'}}>
+                    <button onClick={()=>setMostrarEnvioEmail(t=>!t)} style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 18px',background:mostrarEnvioEmail?AZUL:'#f8f9ff',border:'1px solid '+(mostrarEnvioEmail?AZUL:'#e0e5f5'),borderRadius:'10px',fontSize:'13px',fontWeight:'700',color:mostrarEnvioEmail?'#fff':AZUL,cursor:'pointer'}}>
+                      📧 {mostrarEnvioEmail?'Ocultar envio':'Enviar email'}
+                    </button>
+                    <button onClick={()=>{setMostrarTemplates(t=>!t);if(!mostrarTemplates)buscarEmailTemplates()}} style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 18px',background:mostrarTemplates?'#6366f1':'#f8f9ff',border:'1px solid '+(mostrarTemplates?'#6366f1':'#e0e5f5'),borderRadius:'10px',fontSize:'13px',fontWeight:'700',color:mostrarTemplates?'#fff':'#6366f1',cursor:'pointer'}}>
+                      📋 Templates de email
+                    </button>
+                  </div>
+
+                  {mostrarTemplates&&(
+                    <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'1.25rem',marginBottom:'12px'}}>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
+                        <p style={{fontSize:'13px',fontWeight:'700',color:'#6366f1',margin:0}}>📋 Templates salvos</p>
+                        <button onClick={()=>{setMostrarFormTemplate(t=>!t);setEditandoTemplate(null);setNovoTemplateNome('');setNovoTemplateAssunto('');setNovoTemplateMensagem('')}} style={{padding:'6px 14px',background:'#6366f1',color:'#fff',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>+ Novo template</button>
+                      </div>
+
+                      {mostrarFormTemplate&&(
+                        <div style={{background:'#fff',border:'1px solid #e0e5f5',borderRadius:'10px',padding:'14px',marginBottom:'12px'}}>
+                          <p style={{fontSize:'12px',fontWeight:'700',color:'#6366f1',margin:'0 0 10px'}}>{editandoTemplate?'Editar template':'Novo template'}</p>
+                          <div style={{marginBottom:'8px'}}>
+                            <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Nome do template *</label>
+                            <input value={novoTemplateNome} onChange={e=>setNovoTemplateNome(e.target.value)} placeholder="Ex: Convite entrega de chaves" style={{width:'100%',padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/>
+                          </div>
+                          <div style={{marginBottom:'8px'}}>
+                            <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Assunto *</label>
+                            <input value={novoTemplateAssunto} onChange={e=>setNovoTemplateAssunto(e.target.value)} placeholder="Ex: Sua entrega de chaves foi liberada" style={{width:'100%',padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',boxSizing:'border-box'}}/>
+                          </div>
+                          <div style={{marginBottom:'10px'}}>
+                            <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Mensagem *</label>
+                            <textarea value={novoTemplateMensagem} onChange={e=>setNovoTemplateMensagem(e.target.value)} rows={6} placeholder="Escreva a mensagem do template..." style={{width:'100%',padding:'8px 12px',border:'1px solid #dde1f0',borderRadius:'8px',fontSize:'13px',outline:'none',resize:'vertical',boxSizing:'border-box',fontFamily:'inherit'}}/>
+                          </div>
+                          <div style={{display:'flex',gap:'8px'}}>
+                            <button onClick={salvarTemplate} disabled={salvandoTemplate} style={{padding:'8px 20px',background:salvandoTemplate?'#9ca3af':'#6366f1',color:'#fff',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'700',cursor:'pointer'}}>{salvandoTemplate?'SALVANDO...':'SALVAR TEMPLATE'}</button>
+                            <button onClick={()=>{setMostrarFormTemplate(false);setEditandoTemplate(null)}} style={{padding:'8px 14px',background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'13px',color:'#6b7280',cursor:'pointer',fontWeight:'600'}}>Cancelar</button>
+                          </div>
+                        </div>
+                      )}
+
+                      {emailTemplates.length===0&&!mostrarFormTemplate&&<p style={{fontSize:'13px',color:'#9ca3af',textAlign:'center',padding:'1rem'}}>Nenhum template salvo ainda. Clique em + Novo template para criar.</p>}
+
+                      <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                        {emailTemplates.map(t=>(
+                          <div key={t.id} style={{background:'#fff',border:'1px solid #e0e5f5',borderRadius:'10px',padding:'12px 14px',display:'flex',alignItems:'center',gap:'10px',flexWrap:'wrap'}}>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontSize:'13px',fontWeight:'700',color:'#111'}}>{t.nome}</div>
+                              <div style={{fontSize:'11px',color:'#6b7280',marginTop:'2px'}}>Assunto: {t.assunto}</div>
+                            </div>
+                            <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
+                              <button onClick={()=>aplicarTemplate(t)} style={{padding:'5px 12px',background:'#6366f1',color:'#fff',border:'none',borderRadius:'6px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>Aplicar</button>
+                              <button onClick={()=>{setEditandoTemplate(t.id);setNovoTemplateNome(t.nome);setNovoTemplateAssunto(t.assunto);setNovoTemplateMensagem(t.mensagem);setMostrarFormTemplate(true)}} style={{padding:'5px 12px',background:'none',border:'1px solid #bfdbfe',borderRadius:'6px',fontSize:'12px',color:AZUL,cursor:'pointer',fontWeight:'600'}}>Editar</button>
+                              <button onClick={()=>excluirTemplate(t.id)} style={{padding:'5px 12px',background:'none',border:'1px solid #fca5a5',borderRadius:'6px',fontSize:'12px',color:VERMELHO,cursor:'pointer',fontWeight:'600'}}>Excluir</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {mostrarEnvioEmail&&(
                     <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'1.25rem'}}>
                       <div style={{marginBottom:'16px',border:'2px solid '+AZUL,borderRadius:'12px',overflow:'hidden'}}>
