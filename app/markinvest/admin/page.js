@@ -120,6 +120,12 @@ export default function Admin() {
   const [editRevData, setEditRevData] = useState('')
   const [editRevHorario, setEditRevHorario] = useState('')
   const [salvandoEditRev, setSalvandoEditRev] = useState(false)
+  const [configDiasSemana, setConfigDiasSemana] = useState({seg:true,ter:true,qua:true,qui:true,sex:true,sab:false,dom:false})
+  const [configHoraInicio, setConfigHoraInicio] = useState('08:00')
+  const [configHoraFim, setConfigHoraFim] = useState('17:30')
+  const [configIntervalo, setConfigIntervalo] = useState(60)
+  const [salvandoConfig, setSalvandoConfig] = useState(false)
+  const [configSucesso, setConfigSucesso] = useState(false)
 
   // Estados Entrega de Chaves
   const [entregaCpfs, setEntregaCpfs] = useState([])
