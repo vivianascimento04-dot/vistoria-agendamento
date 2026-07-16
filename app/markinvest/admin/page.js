@@ -2473,8 +2473,8 @@ Clique no link e agende ja o seu horario:
                   <div><p style={{fontSize:'10px',fontWeight:'700',color:'#9ca3af',textTransform:'uppercase',letterSpacing:'0.1em',margin:'0 0 6px'}}>{c.label}</p><p style={{fontSize:'32px',fontWeight:'800',color:c.cor,margin:0,lineHeight:1}}>{c.val}</p></div>
                   <div style={{width:'48px',height:'48px',background:c.bg,borderRadius:'12px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'22px'}}>{c.label==='TOTAL'?'📅':c.label==='CONFIRMADOS'?'✅':'❌'}</div>
                 </div>
-              ))}
-            )}
+              )}
+            </div>)}
             {subAbaAgend!=='relatorio'&&(<div style={{background:'#fff',borderRadius:'16px',padding:'1rem 1.25rem',marginBottom:'1rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
               <div style={{display:'flex',gap:'10px',flexWrap:'wrap',alignItems:'center',marginBottom:'10px'}}>
                 <div style={{display:'flex',gap:'4px',background:'#f4f6fb',borderRadius:'10px',padding:'4px'}}>
