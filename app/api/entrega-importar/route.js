@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
-const XLSX = require('xlsx')
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -17,10 +16,19 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Arquivo e empreendimento obrigatorios.' }, { status: 400 })
     }
 
-    const buffer = await file.arrayBuffer()
-    const wb = XLSX.read(buffer, { type: 'array' })
-    const ws = wb.Sheets[wb.SheetNames[0]]
-    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
+    const buffer = Buffer.from(await file.arrayBuffer())
+    
+    // Use dynamic require to avoid ESM issues
+    let rows = []
+    try {
+      const XLSXLib = await import('xlsx')
+      const XLSX = XLSXLib.default || XLSXLib
+      const wb = XLSX.read(buffer, { type: 'buffer' })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
+    } catch(xlsxErr) {
+      return NextResponse.json({ error: 'Erro ao ler planilha: ' + xlsxErr.message }, { status: 400 })
+    }
 
     let inseridos = 0
     let duplicados = 0
