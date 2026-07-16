@@ -176,6 +176,12 @@ export default function Admin() {
   const [entregaRelFiltroDataInicio, setEntregaRelFiltroDataInicio] = useState('')
   const [entregaRelFiltroDataFim, setEntregaRelFiltroDataFim] = useState('')
   const [gerandoPDFEntrega, setGerandoPDFEntrega] = useState(false)
+  const [relFiltroEmp, setRelFiltroEmp] = useState('')
+  const [relFiltroStatus, setRelFiltroStatus] = useState('todos')
+  const [relFiltroDataInicio, setRelFiltroDataInicio] = useState('')
+  const [relFiltroDataFim, setRelFiltroDataFim] = useState('')
+  const [subAbaAgend, setSubAbaAgend] = useState('lista')
+  const [gerandoPDFRel, setGerandoPDFRel] = useState(false)
   const [entregaTemplateEmp, setEntregaTemplateEmp] = useState('')
   const [entregaTemplateData, setEntregaTemplateData] = useState('')
   const [entregaTemplateMostrar, setEntregaTemplateMostrar] = useState(false)
@@ -799,6 +805,56 @@ Clique no link e agende ja o seu horario:
     setEntregaEmailMensagem(t.mensagem)
     setMostrarTemplates(false)
     setMostrarEnvioEmail(true)
+  }
+
+  function abrirWhatsAppVistoria(a) {
+    if (!a.telefone) { alert('Telefone nao cadastrado para este cliente.'); return }
+    const dataFmt = new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})
+    const msg1 = `Ola ${a.nome}! Lembrando que sua vistoria no ${a.empreendimento} esta agendada para ${dataFmt} as ${a.horario}. Nao se esqueca de trazer documento oficial com foto. Qualquer duvida entre em contato. — Markinvest`
+    const msg2 = `Ola ${a.nome}! Confirmando sua vistoria: ${a.empreendimento} | Unidade: ${a.unidade} | ${dataFmt} as ${a.horario}. — Markinvest`
+    const opcao = window.confirm('Escolha a mensagem:\n\nOK = Lembrete completo\nCANCELAR = Confirmacao curta')
+    window.open(gerarLinkWhatsApp(a.telefone, opcao ? msg1 : msg2), '_blank')
+  }
+
+  function exportarCSVVistoria(lista) {
+    const cab=['Nome','CPF','Email','Telefone','Empreendimento','Unidade','Data','Horario','Status','Agendado Em']
+    const linhas=lista.map(a=>[a.nome,a.cpf,a.email,a.telefone,a.empreendimento||a.apartamento,a.unidade,new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'),(a.horario||'').slice(0,5),a.status,a.criado_em?new Date(a.criado_em).toLocaleString('pt-BR'):''])
+    const NL=String.fromCharCode(10);const rows=[cab,...linhas].map(l=>l.map(v=>String(v||'')).join(';')).join(NL)
+    const blob=new Blob(['﻿'+rows],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='relatorio-vistoria-'+new Date().toISOString().split('T')[0]+'.csv';link.click();URL.revokeObjectURL(url)
+  }
+
+  async function gerarPDFVistoria(lista) {
+    setGerandoPDFRel(true)
+    try {
+      const script=document.createElement('script');script.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';document.head.appendChild(script)
+      await new Promise((res,rej)=>{script.onload=res;script.onerror=rej})
+      const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});const W=297,M=12;let y=0
+      doc.setFillColor(27,47,126);doc.rect(0,0,W,32,'F');doc.setTextColor(255,255,255);doc.setFontSize(20);doc.setFont('helvetica','bold');doc.text('MARKINVEST',W/2,13,{align:'center'});doc.setFontSize(9);doc.setFont('helvetica','normal');doc.text('Relatorio de Agendamentos de Vistoria',W/2,21,{align:'center'});doc.setFontSize(7.5);doc.text('Gerado em: '+new Date().toLocaleString('pt-BR'),W/2,28,{align:'center'});y=38
+      doc.setFillColor(240,243,250);doc.rect(M,y-4,W-M*2,10,'F');doc.setTextColor(60,60,100);doc.setFontSize(7.5);doc.setFont('helvetica','italic')
+      let ftxt='Total: '+lista.length+' registro(s)';if(relFiltroEmp)ftxt+=' | Empreendimento: '+relFiltroEmp;if(relFiltroStatus!=='todos')ftxt+=' | Status: '+relFiltroStatus;doc.text(ftxt,M+3,y+2);y+=12
+      const cols=[{x:M,label:'NOME'},{x:M+45,label:'CPF'},{x:M+80,label:'EMPREENDIMENTO'},{x:M+120,label:'UNIDADE'},{x:M+150,label:'DATA'},{x:M+168,label:'HORA'},{x:M+182,label:'EMAIL'},{x:M+232,label:'STATUS'},{x:M+250,label:'AGENDADO EM'}]
+      doc.setFillColor(27,47,126);doc.rect(M,y,W-M*2,8,'F');doc.setTextColor(255,255,255);doc.setFontSize(7);doc.setFont('helvetica','bold');cols.forEach(c=>doc.text(c.label,c.x+1,y+5.5));y+=9;doc.setFont('helvetica','normal')
+      lista.forEach((a,idx)=>{
+        if(y>185){doc.addPage();y=15;doc.setFillColor(27,47,126);doc.rect(M,y,W-M*2,8,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);cols.forEach(c=>doc.text(c.label,c.x+1,y+5.5));y+=9;doc.setFont('helvetica','normal')}
+        const rowH=8;if(idx%2===0){doc.setFillColor(247,249,255);doc.rect(M,y,W-M*2,rowH,'F')};doc.setDrawColor(220,225,240);doc.line(M,y+rowH,W-M,y+rowH);doc.setFontSize(7)
+        const cancelado=a.status==='cancelado'
+        doc.setTextColor(30,30,30);doc.setFont('helvetica','bold');doc.text((a.nome||'').slice(0,20),cols[0].x+1,y+5.5)
+        doc.setFont('helvetica','normal');doc.setTextColor(60,60,60)
+        doc.text((a.cpf||'').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4'),cols[1].x+1,y+5.5)
+        doc.setTextColor(27,47,126);doc.text((a.empreendimento||a.apartamento||'').slice(0,18),cols[2].x+1,y+5.5)
+        doc.setTextColor(60,60,60);doc.text((a.unidade||'').slice(0,14),cols[3].x+1,y+5.5)
+        doc.setTextColor(27,47,126);doc.setFont('helvetica','bold');doc.text(new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR'),cols[4].x+1,y+5.5)
+        doc.text((a.horario||'').slice(0,5),cols[5].x+1,y+5.5)
+        doc.setFont('helvetica','normal');doc.setTextColor(80,80,80);doc.text((a.email||'').slice(0,24),cols[6].x+1,y+5.5)
+        if(cancelado){doc.setFillColor(254,226,226);doc.rect(cols[7].x,y+1.5,16,5.5,'F');doc.setTextColor(180,30,30)}else{doc.setFillColor(220,252,231);doc.rect(cols[7].x,y+1.5,16,5.5,'F');doc.setTextColor(22,101,52)}
+        doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.text(cancelado?'CANCEL.':'CONF.',cols[7].x+1,y+5.5)
+        const cr=a.criado_em?new Date(a.criado_em):null;if(cr){doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(100,100,100);doc.text(cr.toLocaleDateString('pt-BR')+' '+cr.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),cols[8].x+1,y+5.5)}
+        y+=rowH
+      })
+      const total=doc.getNumberOfPages();for(let i=1;i<=total;i++){doc.setPage(i);doc.setFillColor(27,47,126);doc.rect(0,200,W,7,'F');doc.setTextColor(255,255,255);doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.text('Markinvest - Rua Pedroso Alvarenga, 1284 - Cj. 21 - Itaim Bibi - Sao Paulo',W/2,204.5,{align:'center'});doc.text('Pagina '+i+' de '+total,W-M,204.5,{align:'right'})}
+      doc.save('relatorio-vistoria-'+new Date().toISOString().split('T')[0]+'.pdf')
+    } catch(e){console.error(e);alert('Erro ao gerar PDF.')}
+    setGerandoPDFRel(false)
   }
 
   const filtrados=agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>filtro==='todos'||a.status===filtro).filter(a=>!filtroEmp||a.apartamento?.toLowerCase().includes(filtroEmp.toLowerCase())).filter(a=>{if(!busca)return true;const b=busca.toLowerCase();return a.nome?.toLowerCase().includes(b)||a.email?.toLowerCase().includes(b)||a.apartamento?.toLowerCase().includes(b)||a.telefone?.includes(b)||a.cpf?.includes(b)}).filter(a=>{if(dataInicio&&a.data<dataInicio)return false;if(dataFim&&a.data>dataFim)return false;return true}).sort((a,b)=>{const da=new Date(a.criado_em||0),db=new Date(b.criado_em||0);return ordem==='mais-antigo'?da-db:db-da})
@@ -2252,7 +2308,97 @@ Clique no link e agende ja o seu horario:
 
         {abaAtiva==='agendamentos'&&(
           <>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'16px',marginBottom:'1.5rem'}}>
+            {subAbaAgend==='relatorio'&&(
+              <div style={{background:'#fff',borderRadius:'16px',padding:'1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px',flexWrap:'wrap',gap:'10px'}}>
+                  <div><h2 style={{fontSize:'16px',fontWeight:'700',color:AZUL,margin:'0 0 4px'}}>Relatorio de Vistoria</h2>
+                  <p style={{fontSize:'13px',color:'#6b7280',margin:0}}>Todos os agendamentos de vistoria</p></div>
+                </div>
+                <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'16px',padding:'12px 14px',background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',alignItems:'center'}}>
+                  <select value={relFiltroEmp} onChange={e=>setRelFiltroEmp(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}>
+                    <option value="">Todos os empreendimentos</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
+                  </select>
+                  <select value={relFiltroStatus} onChange={e=>setRelFiltroStatus(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}>
+                    <option value="todos">Todos os status</option>
+                    <option value="confirmado">Confirmados</option>
+                    <option value="cancelado">Cancelados</option>
+                  </select>
+                  <div style={{display:'flex',alignItems:'center',gap:'6px'}}><label style={{fontSize:'12px',color:'#6b7280',fontWeight:'600'}}>De:</label><input type="date" value={relFiltroDataInicio} onChange={e=>setRelFiltroDataInicio(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none'}}/></div>
+                  <div style={{display:'flex',alignItems:'center',gap:'6px'}}><label style={{fontSize:'12px',color:'#6b7280',fontWeight:'600'}}>Ate:</label><input type="date" value={relFiltroDataFim} onChange={e=>setRelFiltroDataFim(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none'}}/></div>
+                  {(relFiltroEmp||relFiltroStatus!=='todos'||relFiltroDataInicio||relFiltroDataFim)&&<button onClick={()=>{setRelFiltroEmp('');setRelFiltroStatus('todos');setRelFiltroDataInicio('');setRelFiltroDataFim('')}} style={{padding:'8px 12px',background:'#f3f4f6',border:'none',borderRadius:'8px',fontSize:'12px',cursor:'pointer',color:'#6b7280',fontWeight:'600'}}>Limpar</button>}
+                </div>
+                {(()=>{
+                  const lista=agendamentos.filter(a=>
+                    a.tipo!=='revistoria'&&
+                    (!relFiltroEmp||a.empreendimento===relFiltroEmp||(a.apartamento||'').includes(relFiltroEmp))&&
+                    (relFiltroStatus==='todos'||a.status===relFiltroStatus)&&
+                    (!relFiltroDataInicio||a.data>=relFiltroDataInicio)&&
+                    (!relFiltroDataFim||a.data<=relFiltroDataFim)
+                  ).sort((a,b)=>a.data<b.data?-1:a.data>b.data?1:0)
+                  const totalC=lista.filter(a=>a.status==='confirmado').length
+                  const totalX=lista.filter(a=>a.status==='cancelado').length
+                  return(
+                    <>
+                      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'12px',marginBottom:'16px'}}>
+                        {[{label:'TOTAL',val:lista.length,cor:AZUL,bg:'#eff3ff'},{label:'CONFIRMADOS',val:totalC,cor:VERDE,bg:'#f0fdf4'},{label:'CANCELADOS',val:totalX,cor:VERMELHO,bg:'#fff5f5'}].map(c=>(
+                          <div key={c.label} style={{background:'#fff',borderRadius:'12px',padding:'14px 16px',border:'1px solid #e0e5f5',borderLeft:'4px solid '+c.cor,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                            <div><p style={{fontSize:'10px',fontWeight:'700',color:'#9ca3af',textTransform:'uppercase',margin:'0 0 4px'}}>{c.label}</p><p style={{fontSize:'28px',fontWeight:'800',color:c.cor,margin:0,lineHeight:1}}>{c.val}</p></div>
+                            <div style={{width:'40px',height:'40px',background:c.bg,borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px'}}>{c.label==='TOTAL'?'📋':c.label==='CONFIRMADOS'?'✅':'❌'}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{display:'flex',gap:'8px',marginBottom:'16px'}}>
+                        <button onClick={()=>exportarCSVVistoria(lista)} style={{padding:'8px 18px',background:AZUL,color:'#fff',border:'none',borderRadius:'10px',fontSize:'12px',fontWeight:'700',cursor:'pointer'}}>⬇ EXPORTAR CSV</button>
+                        <button onClick={()=>gerarPDFVistoria(lista)} disabled={gerandoPDFRel} style={{padding:'8px 18px',background:gerandoPDFRel?'#9ca3af':VERMELHO,color:'#fff',border:'none',borderRadius:'10px',fontSize:'12px',fontWeight:'700',cursor:gerandoPDFRel?'not-allowed':'pointer'}}>{gerandoPDFRel?'GERANDO...':'📄 EXPORTAR PDF'}</button>
+                      </div>
+                      {lista.length===0?<div style={{textAlign:'center',padding:'3rem',color:'#9ca3af',fontSize:'14px',background:'#f9fafb',borderRadius:'12px'}}>Nenhum agendamento encontrado.</div>:(
+                        <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                          {lista.map(a=>{
+                            const cancelado=a.status==='cancelado';const criadoEm=a.criado_em?new Date(a.criado_em):null
+                            return(
+                              <div key={a.id} style={{background:cancelado?'#fff8f8':'#f8f9ff',borderRadius:'12px',padding:'12px 16px',border:'1px solid '+(cancelado?'#fecaca':'#e0e5f5'),display:'flex',alignItems:'center',gap:'12px',position:'relative',overflow:'hidden'}}>
+                                <div style={{position:'absolute',left:0,top:0,bottom:0,width:'4px',background:cancelado?VERMELHO:VERDE,borderRadius:'12px 0 0 12px'}}></div>
+                                <div style={{width:'38px',height:'38px',borderRadius:'10px',background:cancelado?'#fee2e2':AZUL,display:'flex',alignItems:'center',justifyContent:'center',color:cancelado?VERMELHO:'#fff',fontSize:'15px',fontWeight:'700',flexShrink:0,marginLeft:'6px'}}>{(a.nome||'?').charAt(0).toUpperCase()}</div>
+                                <div style={{flex:1,minWidth:0}}>
+                                  <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'3px',flexWrap:'wrap'}}>
+                                    <span style={{fontSize:'13px',fontWeight:'700',color:cancelado?'#9ca3af':'#111',textDecoration:cancelado?'line-through':'none'}}>{a.nome}</span>
+                                    <span style={{fontSize:'10px',padding:'2px 8px',borderRadius:'20px',background:cancelado?'#fee2e2':'#dcfce7',color:cancelado?VERMELHO:'#16a34a',fontWeight:'700'}}>{a.status}</span>
+                                  </div>
+                                  <div style={{fontSize:'12px',color:'#6b7280',marginBottom:'2px'}}>{a.empreendimento||a.apartamento}</div>
+                                  <div style={{display:'flex',gap:'12px',fontSize:'11px',color:'#9ca3af',flexWrap:'wrap'}}>
+                                    {a.email&&<span>✉ {a.email}</span>}
+                                    {a.telefone&&<span>📱 {a.telefone}</span>}
+                                    {a.cpf&&<span>🪪 {a.cpf}</span>}
+                                  </div>
+                                  {criadoEm&&<div style={{fontSize:'10px',color:'#c4c9d9',marginTop:'2px'}}>Agendado em {criadoEm.toLocaleDateString('pt-BR')} {criadoEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>}
+                                </div>
+                                <div style={{textAlign:'center',flexShrink:0,background:cancelado?'#fff5f5':'#eff3ff',borderRadius:'10px',padding:'8px 14px',border:'1px solid '+(cancelado?'#fecaca':'#bfdbfe')}}>
+                                  <div style={{fontSize:'16px',fontWeight:'800',color:cancelado?'#d1d5db':AZUL,lineHeight:1}}>{new Date(a.data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</div>
+                                  <div style={{fontSize:'10px',color:'#9ca3af',marginTop:'2px'}}>{new Date(a.data+'T12:00:00').getFullYear()}</div>
+                                  <div style={{fontSize:'13px',fontWeight:'700',color:cancelado?'#d1d5db':AZUL,marginTop:'4px'}}>{(a.horario||'').slice(0,5)}</div>
+                                </div>
+                                {a.telefone&&<button onClick={()=>abrirWhatsAppVistoria(a)} style={{padding:'5px 10px',background:'#f0fdf4',border:'1px solid #86efac',borderRadius:'8px',fontSize:'11px',color:'#15803d',cursor:'pointer',fontWeight:'700',flexShrink:0,display:'flex',alignItems:'center',gap:'4px'}}>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.556 4.116 1.525 5.836L.057 23.998l6.304-1.456A11.947 11.947 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.884 9.884 0 01-5.031-1.378l-.36-.214-3.742.865.944-3.617-.235-.372A9.877 9.877 0 012.106 12c0-5.461 4.433-9.894 9.894-9.894 5.461 0 9.894 4.433 9.894 9.894 0 5.461-4.433 9.894-9.894 9.894z"/></svg>
+                                  WA
+                                </button>}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
+              </div>
+            )}
+            {subAbaAgend!=='relatorio'&&(
+              <div style={{display:'flex',gap:'8px',marginBottom:'1rem',flexWrap:'wrap'}}>
+                {[{id:'lista',label:'Agendamentos'},{id:'relatorio',label:'Relatorio'}].map(s=>(
+                  <button key={s.id} onClick={()=>setSubAbaAgend(s.id)} style={{padding:'9px 18px',borderRadius:'10px',border:subAbaAgend===s.id?'none':'1px solid #e5e7eb',background:subAbaAgend===s.id?AZUL:'#fff',color:subAbaAgend===s.id?'#fff':'#6b7280',fontSize:'13px',fontWeight:'700',cursor:'pointer'}}>{s.label}</button>
+                ))}
+              </div>
+            )}
+            {subAbaAgend!=='relatorio'&&<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'16px',marginBottom:'1.5rem'}}>
               {[{label:'TOTAL',val:agendamentos.filter(a=>a.tipo!=='revistoria').length,cor:AZUL,bg:'#eff3ff'},{label:'CONFIRMADOS',val:totalConf,cor:VERDE,bg:'#f0fdf4'},{label:'CANCELADOS',val:totalCanc,cor:VERMELHO,bg:'#fff5f5'}].map(c=>(
                 <div key={c.label} style={{background:'#fff',borderRadius:'16px',padding:'1.25rem 1.5rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)',borderLeft:'4px solid '+c.cor,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                   <div><p style={{fontSize:'10px',fontWeight:'700',color:'#9ca3af',textTransform:'uppercase',letterSpacing:'0.1em',margin:'0 0 6px'}}>{c.label}</p><p style={{fontSize:'32px',fontWeight:'800',color:c.cor,margin:0,lineHeight:1}}>{c.val}</p></div>
