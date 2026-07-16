@@ -165,6 +165,10 @@ export default function Admin() {
   const [entregaEditEmail, setEntregaEditEmail] = useState('')
   const [entregaEditTelefone, setEntregaEditTelefone] = useState('')
   const [enviandoTokens, setEnviandoTokens] = useState(false)
+  const [importandoCpfs, setImportandoCpfs] = useState(false)
+  const [importResultado, setImportResultado] = useState(null)
+  const [importEmp, setImportEmp] = useState('')
+  const [mostrarImport, setMostrarImport] = useState(false)
   const [entregaConfigHoraInicio, setEntregaConfigHoraInicio] = useState('09:00')
   const [entregaConfigHoraFim, setEntregaConfigHoraFim] = useState('17:45')
   const [entregaConfigIntervalo, setEntregaConfigIntervalo] = useState(15)
@@ -855,6 +859,30 @@ Clique no link e agende ja o seu horario:
       doc.save('relatorio-vistoria-'+new Date().toISOString().split('T')[0]+'.pdf')
     } catch(e){console.error(e);alert('Erro ao gerar PDF.')}
     setGerandoPDFRel(false)
+  }
+
+  async function importarPlanilha(file) {
+    if (!importEmp) { alert('Selecione o empreendimento antes de importar.'); return }
+    setImportandoCpfs(true); setImportResultado(null)
+    try {
+      const XLSX = await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm')
+      const buffer = await file.arrayBuffer()
+      const wb = XLSX.read(buffer, { type: 'array' })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
+      const registros = rows.map(row => ({
+        cpf: String(Object.entries(row).find(([k])=>k.toLowerCase().includes('cpf'))?.[1]||'').trim(),
+        nome: String(Object.entries(row).find(([k])=>k.toLowerCase().includes('cliente')||k.toLowerCase().includes('nome'))?.[1]||'').trim(),
+        unidade: String(Object.entries(row).find(([k])=>k.toLowerCase().includes('unidade'))?.[1]||'').trim(),
+        email: String(Object.entries(row).find(([k])=>k.toLowerCase().includes('mail'))?.[1]||'').trim(),
+        telefone: String(Object.entries(row).find(([k])=>k.toLowerCase().includes('tel')||k.toLowerCase().includes('fone'))?.[1]||'').trim()
+      })).filter(r=>r.cpf)
+      const res = await fetch('/api/entrega-importar', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ registros, empreendimento: importEmp }) })
+      const data = await res.json()
+      setImportResultado(data)
+      if (data.inseridos > 0) buscarEntregaCpfs()
+    } catch(e) { setImportResultado({ error: 'Erro: ' + e.message }) }
+    setImportandoCpfs(false)
   }
 
   const filtrados=agendamentos.filter(a=>a.tipo!=='revistoria').filter(a=>filtro==='todos'||a.status===filtro).filter(a=>!filtroEmp||a.apartamento?.toLowerCase().includes(filtroEmp.toLowerCase())).filter(a=>{if(!busca)return true;const b=busca.toLowerCase();return a.nome?.toLowerCase().includes(b)||a.email?.toLowerCase().includes(b)||a.apartamento?.toLowerCase().includes(b)||a.telefone?.includes(b)||a.cpf?.includes(b)}).filter(a=>{if(dataInicio&&a.data<dataInicio)return false;if(dataFim&&a.data>dataFim)return false;return true}).sort((a,b)=>{const da=new Date(a.criado_em||0),db=new Date(b.criado_em||0);return ordem==='mais-antigo'?da-db:db-da})
@@ -1994,6 +2022,31 @@ Clique no link e agende ja o seu horario:
                   </div>
                   {erroEntregaCpf&&<p style={{color:VERMELHO,fontSize:'12px',margin:'8px 0 0',fontWeight:'600'}}>{erroEntregaCpf}</p>}
                 </div>
+                                <div style={{marginBottom:'12px'}}>
+                  <button onClick={()=>setMostrarImport(t=>!t)} style={{display:'flex',alignItems:'center',gap:'8px',padding:'9px 18px',background:mostrarImport?'#6366f1':'#f5f3ff',border:'1px solid #a5b4fc',borderRadius:'10px',fontSize:'13px',fontWeight:'700',color:'#6366f1',cursor:'pointer',marginBottom:'10px'}}>
+                    ?? {mostrarImport?'Ocultar importador':'Importar planilha Excel'}
+                  </button>
+                  {mostrarImport&&(
+                    <div style={{background:'#f5f3ff',border:'1px solid #a5b4fc',borderRadius:'12px',padding:'1.25rem',marginBottom:'12px'}}>
+                      <p style={{fontSize:'13px',fontWeight:'700',color:'#6366f1',margin:'0 0 4px'}}>?? Importar planilha Excel</p>
+                      <p style={{fontSize:'12px',color:'#7c3aed',margin:'0 0 12px'}}>Colunas esperadas: CPF, Cliente/Nome, Unidade, E-mail.</p>
+                      <div style={{display:'flex',gap:'10px',flexWrap:'wrap',alignItems:'flex-end',marginBottom:'10px'}}>
+                        <div>
+                          <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Empreendimento</label>
+                          <select value={importEmp} onChange={e=>setImportEmp(e.target.value)} style={{padding:'9px 12px',border:'1px solid #a5b4fc',borderRadius:'8px',fontSize:'13px',outline:'none',background:'#fff',cursor:'pointer'}}>
+                            <option value="">Selecione...</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{fontSize:'11px',fontWeight:'700',color:'#6b7280',display:'block',marginBottom:'4px',textTransform:'uppercase'}}>Arquivo Excel</label>
+                          <input type="file" accept=".xlsx,.xls" onChange={e=>e.target.files[0]&&importarPlanilha(e.target.files[0])} disabled={importandoCpfs||!importEmp} style={{padding:'7px 12px',border:'1px solid #a5b4fc',borderRadius:'8px',fontSize:'13px',background:'#fff',cursor:importEmp?'pointer':'not-allowed'}}/>
+                        </div>
+                        {importandoCpfs&&<p style={{fontSize:'13px',color:'#7c3aed',fontWeight:'600',alignSelf:'center'}}>Importando...</p>}
+                      </div>
+                      {importResultado&&(<div style={{background:importResultado.error?'#fff5f5':'#f0fdf4',border:'1px solid '+(importResultado.error?'#fca5a5':'#86efac'),borderRadius:'10px',padding:'12px 14px'}}>{importResultado.error?<p style={{color:'red',fontSize:'13px',fontWeight:'600',margin:0}}>{importResultado.error}</p>:<p style={{color:'#15803d',fontSize:'13px',fontWeight:'700',margin:0}}>Importados: {importResultado.inseridos} | Duplicados: {importResultado.duplicados}</p>}</div>)}
+                    </div>
+                  )}
+                </div>
                 <div style={{display:'flex',gap:'10px',flexWrap:'wrap',marginBottom:'12px',alignItems:'center'}}>
                   <input value={entregaCpfBusca} onChange={e=>setEntregaCpfBusca(e.target.value)} placeholder="Buscar por CPF ou nome..." style={{flex:1,minWidth:'180px',padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none'}}/>
                   <select value={entregaCpfsFiltroEmp} onChange={e=>setEntregaCpfsFiltroEmp(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:'10px',fontSize:'13px',outline:'none',background:'#f9fafb',cursor:'pointer'}}><option value="">Todos os empreendimentos</option>{empreendimentos.map(emp=><option key={emp} value={emp}>{emp}</option>)}</select>
@@ -2477,3 +2530,5 @@ Clique no link e agende ja o seu horario:
     </main>
   )
 }
+
+
