@@ -209,13 +209,21 @@ function EntregaContent() {
       </div>
       <div style={{maxWidth:'480px',margin:'2rem auto',padding:'1rem'}}>
         {!clienteDados && (
-          <div style={{background:'#fff',borderRadius:'16px',padding:'2rem',boxShadow:'0 8px 32px rgba(27,47,126,0.10)',textAlign:'center'}}>
-            <div style={{width:'56px',height:'56px',background:'#fff5f5',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1rem'}}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <div style={{background:'#fff',borderRadius:'16px',padding:'3rem 2rem',boxShadow:'0 8px 32px rgba(27,47,126,0.10)',textAlign:'center'}}>
+            <div style={{fontSize:'48px',marginBottom:'1.25rem'}}>🔒</div>
+            <h2 style={{fontSize:'22px',fontWeight:'700',color:'#1B2F7E',margin:'0 0 12px'}}>Unidade Bloqueada</h2>
+            <p style={{fontSize:'14px',color:'#6b7280',lineHeight:'1.8',margin:'0 0 28px'}}>Qualquer duvida entre em contato com o Relacionamento com Cliente.</p>
+            <div style={{background:'#f8f9ff',border:'1px solid #e0e5f5',borderRadius:'12px',padding:'16px 20px',textAlign:'left'}}>
+              <p style={{fontSize:'12px',fontWeight:'700',color:'#9ca3af',textTransform:'uppercase',letterSpacing:'0.08em',margin:'0 0 10px'}}>Maiores informacoes:</p>
+              <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px'}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" stroke="#1B2F7E" strokeWidth="2"/></svg>
+                <span style={{fontSize:'14px',fontWeight:'600',color:'#1B2F7E'}}>(11) 5554-3000</span>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="#1B2F7E" strokeWidth="2" strokeLinecap="round"/></svg>
+                <span style={{fontSize:'14px',fontWeight:'600',color:'#1B2F7E'}}>relacionamento@markinvest.com.br</span>
+              </div>
             </div>
-            <h2 style={{fontSize:'18px',fontWeight:'700',color:'#111',margin:'0 0 8px'}}>Link invalido</h2>
-            <p style={{fontSize:'14px',color:'#6b7280',margin:'0 0 20px',lineHeight:'1.6'}}>{erro}</p>
-            <p style={{fontSize:'13px',color:'#9ca3af'}}>Entre em contato com o Relacionamento Markinvest.</p>
           </div>
         )}
       </div>
