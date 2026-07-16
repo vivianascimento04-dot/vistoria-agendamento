@@ -222,6 +222,53 @@ export async function POST(request) {
 </body>
 </html>`
       })
+      // Email copia para relacionamento
+      await transporter.sendMail({
+        from: '"Markinvest" <' + process.env.EMAIL_USER + '>',
+        to: 'relacionamento@markinvest.com.br',
+        subject: 'Nova Vistoria Agendada - ' + empreendimento + ' | ' + dataFormatada,
+        html: `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:30px 0;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+      <tr><td style="background:linear-gradient(135deg,#1B2F7E 0%,#2a4db5 100%);padding:32px;text-align:center;">
+        <p style="color:#fff;font-size:24px;font-weight:900;margin:0;font-family:Georgia,serif;">MARKINVEST</p>
+        <p style="color:rgba(255,255,255,0.75);font-size:11px;text-transform:uppercase;margin:4px 0 0;">Nova Vistoria Agendada</p>
+      </td></tr>
+      <tr><td style="background:#1d9e75;padding:12px 32px;text-align:center;">
+        <p style="color:#fff;font-size:13px;font-weight:700;margin:0;">Novo agendamento de vistoria recebido</p>
+      </td></tr>
+      <tr><td style="background:#fff;padding:32px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9ff;border-radius:12px;border:1px solid #e0e5f5;">
+          <tr><td style="padding:14px 20px;border-bottom:1px solid #e0e5f5;">
+            <p style="font-size:10px;font-weight:700;color:#1B2F7E;text-transform:uppercase;margin:0;">DADOS DO CLIENTE</p>
+          </td></tr>
+          <tr><td style="padding:4px 20px 14px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr><td style="padding:8px 0;border-bottom:1px solid #eef0f8;width:35%;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Nome</td><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:14px;font-weight:700;color:#111;">${nome}</td></tr>
+              <tr><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">CPF</td><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:14px;color:#374151;">${cpf}</td></tr>
+              <tr><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Email</td><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:14px;color:#1B2F7E;font-weight:600;">${email}</td></tr>
+              <tr><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Telefone</td><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:14px;color:#374151;">${telefone}</td></tr>
+              <tr><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Empreendimento</td><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:14px;font-weight:700;color:#1B2F7E;">${empreendimento}</td></tr>
+              <tr><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Unidade</td><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:14px;color:#374151;">${unidade}</td></tr>
+              <tr><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Data</td><td style="padding:8px 0;border-bottom:1px solid #eef0f8;font-size:15px;font-weight:700;color:#1B2F7E;">${dataFormatada}</td></tr>
+              <tr><td style="padding:8px 0;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;">Horario</td><td style="padding:8px 0;font-size:15px;font-weight:700;color:#1B2F7E;">${horario}</td></tr>
+            </table>
+          </td></tr>
+        </table>
+      </td></tr>
+      <tr><td style="background:#1B2F7E;padding:20px 32px;text-align:center;">
+        <p style="color:#fff;font-size:13px;font-weight:700;margin:0;">MARKINVEST — Sistema de Agendamento</p>
+        <p style="color:rgba(255,255,255,0.6);font-size:11px;margin:6px 0 0;">Este e-mail foi gerado automaticamente.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`
+      })
     } catch(e) {
       console.error('Erro e-mail:', e.message)
     }
