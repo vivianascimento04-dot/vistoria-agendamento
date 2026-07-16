@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import * as XLSX from 'xlsx'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -8,24 +9,37 @@ const supabase = createClient(
 
 export async function POST(request) {
   try {
-    const body = await request.json()
-    const { registros, empreendimento } = body
+    const formData = await request.formData()
+    const file = formData.get('file')
+    const empreendimento = formData.get('empreendimento')
 
-    if (!registros || !registros.length) {
-      return NextResponse.json({ error: 'Nenhum registro enviado.' }, { status: 400 })
+    if (!file || !empreendimento) {
+      return NextResponse.json({ error: 'Arquivo e empreendimento obrigatorios.' }, { status: 400 })
     }
-    if (!empreendimento) {
-      return NextResponse.json({ error: 'Empreendimento obrigatorio.' }, { status: 400 })
-    }
+
+    const buffer = await file.arrayBuffer()
+    const wb = XLSX.read(buffer, { type: 'array' })
+    const ws = wb.Sheets[wb.SheetNames[0]]
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
 
     let inseridos = 0
     let duplicados = 0
     let erros = []
 
-    for (const reg of registros) {
-      const cpfLimpo = String(reg.cpf || '').replace(/\D/g, '')
+    for (const row of rows) {
+      const get = (nomes) => {
+        for (const n of nomes) {
+          const k = Object.keys(row).find(k => k.toLowerCase().trim().includes(n))
+          if (k) return String(row[k] || '').trim()
+        }
+        return ''
+      }
+
+      const cpfRaw = get(['cpf'])
+      const cpfLimpo = cpfRaw.replace(/\D/g, '')
+
       if (!cpfLimpo || cpfLimpo.length < 11) {
-        erros.push('CPF invalido: ' + reg.cpf)
+        erros.push('CPF invalido: ' + cpfRaw)
         continue
       }
 
@@ -33,19 +47,16 @@ export async function POST(request) {
         .from('entrega_cpfs_autorizados')
         .insert([{
           cpf: cpfLimpo,
-          nome: reg.nome || '',
-          unidade: reg.unidade || '',
-          email: reg.email || '',
-          telefone: reg.telefone || '',
+          nome: get(['cliente', 'nome']),
+          unidade: get(['unidade', 'apto']),
+          email: get(['e-mail', 'email', 'mail']),
+          telefone: get(['telefone', 'celular', 'fone', 'tel']),
           empreendimento
         }])
 
       if (error) {
-        if (error.code === '23505') {
-          duplicados++
-        } else {
-          erros.push(reg.nome + ' - ' + error.message)
-        }
+        if (error.code === '23505') duplicados++
+        else erros.push(cpfRaw + ' - ' + error.message)
       } else {
         inseridos++
       }
