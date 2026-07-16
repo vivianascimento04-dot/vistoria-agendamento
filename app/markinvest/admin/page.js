@@ -773,6 +773,21 @@ Clique no link e agende ja o seu horario:
     setSalvandoConfig(false)
   }
 
+  async function importarPlanilha(file) {
+    if (!importEmp) { alert('Selecione o empreendimento.'); return }
+    setImportandoCpfs(true); setImportResultado(null)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('empreendimento', importEmp)
+      const res = await fetch('/api/entrega-importar', { method: 'POST', body: formData })
+      const data = await res.json()
+      setImportResultado(data)
+      if (data.inseridos > 0) buscarEntregaCpfs()
+    } catch(e) { setImportResultado({ error: 'Erro: ' + e.message }) }
+    setImportandoCpfs(false)
+  }
+
   async function buscarEmailTemplates() {
     try {
       const res = await fetch('/api/email-templates')
@@ -2530,5 +2545,6 @@ Clique no link e agende ja o seu horario:
     </main>
   )
 }
+
 
 
