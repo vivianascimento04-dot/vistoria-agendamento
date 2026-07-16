@@ -2407,7 +2407,7 @@ Clique no link e agende ja o seu horario:
                 </div>
               ))}
             </div>
-            <div style={{background:'#fff',borderRadius:'16px',padding:'1rem 1.25rem',marginBottom:'1rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
+            {subAbaAgend!=='relatorio'&&(<div style={{background:'#fff',borderRadius:'16px',padding:'1rem 1.25rem',marginBottom:'1rem',boxShadow:'0 2px 12px rgba(27,47,126,0.07)'}}>
               <div style={{display:'flex',gap:'10px',flexWrap:'wrap',alignItems:'center',marginBottom:'10px'}}>
                 <div style={{display:'flex',gap:'4px',background:'#f4f6fb',borderRadius:'10px',padding:'4px'}}>
                   {['todos','confirmado','cancelado'].map(f=>(<button key={f} onClick={()=>setFiltro(f)} style={{padding:'6px 16px',borderRadius:'8px',border:'none',background:filtro===f?(f==='cancelado'?VERMELHO:f==='confirmado'?VERDE:AZUL):'transparent',color:filtro===f?'#fff':'#9ca3af',fontSize:'12px',fontWeight:'700',cursor:'pointer',textTransform:'uppercase'}}>{f}</button>))}
@@ -2470,6 +2470,7 @@ Clique no link e agende ja o seu horario:
                 <button onClick={()=>setPagina(p=>Math.min(totalPaginas,p+1))} disabled={pagina===totalPaginas} style={{padding:'6px 14px',background:pagina===totalPaginas?'#f3f4f6':'#fff',border:'1px solid #e5e7eb',borderRadius:'8px',fontSize:'13px',fontWeight:'600',cursor:pagina===totalPaginas?'not-allowed':'pointer',color:pagina===totalPaginas?'#9ca3af':'#374151'}}>Proximo</button>
               </div>
             )}
+            </div>)}
             <p style={{textAlign:'center',fontSize:'12px',color:'#9ca3af',marginTop:'1rem'}}>Mostrando {filtrados.length===0?0:((pagina-1)*POR_PAGINA)+1} - {Math.min(pagina*POR_PAGINA,filtrados.length)} de {filtrados.length} agendamentos</p>
             <p style={{textAlign:'center',fontSize:'11px',color:'#d1d5db',marginTop:'6px',marginBottom:'1rem'}}>Markinvest 2026</p>
           </>
@@ -2478,3 +2479,5 @@ Clique no link e agende ja o seu horario:
     </main>
   )
 }
+
+
